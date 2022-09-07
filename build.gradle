@@ -3,7 +3,6 @@ import java.nio.file.Files
 buildscript {
   repositories {
     mavenCentral()
-    jcenter()
     mavenLocal()
   }
 
@@ -26,13 +25,22 @@ apply plugin: 'opensearch.opensearchplugin'
 apply plugin: 'opensearch.java-rest-test'
 apply plugin: 'opensearch.rest-resources'
 
+
+idea {
+    module {
+        downloadJavadoc = true
+        downloadSources = true
+    }
+}
+
 // license of this project
 licenseFile = rootProject.file('LICENSE.txt')
 // copyright notices
 noticeFile = rootProject.file('NOTICE.txt')
 
 // disable uploadArchives task for now, no upload happening currently
-uploadArchives.enabled = false
+//GSI TODO: disabled for now
+//uploadArchives.enabled = false
 
 opensearchplugin {
   name 'ltr'
@@ -49,30 +57,21 @@ opensearchplugin {
 repositories {
   mavenCentral()
   mavenLocal()
-  jcenter {
-    url "https://jcenter.bintray.com/"
-    metadataSources{
-      artifact()
-    }
-  }
 }
 
 dependencies {
-  compile "org.apache.lucene:lucene-expressions:${luceneVersion}"
-  compile "org.antlr:antlr4-runtime:${antlrVersion}"
-  compile "org.ow2.asm:asm:${ow2Version}"
-  compile "org.ow2.asm:asm-commons:${ow2Version}"
-  compile "org.ow2.asm:asm-tree:${ow2Version}"
-  compile 'com.o19s:RankyMcRankFace:0.1.1'
-  compile "com.github.spullara.mustache.java:compiler:0.9.3"
+  implementation "org.apache.lucene:lucene-core:${luceneVersion}"
+  implementation "org.apache.lucene:lucene-expressions:${luceneVersion}"
+  implementation "org.antlr:antlr4-runtime:${antlrVersion}"
+  implementation "org.ow2.asm:asm:${ow2Version}"
+  implementation "org.ow2.asm:asm-commons:${ow2Version}"
+  implementation "org.ow2.asm:asm-tree:${ow2Version}"
+  implementation 'com.o19s:RankyMcRankFace:0.1.1'
+  implementation "com.github.spullara.mustache.java:compiler:0.9.3"
 }
 
 
-//TODO: figure this out: validateNebulaPom fails
 
-validateNebulaPom {
-    validateNebulaPom.enabled = false
-}
 
 // see https://github.com/opensearch-project/OpenSearch/blob/0ba0e7cc26060f964fcbf6ee45bae53b3a9941d0/buildSrc/src/main/java/org/opensearch/gradle/precommit/DependencyLicensesTask.java
 dependencyLicenses {
@@ -104,7 +103,7 @@ sourceSets {
 // licenseHeaders.enabled = false
 
 // No need to validate POM, as we do not upload to sonatype
-// validateNebulaPom.enabled = false
+validateNebulaPom.enabled = false
 
 // Elastic tried to remove the logging requirement for plugins, but didn't get it quite right so this is a short term fix until 7.11
 // https://github.com/elastic/opensearch/issues/65247
