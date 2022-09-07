@@ -21,6 +21,7 @@ import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermStates;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Weight;
@@ -81,6 +82,12 @@ public class ExplorerQuery extends Query {
         }
 
         return this;
+    }
+
+    @Override
+    public void visit(QueryVisitor visitor) {
+        //TODO: check this is right
+        query.visit(visitor);
     }
 
     @Override
@@ -236,11 +243,6 @@ public class ExplorerQuery extends Query {
             super(q);
             weight = subWeight;
             this.type = type;
-        }
-
-        @Override
-        public void extractTerms(Set<Term> terms) {
-            weight.extractTerms(terms);
         }
 
         @Override

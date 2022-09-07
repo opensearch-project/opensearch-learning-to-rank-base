@@ -62,7 +62,6 @@ public class TransportCreateModelFromSetAction extends HandledTransportAction<Cr
             throw new IllegalArgumentException("Store [" + request.getStore() + "] does not exist, please create it first.");
         }
         GetRequest getRequest = new GetRequest(request.getStore())
-                .type(IndexFeatureStore.ES_TYPE)
                 .id(StorableElement.generateId(StoredFeatureSet.TYPE, request.getFeatureSetName()));
         getRequest.setParentTask(clusterService.localNode().getId(), task.getId());
         getAction.execute(getRequest, ActionListener.wrap((r) -> this.doStore(task, r, request, listener), listener::onFailure));

@@ -144,7 +144,6 @@ public class TransportAddFeatureToSetAction extends HandledTransportAction<AddFe
                 featuresRef.set(features);
             }
             GetRequest getRequest = new GetRequest(store)
-                    .type(IndexFeatureStore.ES_TYPE)
                     .id(StorableElement.generateId(StoredFeatureSet.TYPE, featureSetName))
                     .routing(routing);
 
@@ -170,7 +169,7 @@ public class TransportAddFeatureToSetAction extends HandledTransportAction<AddFe
             BoolQueryBuilder bq = QueryBuilders.boolQuery();
             bq.must(nameQuery);
             bq.must(QueryBuilders.matchQuery("type", StoredFeature.TYPE));
-            srequest.types(IndexFeatureStore.ES_TYPE);
+            //srequest.types(IndexFeatureStore.ES_TYPE);
             srequest.source().query(bq);
             srequest.source().fetchSource(true);
             srequest.source().size(StoredFeatureSet.MAX_FEATURES);

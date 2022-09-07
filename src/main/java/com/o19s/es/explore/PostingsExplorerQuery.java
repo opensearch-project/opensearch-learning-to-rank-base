@@ -29,6 +29,7 @@ import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.Weight;
@@ -83,6 +84,14 @@ public class PostingsExplorerQuery extends Query {
         return new PostingsExplorerWeight(this, this.term, TermStates.build(context, this.term,
                 scoreMode.needsScores()),
                 this.type);
+    }
+
+    @Override
+    public void visit(QueryVisitor visitor) {
+        //TODO
+        if (visitor.acceptField(term.field())) {
+            visitor.consumeTerms(this, term);
+        }
     }
 
     /**
