@@ -1,8 +1,8 @@
 # Important Notice
 
-This is a fork of https://github.com/o19s/elasticsearch-learning-to-rank to work with OpenSearch. It's a rewrite of some parts to be able to work with OpenSearch 1.x. Please refer to official documentation of [Elasticsearch Learning to Rank](http://elasticsearch-learning-to-rank.readthedocs.io) for usage.
+This is a fork of https://github.com/o19s/elasticsearch-learning-to-rank to work with OpenSearch. It's a rewrite of some parts to be able to work with OpenSearch. Please refer to the Elasticsearch documentation ["Elasticsearch Learning to Rank"](http://elasticsearch-learning-to-rank.readthedocs.io) for usage.
 
-The OpenSearch Learning to Rank plugin uses machine learning to improve search relevance ranking. It's powering search at places like Wikimedia Foundation and Snagajob!
+The OpenSearch Learning to Rank plugin uses machine learning to improve search relevance ranking. The Elasticsearch operated version of this same plugin is powering search at places like Wikimedia Foundation and Snagajob!
 
 
 # Installing
