@@ -195,7 +195,7 @@ public class IndexFeatureStore implements FeatureStore {
     }
 
     private Supplier<GetResponse> internalGet(String id) {
-        return () -> clientSupplier.get().prepareGet(index, ES_TYPE, id).get();
+        return () -> clientSupplier.get().prepareGet(index, id).get();
     }
 
     /**
@@ -264,7 +264,7 @@ public class IndexFeatureStore implements FeatureStore {
 
     public static CreateIndexRequest buildIndexRequest(String indexName) {
         return new CreateIndexRequest(indexName)
-                .mapping(ES_TYPE, readResourceFile(indexName, MAPPING_FILE), XContentType.JSON)
+                .mapping(readResourceFile(indexName, MAPPING_FILE), XContentType.JSON)
                 .settings(storeIndexSettings(indexName));
     }
 
