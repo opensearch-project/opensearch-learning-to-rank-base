@@ -49,6 +49,7 @@ import java.util.Objects;
 public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBuilder> implements NamedWriteable {
     public static final String NAME = "sltr";
     public static final ParseField MODEL_NAME = new ParseField("model");
+    public static final ParseField FEATURE_CACHE_FLAG = new ParseField("cache");
     public static final ParseField FEATURESET_NAME = new ParseField("featureset");
     public static final ParseField STORE_NAME = new ParseField("store");
     public static final ParseField PARAMS = new ParseField("params");
@@ -58,6 +59,7 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
     static {
         PARSER = new ObjectParser<>(NAME);
         PARSER.declareString(StoredLtrQueryBuilder::modelName, MODEL_NAME);
+        PARSER.declareBoolean(StoredLtrQueryBuilder::featureScoreCacheFlag, FEATURE_CACHE_FLAG);
         PARSER.declareString(StoredLtrQueryBuilder::featureSetName, FEATURESET_NAME);
         PARSER.declareString(StoredLtrQueryBuilder::storeName, STORE_NAME);
         PARSER.declareField(StoredLtrQueryBuilder::params, XContentParser::map, PARAMS, ObjectParser.ValueType.OBJECT);
@@ -66,10 +68,11 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
     }
 
     /**
-     * Injected context used to load a {@link FeatureStore} when running {@link #doToQuery(QueryShardContext)}
+     * Injected context used to load a {@link FeatureStore} when running {@link #doToQuery(SearchExecutionContext)}
      */
     private final transient FeatureStoreLoader storeLoader;
     private String modelName;
+    private Boolean featureScoreCacheFlag;
     private String featureSetName;
     private String storeName;
     private Map<String, Object> params;
@@ -84,10 +87,13 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
         super(input);
         this.storeLoader = Objects.requireNonNull(storeLoader);
         modelName = input.readOptionalString();
+        featureScoreCacheFlag = input.readOptionalBoolean();
         featureSetName = input.readOptionalString();
         params = input.readMap();
-        String[] activeFeat = input.readOptionalStringArray();
-        activeFeatures = activeFeat == null ? null : Arrays.asList(activeFeat);
+        if (input.getVersion().onOrAfter(Version.V_1_0_0)) {//TODO: check this.  In the Elastic LTR plugin this is set to 7_0_0
+            String[] activeFeat = input.readOptionalStringArray();
+            activeFeatures = activeFeat == null ? null : Arrays.asList(activeFeat);
+        }
         storeName = input.readOptionalString();
     }
 
@@ -112,9 +118,12 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
     @Override
     protected void doWriteTo(StreamOutput out) throws IOException {
         out.writeOptionalString(modelName);
+        out.writeOptionalBoolean(featureScoreCacheFlag);
         out.writeOptionalString(featureSetName);
         out.writeMap(params);
-        out.writeOptionalStringArray(activeFeatures != null ? activeFeatures.toArray(new String[0]) : null);
+        if (out.getVersion().onOrAfter(Version.V_1_0_0)) {
+            out.writeOptionalStringArray(activeFeatures != null ? activeFeatures.toArray(new String[0]) : null);
+        }
         out.writeOptionalString(storeName);
     }
 
@@ -123,6 +132,9 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
         builder.startObject(NAME);
         if (modelName != null) {
             builder.field(MODEL_NAME.getPreferredName(), modelName);
+        }
+        if (featureScoreCacheFlag != null) {
+            builder.field(FEATURE_CACHE_FLAG.getPreferredName(), featureScoreCacheFlag);
         }
         if (featureSetName != null) {
             builder.field(FEATURESET_NAME.getPreferredName(), featureSetName);
@@ -157,7 +169,7 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
         if (modelName != null) {
             CompiledLtrModel model = store.loadModel(modelName);
             validateActiveFeatures(model.featureSet(), ltrQueryContext);
-            return RankerQuery.build(model, ltrQueryContext, params);
+            return RankerQuery.build(model, ltrQueryContext, params, featureScoreCacheFlag);
         } else {
             assert featureSetName != null;
             FeatureSet set = store.loadSet(featureSetName);
@@ -166,13 +178,14 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
             LinearRanker ranker = new LinearRanker(weights);
             CompiledLtrModel model = new CompiledLtrModel("linear", set, ranker);
             validateActiveFeatures(model.featureSet(), ltrQueryContext);
-            return RankerQuery.build(model, ltrQueryContext, params);
+            return RankerQuery.build(model, ltrQueryContext, params, featureScoreCacheFlag);
         }
     }
 
     @Override
     protected boolean doEquals(StoredLtrQueryBuilder other) {
         return Objects.equals(modelName, other.modelName) &&
+                Objects.equals(featureScoreCacheFlag, other.featureScoreCacheFlag) &&
                 Objects.equals(featureSetName, other.featureSetName) &&
                 Objects.equals(storeName, other.storeName) &&
                 Objects.equals(params, other.params) &&
@@ -181,7 +194,7 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
 
     @Override
     protected int doHashCode() {
-        return Objects.hash(modelName, featureSetName, storeName, params, activeFeatures);
+        return Objects.hash(modelName, featureScoreCacheFlag, featureSetName, storeName, params, activeFeatures);
     }
 
     @Override
@@ -195,6 +208,11 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
 
     public StoredLtrQueryBuilder modelName(String modelName) {
         this.modelName = Objects.requireNonNull(modelName);
+        return this;
+    }
+
+    public StoredLtrQueryBuilder featureScoreCacheFlag(Boolean featureScoreCacheFlag) {
+        this.featureScoreCacheFlag = featureScoreCacheFlag;
         return this;
     }
 

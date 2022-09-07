@@ -23,7 +23,7 @@ import com.o19s.es.ltr.ranker.normalizer.MinMaxFeatureNormalizer;
 import com.o19s.es.ltr.ranker.normalizer.StandardFeatureNormalizer;
 import com.o19s.es.ltr.ranker.parser.LtrRankerParserFactory;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.LuceneTestCase;
+import org.apache.lucene.tests.util.LuceneTestCase;
 import org.opensearch.Version;
 import org.opensearch.common.ParsingException;
 import org.opensearch.common.Randomness;

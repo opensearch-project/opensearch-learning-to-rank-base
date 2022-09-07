@@ -63,7 +63,6 @@ public class RestSearchStoreElements extends FeatureStoreBaseRestHandler {
             qb.must(matchQuery("name.prefix", prefix));
         }
         return (channel) -> client.prepareSearch(indexName)
-                .setTypes(IndexFeatureStore.ES_TYPE)
                 .setQuery(qb)
                 .setSize(size)
                 .setFrom(from)

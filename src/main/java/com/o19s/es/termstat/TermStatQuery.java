@@ -13,6 +13,7 @@
  * limitations under the License.
  *
  */
+
 package com.o19s.es.termstat;
 
 import com.o19s.es.explore.StatisticsHelper;
@@ -21,14 +22,19 @@ import org.apache.lucene.expressions.Expression;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.search.Explanation;
-import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.index.TermStates;
+import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
-import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Weight;
+import org.apache.lucene.search.Explanation;
+import org.apache.lucene.search.Scorer;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -96,8 +102,14 @@ public class TermStatQuery extends Query {
         private final AggrType aggr;
         private final AggrType posAggr;
         private final Set<Term> terms;
+        private final Map<Term, TermStates> termContexts;
 
-        TermStatWeight(IndexSearcher searcher, TermStatQuery tsq, Set<Term> terms, ScoreMode scoreMode, AggrType aggr, AggrType posAggr) {
+        TermStatWeight(IndexSearcher searcher,
+                       TermStatQuery tsq,
+                       Set<Term> terms,
+                       ScoreMode scoreMode,
+                       AggrType aggr,
+                       AggrType posAggr) throws IOException {
             super(tsq);
             this.searcher = searcher;
             this.expression = tsq.expr;
@@ -105,9 +117,23 @@ public class TermStatQuery extends Query {
             this.scoreMode = scoreMode;
             this.aggr = aggr;
             this.posAggr = posAggr;
+            this.termContexts = new HashMap<>();
+
+            // This is needed for proper DFS_QUERY_THEN_FETCH support
+            if (scoreMode.needsScores()) {
+                for (Term t : terms) {
+                    TermStates ctx = TermStates.build(searcher.getTopReaderContext(), t, true);
+
+                    if (ctx != null && ctx.docFreq() > 0) {
+                        searcher.collectionStatistics(t.field());
+                        searcher.termStatistics(t, ctx.docFreq(), ctx.totalTermFreq());
+                    }
+
+                    termContexts.put(t, ctx);
+                }
+            }
         }
 
-        @Override
         public void extractTerms(Set<Term> terms) {
             terms.addAll(terms);
         }
@@ -125,12 +151,24 @@ public class TermStatQuery extends Query {
 
         @Override
         public Scorer scorer(LeafReaderContext context) throws IOException {
-            return new TermStatScorer(this, searcher, context, expression, terms, scoreMode, aggr, posAggr);
+            return new TermStatScorer(this, searcher, context, expression, terms, scoreMode, aggr, posAggr, termContexts);
         }
 
         @Override
         public boolean isCacheable(LeafReaderContext ctx) {
             return true;
+        }
+    }
+
+    @Override
+    public void visit(QueryVisitor visitor) {
+        Term[] acceptedTerms = terms.stream().filter(
+                t -> visitor.acceptField(t.field())
+        ).toArray(Term[]::new);
+
+        if (acceptedTerms.length > 0) {
+            QueryVisitor v = visitor.getSubVisitor(BooleanClause.Occur.SHOULD, this);
+            v.consumeTerms(this, acceptedTerms);
         }
     }
 }

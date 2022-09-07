@@ -61,7 +61,6 @@ public class ExplorerQuery extends Query {
 
     public String getType() { return this.type; }
 
-    @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
     @Override
     public boolean equals(Object other) {
         return sameClassAs(other) &&
@@ -85,12 +84,6 @@ public class ExplorerQuery extends Query {
     }
 
     @Override
-    public void visit(QueryVisitor visitor) {
-        //TODO: check this is right
-        query.visit(visitor);
-    }
-
-    @Override
     public int hashCode() {
         return Objects.hash(query, type);
     }
@@ -101,9 +94,8 @@ public class ExplorerQuery extends Query {
         if (!scoreMode.needsScores()) {
             return searcher.createWeight(query, scoreMode, boost);
         }
-        final Weight subWeight = searcher.createWeight(query, scoreMode, boost);
-        Set<Term> terms = new HashSet<>();
-        subWeight.extractTerms(terms);
+        final Set<Term> terms = new HashSet<>();
+        this.visit(QueryVisitor.termCollector(terms));
         if (isCollectionScoped()) {
             ClassicSimilarity sim = new ClassicSimilarity();
             StatisticsHelper df_stats = new StatisticsHelper();
@@ -112,12 +104,15 @@ public class ExplorerQuery extends Query {
 
             for (Term term : terms) {
                 TermStates ctx = TermStates.build(searcher.getTopReaderContext(), term, scoreMode.needsScores());
-                TermStatistics tStats = searcher.termStatistics(term, ctx);
-                if(tStats != null){
+                if(ctx != null && ctx.docFreq() > 0){
+                    TermStatistics tStats = searcher.termStatistics(term, ctx.docFreq(), ctx.totalTermFreq());
                     df_stats.add(tStats.docFreq());
-                    idf_stats.add(sim.idf(tStats.docFreq(), searcher.getIndexReader().numDocs()));
+                    idf_stats.add(sim.idf(tStats.docFreq(), searcher.collectionStatistics(term.field()).docCount()));
                     ttf_stats.add(tStats.totalTermFreq());
-
+                } else {
+                    df_stats.add(0.0f);
+                    idf_stats.add(0.0f);
+                    ttf_stats.add(0.0f);
                 }
             }
 
@@ -245,6 +240,10 @@ public class ExplorerQuery extends Query {
             this.type = type;
         }
 
+        public void extractTerms(Set<Term> terms) {
+            QueryVisitor.termCollector(terms);
+        }
+
         @Override
         public Explanation explain(LeafReaderContext context, int doc) throws IOException {
             Scorer scorer = scorer(context);
@@ -277,5 +276,10 @@ public class ExplorerQuery extends Query {
 
     public String toString(String field) {
         return query.toString();
+    }
+
+    @Override
+    public void visit(QueryVisitor visitor) {
+        this.query.visit(visitor.getSubVisitor(BooleanClause.Occur.MUST, this));
     }
 }

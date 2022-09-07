@@ -22,6 +22,7 @@ import org.apache.lucene.expressions.Expression;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Term;
 
+import org.apache.lucene.index.TermStates;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.DoubleValues;
 import org.apache.lucene.search.DoubleValuesSource;
@@ -31,6 +32,7 @@ import org.apache.lucene.search.Scorer;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 public class TermStatScorer extends Scorer {
@@ -44,6 +46,7 @@ public class TermStatScorer extends Scorer {
     private final IndexSearcher searcher;
     private final Set<Term> terms;
     private final ScoreMode scoreMode;
+    private final Map<Term, TermStates> termContexts;
 
     public TermStatScorer(TermStatQuery.TermStatWeight weight,
                           IndexSearcher searcher,
@@ -52,7 +55,8 @@ public class TermStatScorer extends Scorer {
                           Set<Term> terms,
                           ScoreMode scoreMode,
                           AggrType aggr,
-                          AggrType posAggr) {
+                          AggrType posAggr,
+                          Map<Term, TermStates> termContexts) {
         super(weight);
         this.context = context;
         this.compiledExpression = compiledExpression;
@@ -61,6 +65,7 @@ public class TermStatScorer extends Scorer {
         this.scoreMode = scoreMode;
         this.aggr = aggr;
         this.posAggr = posAggr;
+        this.termContexts = termContexts;
 
         this.iter = DocIdSetIterator.all(context.reader().maxDoc());
     }
@@ -80,7 +85,7 @@ public class TermStatScorer extends Scorer {
 
         // Refresh the term stats
         tsq.setPosAggr(posAggr);
-        tsq.bump(searcher, context, docID(), terms, scoreMode);
+        tsq.bump(searcher, context, docID(), terms, scoreMode, termContexts);
 
         // Prepare computed statistics
         StatisticsHelper computed = new StatisticsHelper();
