@@ -20,7 +20,7 @@ import com.o19s.es.ltr.feature.FeatureSet;
 import com.o19s.es.ltr.ranker.DenseFeatureVector;
 import com.o19s.es.ltr.ranker.LtrRanker;
 import com.o19s.es.ltr.utils.Suppliers;
-import org.apache.lucene.util.LuceneTestCase;
+import org.apache.lucene.tests.util.LuceneTestCase;
 import org.opensearch.index.query.QueryBuilders;
 
 import java.util.Collections;

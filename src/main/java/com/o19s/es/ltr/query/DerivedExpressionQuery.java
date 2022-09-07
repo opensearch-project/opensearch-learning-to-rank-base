@@ -22,17 +22,23 @@ import org.apache.lucene.expressions.Bindings;
 import org.apache.lucene.expressions.Expression;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.search.ConstantScoreScorer;
-import org.apache.lucene.search.ConstantScoreWeight;
-import org.apache.lucene.search.DocIdSetIterator;
-import org.apache.lucene.search.DoubleValues;
-import org.apache.lucene.search.DoubleValuesSource;
-import org.apache.lucene.search.Explanation;
-import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.QueryVisitor;
+import org.apache.lucene.search.Weight;
+import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
-import org.apache.lucene.search.Weight;
+import org.apache.lucene.search.Explanation;
+import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.search.ConstantScoreWeight;
+import org.apache.lucene.search.ConstantScoreScorer;
+import org.apache.lucene.search.DoubleValuesSource;
+import org.apache.lucene.search.DoubleValues;
+import org.apache.lucene.search.ConstantScoreWeight;
+import org.apache.lucene.search.ConstantScoreWeight;
+import org.apache.lucene.search.ConstantScoreWeight;
+
 
 import java.io.IOException;
 import java.util.Map;
@@ -130,6 +136,11 @@ public class DerivedExpressionQuery extends Query implements LtrRewritableQuery 
             // Should not be called as it is likely an indication that it'll be cached but should not...
             return Objects.hash(classHash(), query, fvSupplier);
         }
+
+        @Override
+        public void visit(QueryVisitor visitor) {
+            this.query.visit(visitor.getSubVisitor(BooleanClause.Occur.MUST, this));
+        }
     }
 
     static class FVWeight extends Weight {
@@ -146,7 +157,6 @@ public class DerivedExpressionQuery extends Query implements LtrRewritableQuery 
             vectorSupplier = query.fvSupplier;
         }
 
-        @Override
         public void extractTerms(Set<Term> terms) {
             // No-op
         }
@@ -297,5 +307,10 @@ public class DerivedExpressionQuery extends Query implements LtrRewritableQuery 
         public boolean isCacheable(LeafReaderContext ctx) {
             return false;
         }
+    }
+
+    @Override
+    public void visit(QueryVisitor visitor) {
+        // No-op
     }
 }

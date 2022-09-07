@@ -28,17 +28,22 @@ import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.search.DocIdSetIterator;
-import org.apache.lucene.search.Explanation;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.MatchAllDocsQuery;
+import org.apache.lucene.index.TermStates;
+import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.QueryVisitor;
+import org.apache.lucene.search.Weight;
+import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
-import org.apache.lucene.search.Weight;
+import org.apache.lucene.search.Explanation;
+import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.search.MatchAllDocsQuery;
+
 import org.opensearch.common.lucene.search.function.LeafScoreFunction;
 import org.opensearch.common.lucene.search.function.ScriptScoreFunction;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
+
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
@@ -189,8 +194,8 @@ public class ScriptFeature implements Feature {
             Analyzer analyzer = null;
             for(String field : fields) {
                 if (analyzerName == null) {
-                    final MappedFieldType fieldType = context.getQueryShardContext().getMapperService().fieldType(field);
-                    analyzer = context.getQueryShardContext().getSearchAnalyzer(fieldType);
+                    final MappedFieldType fieldType = context.getQueryShardContext().getFieldType(field);
+                    analyzer = fieldType.getTextSearchInfo().getSearchAnalyzer();
                 } else {
                     analyzer = context.getQueryShardContext().getIndexAnalyzers().get(analyzerName);
                 }
@@ -232,7 +237,9 @@ public class ScriptFeature implements Feature {
         ScriptScoreFunction function = new ScriptScoreFunction(script, leafFactory,
                 context.getQueryShardContext().index().getName(),
                 context.getQueryShardContext().getShardId(),
-                context.getQueryShardContext().indexVersionCreated());
+                context.getQueryShardContext().indexVersionCreated(),
+                null //TODO: this is different from ES LTR
+                );
         return new LtrScript(function, supplier, extraLoggingSupplier, termstatSupplier, terms);
     }
 
@@ -255,7 +262,6 @@ public class ScriptFeature implements Feature {
             this.terms = terms;
         }
 
-        @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
@@ -294,6 +300,17 @@ public class ScriptFeature implements Feature {
             }
             return this;
         }
+
+       @Override
+       public void visit(QueryVisitor visitor) {
+            Set<String> fields = terms.stream().map(Term::field).collect(Collectors.toUnmodifiableSet());
+            for (String field : fields) {
+                if (visitor.acceptField(field) == false) {
+                    return;
+                }
+            }
+            visitor.getSubVisitor(BooleanClause.Occur.SHOULD, this).consumeTerms(this, terms.toArray(new Term[0]));
+       }
     }
 
     static class LtrScriptWeight extends Weight {
@@ -302,18 +319,31 @@ public class ScriptFeature implements Feature {
         private final ScriptScoreFunction function;
         private final TermStatSupplier termStatSupplier;
         private final Set<Term> terms;
+        private final HashMap<Term, TermStates> termContexts;
 
         LtrScriptWeight(Query query, ScriptScoreFunction function,
                         TermStatSupplier termStatSupplier,
                         Set<Term> terms,
                         IndexSearcher searcher,
-                        ScoreMode scoreMode) {
+                        ScoreMode scoreMode) throws IOException {
             super(query);
             this.function = function;
             this.termStatSupplier = termStatSupplier;
             this.terms = terms;
             this.searcher = searcher;
             this.scoreMode = scoreMode;
+            this.termContexts = new HashMap<>();
+
+            if (scoreMode.needsScores()) {
+                for (Term t : terms) {
+                    TermStates ctx = TermStates.build(searcher.getTopReaderContext(), t, true);
+                    if (ctx != null && ctx.docFreq() > 0) {
+                        searcher.collectionStatistics(t.field());
+                        searcher.termStatistics(t, ctx.docFreq(), ctx.totalTermFreq());
+                    }
+                    termContexts.put(t, ctx);
+                }
+            }
         }
 
         @Override
@@ -335,7 +365,7 @@ public class ScriptFeature implements Feature {
                 public float score() throws IOException {
                     // Do the terms magic if the user asked for it
                     if (terms.size() > 0) {
-                        termStatSupplier.bump(searcher, context, docID(), terms, scoreMode);
+                        termStatSupplier.bump(searcher, context, docID(), terms, scoreMode, termContexts);
                     }
 
                     return (float) leafScoreFunction.score(iterator.docID(), 0F);
@@ -359,7 +389,6 @@ public class ScriptFeature implements Feature {
             };
         }
 
-        @Override
         public void extractTerms(Set<Term> terms) {
         }
 

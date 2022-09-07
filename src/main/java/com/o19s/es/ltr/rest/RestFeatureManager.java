@@ -90,7 +90,7 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
         String routing = request.param("routing");
         return (channel) ->  {
             RestStatusToXContentListener<DeleteResponse> restR = new RestStatusToXContentListener<>(channel, (r) -> r.getLocation(routing));
-            client.prepareDelete(indexName, ES_TYPE, id)
+            client.prepareDelete(indexName, id)
                     .setRouting(routing)
                     .execute(ActionListener.wrap((deleteResponse) -> {
                                 // wrap the response so we can send another request to clear the cache
@@ -124,7 +124,7 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
         String name = request.param("name");
         String routing = request.param("routing");
         String id = generateId(type, name);
-        return (channel) -> client.prepareGet(indexName, ES_TYPE, id)
+        return (channel) -> client.prepareGet(indexName, id)
                 .setRouting(routing)
                 .execute(new RestToXContentListener<GetResponse>(channel) {
                     @Override

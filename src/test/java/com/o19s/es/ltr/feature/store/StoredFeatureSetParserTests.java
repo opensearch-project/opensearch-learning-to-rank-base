@@ -18,7 +18,7 @@ package com.o19s.es.ltr.feature.store;
 
 import com.o19s.es.ltr.feature.FeatureSet;
 import com.o19s.es.ltr.query.DerivedExpressionQuery;
-import org.apache.lucene.util.LuceneTestCase;
+import org.apache.lucene.tests.util.LuceneTestCase;
 import org.opensearch.common.ParsingException;
 import org.opensearch.common.Strings;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
@@ -37,8 +37,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import static org.apache.lucene.util.TestUtil.randomRealisticUnicodeString;
-import static org.apache.lucene.util.TestUtil.randomSimpleString;
+import static org.apache.lucene.tests.util.TestUtil.randomRealisticUnicodeString;
+import static org.apache.lucene.tests.util.TestUtil.randomSimpleString;
 import static org.opensearch.common.xcontent.NamedXContentRegistry.EMPTY;
 import static org.opensearch.common.xcontent.json.JsonXContent.jsonXContent;
 import static org.hamcrest.CoreMatchers.allOf;
