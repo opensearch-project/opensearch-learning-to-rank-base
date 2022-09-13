@@ -22,7 +22,7 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
-      run: ./gradlew build
+      run: ./gradlew -Dtests.security.manager=false build
     - name: Rename build assets
       run: mv ./build/distributions/ltr-*.zip ./ltr-plugin-${{ env.RELEASE_VERSION }}.zip
     - name: Create Release
