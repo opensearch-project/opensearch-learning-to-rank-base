@@ -4,6 +4,15 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      opensearch-version:
+        description: 'OpenSearch Version to use'
+        required: true
+        default: 2.2.1
+      ltrversion:
+        description: 'LTR Plugin Version'
+        required: true
+        default: 2.0.0
 
 
 jobs:
@@ -26,7 +35,9 @@ jobs:
       with:
         file: docker/Dockerfile
         # TODO: fix this so it isn't hardcoded
-        build-args: opensearch_version=2.2.1 ltrversion=2.0.0
+        build-args: |
+          opensearch_version=${{inputs.opensearch-version}}
+          ltrversion=${{ltrversion}}
         push: true
         tags: gsingers/opensearch-learning-to-rank
         github-token: ${{ secrets.GITHUB_TOKEN }}
