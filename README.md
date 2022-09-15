@@ -18,7 +18,8 @@ To install, you'd run a command like this but replacing with the appropriate pre
 | 1.2.3 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/1.2.3/ltr-1.5.4-os1.2.3.zip`         |
 | 2.2.1 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/2.2.1/ltr-2.0.0-os2.2.1.zip`         |
 | 2.5.0 | `bin/opensearch-plugin install https://github.com/gsingers/opensearch-learning-to-rank-base/releases/download/release-v2.1.0/ltr-plugin-v2.1.0.zip` |
-| 2.7.0 | `bin/opensearch-plugin install https://github.com/gsingers/opensearch-learning-to-rank-base/releases/download/release-v2.2.0/ltr-plugin-v2.2.0.zip`
+| 2.7.0 | `bin/opensearch-plugin install https://github.com/gsingers/opensearch-learning-to-rank-base/releases/download/release-v2.7.0/opensearch-ltr-2.7.0.0.zip`
+| 2.7.0 | `bin/opensearch-plugin install https://github.com/gsingers/opensearch-learning-to-rank-base/releases/download/release-v2.8.0/opensearch-ltr-2.8.0.0.zip`
 
 (It's expected you'll confirm some security exceptions, you can pass `-b` to `opensearch-plugin` to automatically install)
 
