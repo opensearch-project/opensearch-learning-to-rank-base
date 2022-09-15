@@ -40,6 +40,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+        tag_name: "release-${{ env.RELEASE_VERSION }}"
         #upload_url: ${{ steps.create_release.outputs.upload_url }}
         files: ./ltr-plugin-${{ env.RELEASE_VERSION }}.zip
         name: ${{ env.RELEASE_VERSION }}
