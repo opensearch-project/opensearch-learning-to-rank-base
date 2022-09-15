@@ -33,7 +33,6 @@ jobs:
       uses: ncipollo/release-action@v1
       with:
         artifacts: "./ltr-plugin-${{ env.RELEASE_VERSION }}.zip"
-        release_name: Release ${{ env.RELEASE_VERSION }}
         token: ${{ secrets.GITHUB_TOKEN }}
     - name: Upload Release Asset
       id: upload-release-asset 
