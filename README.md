@@ -29,6 +29,7 @@ If you already are running OpenSearch, don't forget to restart!
 
 Releases can be found at https://github.com/opensearch-project/opensearch-learning-to-rank-base/releases.
 
+<<<<<<< HEAD
 # Development
 
 To build, you need to explicitly enable Java security and disable snapshot builds (until the YamlRestTests are fixed):
@@ -41,12 +42,18 @@ To build, you need to explicitly enable Java security and disable snapshot build
 2. Update this README with the version info in the table above
 3. Upgrade the Docker file versions in the `docker` directory
 4. Test the docker image, per below.
+=======
+## Releasing/Packaging
+>>>>>>> 3e37038 (Docker (#5))
 
 ## Releasing/Packaging
 
 Releases are done through Github Workflows (see `.github/workflows` in the root directory) on an as needed basis.  If you do `./gradlew build` as per above under building,
 it will build all the artifacts that are in the release.
+<<<<<<< HEAD
 
+=======
+>>>>>>> 3e37038 (Docker (#5))
 
 # Docker
 
@@ -95,3 +102,56 @@ To publish the Docker image to Docker Hub, you need to kick off the Docker actio
 
         gh workflow run .github/workflows/docker.yml         
 
+<<<<<<< HEAD
+=======
+228 tests completed, 14 failed
+```
+
+
+# Building
+
+To build, you need to disable the Java security manager
+
+./gradlew  -Dtests.security.manager=false clean build  
+
+
+# OpenSearch with Learning to Rank Docker Image
+
+A custom image of [OpenSearch](https://hub.docker.com/r/opensearchproject/opensearch) with the [OpenSearch Learning to Rank plugin](https://github.com/gsingers/opensearch-learning-to-rank-base) installed.
+
+This image was created for the [Search with Machine Learning](https://corise.com/course/search-with-machine-learning?utm_source=daniel) course and [Search Fundamentals](https://corise.com/course/search-fundamentals?utm_source=daniel) taught by Grant Ingersoll and Daniel Tunkelang.
+
+See the [Elasticsearch Learning to Rank](https://elasticsearch-learning-to-rank.readthedocs.io/en/latest/index.html) documentation for details on how to us.
+
+## Building
+
+Building the docker image is triggered via the Github Actions workflows automatically (for releases) or via the commands below.
+
+Note, we are use Docker ARGs to pass through variables via the --build-arg.  All args have defaults
+
+### Using local artifacts
+
+        docker build -f docker/local.Dockerfile 
+
+### Using official releases, built locally
+
+#### Using defaults
+
+        docker build -f docker/Dockerfile --tag=YOUR/IMAGE_NAME 
+
+#### From Versions
+
+        docker build -f docker/Dockerfile --tag=YOUR/IMAGE_NAME --build-arg opensearch_version=2.2.1 --build-arg ltrversion=2.0.0 .
+
+
+#### From a URL
+
+        docker build -f docker/Dockerfile --tag=YOUR/IMAGE_NAME --build-arg plugin="https://github.com/gsingers/opensearch-learning-to-rank-base/releases/download/release-test-release/ltr-plugin-test-release.zip" .
+
+
+## Running the docker image
+
+See the OpenSearch docs for official instructions, but this should work:
+
+        docker run -p 9200:9200 -p 9600:9600 -e "discovery.type=single-node" YOUR/IMAGE_NAME:latest
+>>>>>>> 3e37038 (Docker (#5))

@@ -8,11 +8,11 @@ on:
       opensearch-version:
         description: 'OpenSearch Version to use'
         required: true
-        default: 2.5.0
+        default: 2.8.0
       ltrversion:
         description: 'LTR Plugin Version'
         required: true
-        default: 2.1.0
+        default: 2.8.0
 
 
 jobs:
@@ -34,10 +34,9 @@ jobs:
       uses: docker/build-push-action@v3
       with:
         file: docker/Dockerfile
-        # TODO: fix this so it isn't hardcoded
         build-args: |
           opensearch_version=${{inputs.opensearch-version}}
           ltrversion=${{inputs.ltrversion}}
         push: true
-        tags: gsingers/opensearch-learning-to-rank:${{inputs.ltrversion}}
+        tags: opensearch-project/opensearch-learning-to-rank:${{inputs.ltrversion}}
         github-token: ${{ secrets.GITHUB_TOKEN }}
