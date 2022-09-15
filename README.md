@@ -62,7 +62,7 @@ See the [Elasticsearch Learning to Rank](https://elasticsearch-learning-to-rank.
 
 Building the docker image is triggered via the Github Actions workflows automatically (for releases) or via the commands below.
 
-Note, we are use Docker ARGs to pass through variables via the --build-arg.  All args have defaults
+Note, we use Docker ARGs to pass through variables via the --build-arg.  All args have defaults
 
 ### Using local artifacts
 
