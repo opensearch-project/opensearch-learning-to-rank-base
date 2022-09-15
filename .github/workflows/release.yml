@@ -34,6 +34,7 @@ jobs:
       with:
         artifacts: "./ltr-plugin-${{ env.RELEASE_VERSION }}.zip"
         token: ${{ secrets.GITHUB_TOKEN }}
+        tag: 'test-release'
     - name: Upload Release Asset
       id: upload-release-asset 
       uses: actions/upload-release-asset@v1
