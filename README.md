@@ -23,6 +23,9 @@ To install, you'd run a command like this but replacing with the appropriate pre
 
 If you already are running OpenSearch, don't forget to restart!
 
+# Releases
+
+Releases can be found at https://github.com/gsingers/opensearch-learning-to-rank-base/releases.
 
 
 # Building
@@ -33,7 +36,10 @@ To build, you need to disable the Java security manager
 
 # Releasing/Packaging
 
-    
+
+Releases are done through Github Workflows (see `.github/workflows` in the root directory) on an as needed basis.  If you do `./gradlew build` as per above under building,
+it will build all the artifacts that are in the release.
+   
 
 
 ## About alpha releases
