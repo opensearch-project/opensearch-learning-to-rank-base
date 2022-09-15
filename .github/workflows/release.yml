@@ -7,13 +7,13 @@ on:
   push:
     tags:
       - 'v*.*.*'
-
-permissions:
-        actions: write
+      - 'test-release'
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v2
     - name: Set release version Name
@@ -30,14 +30,12 @@ jobs:
       run: mv ./build/distributions/ltr-*.zip ./ltr-plugin-${{ env.RELEASE_VERSION }}.zip
     - name: Create Release
       id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: ncipollo/release-action@v1
       with:
         tag_name: ${{ env.RELEASE_VERSION }}
+        artifacts: "./ltr-plugin-${{ env.RELEASE_VERSION }}.zip"
         release_name: Release ${{ env.RELEASE_VERSION }}
-        draft: false
-        prerelease: false
+        token: ${{ secrets.GITHUB_TOKEN }}
     - name: Upload Release Asset
       id: upload-release-asset 
       uses: actions/upload-release-asset@v1
