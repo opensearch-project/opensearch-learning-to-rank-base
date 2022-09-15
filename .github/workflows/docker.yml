@@ -37,7 +37,7 @@ jobs:
         # TODO: fix this so it isn't hardcoded
         build-args: |
           opensearch_version=${{inputs.opensearch-version}}
-          ltrversion=${{ltrversion}}
+          ltrversion=${{inputs.ltrversion}}
         push: true
         tags: gsingers/opensearch-learning-to-rank
         github-token: ${{ secrets.GITHUB_TOKEN }}
