@@ -16,7 +16,7 @@ on:
 
 
 jobs:
-  release:
+  build_push_image:
     runs-on: ubuntu-latest
     permissions:
       contents: write
