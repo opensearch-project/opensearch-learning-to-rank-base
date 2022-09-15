@@ -44,4 +44,4 @@ jobs:
         #upload_url: ${{ steps.create_release.outputs.upload_url }}
         files: ./ltr-plugin-${{ env.RELEASE_VERSION }}.zip
         name: ${{ env.RELEASE_VERSION }}
-        
+
