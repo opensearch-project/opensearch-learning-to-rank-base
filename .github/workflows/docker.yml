@@ -39,5 +39,5 @@ jobs:
           opensearch_version=${{inputs.opensearch-version}}
           ltrversion=${{inputs.ltrversion}}
         push: true
-        tags: gsingers/opensearch-learning-to-rank
+        tags: gsingers/opensearch-learning-to-rank:${{inputs.ltrversion}}
         github-token: ${{ secrets.GITHUB_TOKEN }}
