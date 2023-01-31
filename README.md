@@ -18,7 +18,7 @@ To install, you'd run a command like this but replacing with the appropriate pre
 | 1.2.3 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/1.2.3/ltr-1.5.4-os1.2.3.zip`         |
 | 2.2.1 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/2.2.1/ltr-2.0.0-os2.2.1.zip`         |
 | 2.5.0 | `bin/opensearch-plugin install https://github.com/gsingers/opensearch-learning-to-rank-base/releases/download/release-v2.1.0/ltr-plugin-v2.1.0.zip` |
-| 2.7.0 | `bin/opensearch-plugin install https://github.com/opensearch-project/opensearch-learning-to-rank-base/releases/download/release-v2.7.0/ltr-plugin-v2.7.0.zip`
+
 
 (It's expected you'll confirm some security exceptions, you can pass `-b` to `opensearch-plugin` to automatically install)
 
@@ -26,24 +26,52 @@ If you already are running OpenSearch, don't forget to restart!
 
 # Releases
 
-Releases can be found at https://github.com/opensearch-project/opensearch-learning-to-rank-base/releases.
+Releases can be found at https://github.com/gsingers/opensearch-learning-to-rank-base/releases.
 
 ## Releasing/Packaging
 
-Releases are done through Github Workflows (see `.github/workflows` in the root directory) on an as needed basis.  
-If you do `./gradlew build` as per above under building, it will build all the artifacts that are in the release.
+
+Releases are done through Github Workflows (see `.github/workflows` in the root directory) on an as needed basis.  If you do `./gradlew build` as per above under building,
+it will build all the artifacts that are in the release.
+
+## About alpha releases
+
+These releases are alpha because some issues with the tests due to securemock that depends on ElasticSearch security stuff.
+And there are 14 failing tests.
+
+```
+Tests with failures:
+- com.o19s.es.ltr.feature.store.StoredFeatureSetParserTests.testExpressionDoubleQueryParameter
+- com.o19s.es.ltr.feature.store.StoredFeatureSetParserTests.testExpressionMissingQueryParameter
+- com.o19s.es.ltr.feature.store.StoredFeatureSetParserTests.testExpressionIntegerQueryParameter
+- com.o19s.es.ltr.feature.store.StoredFeatureSetParserTests.testExpressionShortQueryParameter
+- com.o19s.es.ltr.feature.store.StoredFeatureSetParserTests.testExpressionInvalidQueryParameter
+- com.o19s.es.termstat.TermStatQueryBuilderTests.testMustRewrite
+- com.o19s.es.termstat.TermStatQueryBuilderTests.testToQuery
+- com.o19s.es.termstat.TermStatQueryBuilderTests.testCacheability
+- com.o19s.es.ltr.feature.store.StoredFeatureParserTests.testExpressionOptimization
+- com.o19s.es.termstat.TermStatQueryTests.testEmptyTerms
+- com.o19s.es.termstat.TermStatQueryTests.testUniqueCount
+- com.o19s.es.termstat.TermStatQueryTests.testBasicFormula
+- com.o19s.es.termstat.TermStatQueryTests.testQuery
+- com.o19s.es.termstat.TermStatQueryTests.testMatchCount
+
+228 tests completed, 14 failed
+```
+
 
 # Development
 
-To build, you need to explicitly enable Java security and disable snapshot builds (until the YamlRestTests are fixed):
+To build, you need to disable the Java security manager
 
-./gradlew -Dopensearch.version={opensearch-version-to-build-on} -Djava.security.manager=allow -Dbuild.snapshot=false
+./gradlew  -Dtests.security.manager=false clean build
 
 # Upgrading the OpenSearch Versions
 
-1. Build and test as above
-2. Update this README with the version info in the table above
-3. Upgrade the Docker file versions in the `docker` directory
+1. Edit `gradle.properties` to have the appropriate versions (it's often easiest to go download the latest tarball from OpenSearch and simply check the versions that ship) and to increment the version of this plugin
+2. Build and test as above
+3. Update this README with the version info in the table above
+4. Upgrade the Docker file versions in the `docker` directory
 4. Test the docker image, per below.
 
 ## Development Notes
@@ -62,7 +90,7 @@ See the [Elasticsearch Learning to Rank](https://elasticsearch-learning-to-rank.
 
 Building the docker image is triggered via the Github Actions workflows automatically (for releases) or via the commands below.
 
-Note, we use Docker ARGs to pass through variables via the --build-arg.  All args have defaults
+Note, we are use Docker ARGs to pass through variables via the --build-arg.  All args have defaults
 
 ### Using local artifacts
 
@@ -96,4 +124,6 @@ See the OpenSearch docs for official instructions, but this should work:
 To publish the Docker image to Docker Hub, you need to kick off the Docker action workflow:
 
         gh workflow run .github/workflows/docker.yml         
+
+
 
