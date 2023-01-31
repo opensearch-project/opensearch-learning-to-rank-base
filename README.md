@@ -9,15 +9,15 @@ The OpenSearch Learning to Rank plugin uses machine learning to improve search r
 
 To install, you'd run a command like this but replacing with the appropriate prebuilt version zip:
 
-| OS    | Command                                                                                                                               |
-|-------|---------------------------------------------------------------------------------------------------------------------------------------|
-| 1.0.0 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/1.0.0/ltr-1.5.4-os1.0.0.zip`    |
-| 1.1.0 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/1.1.0/ltr-1.5.4-os1.1.0.zip`    |
-| 1.2.0 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/1.2.0/ltr-1.5.4-os1.2.0.zip`    |
-| 1.2.2 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/1.2.2/ltr-1.5.4-os1.2.2.zip`    |
-| 1.2.3 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/1.2.3/ltr-1.5.4-os1.2.3.zip`    |
-| 2.2.1 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/2.2.1/ltr-2.0.0-os2.2.1.zip`    |
-| 2.5.0 | `bin/opensearch-plugin install https://github.com/gsingers/opensearch-learning-to-rank/releases/download/2.5.0/ltr-2.1.0-os2.5.0.zip` |
+| OS    | Command                                                                                                                                    |
+|-------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| 1.0.0 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/1.0.0/ltr-1.5.4-os1.0.0.zip`         |
+| 1.1.0 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/1.1.0/ltr-1.5.4-os1.1.0.zip`         |
+| 1.2.0 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/1.2.0/ltr-1.5.4-os1.2.0.zip`         |
+| 1.2.2 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/1.2.2/ltr-1.5.4-os1.2.2.zip`         |
+| 1.2.3 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/1.2.3/ltr-1.5.4-os1.2.3.zip`         |
+| 2.2.1 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/2.2.1/ltr-2.0.0-os2.2.1.zip`         |
+| 2.5.0 | `bin/opensearch-plugin install https://github.com/gsingers/opensearch-learning-to-rank-base/releases/download/release-v2.1.0/ltr-plugin-v2.1.0.zip` |
 
 
 (It's expected you'll confirm some security exceptions, you can pass `-b` to `opensearch-plugin` to automatically install)
@@ -117,6 +117,13 @@ Note, we are use Docker ARGs to pass through variables via the --build-arg.  All
 See the OpenSearch docs for official instructions, but this should work:
 
         docker run -p 9200:9200 -p 9600:9600 -e "discovery.type=single-node" YOUR/IMAGE_NAME:latest
+                            
+
+## Publishing the Docker Image
+                                                
+To publish the Docker image to Docker Hub, you need to kick off the Docker action workflow:
+
+        gh workflow run .github/workflows/docker.yml         
 
 
 
