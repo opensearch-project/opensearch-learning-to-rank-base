@@ -11,6 +11,7 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 | Maintainer         | GitHub ID                                                 | Affiliation |
 | ------------------ | --------------------------------------------------------- | ----------- |
 | Mark Cohen         | [macohen](https://github.com/macohen)                     | Amazon      |
+| Grant Ingersoll    | [gsingers](https://github.com/gsingers)                   | Develomentor|
 
 ## Emeritus
 
