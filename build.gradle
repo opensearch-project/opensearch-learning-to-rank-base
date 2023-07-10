@@ -1,145 +1,156 @@
-import java.nio.file.Files
-
-buildscript {
-  repositories {
-    mavenCentral()
-    mavenLocal()
-  }
-
-  dependencies {
-    classpath "org.opensearch.gradle:build-tools:${opensearchVersion}"
-  }
-}
-
-plugins {
-  id "co.riiid.gradle" version "0.4.2"
-}
-
-
-group = 'com.o19s'
-version = "${ltrVersion}-os${opensearchVersion}"
+import org.opensearch.gradle.test.RestIntegTestTask
 
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'opensearch.opensearchplugin'
-apply plugin: 'opensearch.java-rest-test'
-apply plugin: 'opensearch.rest-resources'
-//apply plugin: 'opensearch.yaml-rest-test'
+apply plugin: 'opensearch.yaml-rest-test'
+apply plugin: 'opensearch.pluginzip'
+apply plugin: 'jacoco'
 
+group = 'org.opensearch'
 
-idea {
-    module {
-        downloadJavadoc = true
-        downloadSources = true
+def pluginName = 'ltr'
+def pluginDescription = 'Make Opensearch results more relevant.'
+def projectPath = 'org.opensearch'
+def pathToPlugin = 'ltr'
+def pluginClassName = 'LtrQueryParserPlugin'
+
+publishing {
+  publications {
+    pluginZip(MavenPublication) { publication ->
+      pom {
+        name = pluginName
+        description = pluginDescription
+        licenses {
+          license {
+            name = "The Apache License, Version 2.0"
+            url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        }
+        developers {
+          developer {
+            name = "OpenSearch"
+            url = "https://github.com/opensearch-project/search-processor"
+          }
+        }
+      }
     }
+  }
 }
-
-// license of this project
-licenseFile = rootProject.file('LICENSE.txt')
-// copyright notices
-noticeFile = rootProject.file('NOTICE.txt')
-
-// disable uploadArchives task for now, no upload happening currently
-//GSI TODO: disabled for now
-//uploadArchives.enabled = false
-
 opensearchplugin {
-  name 'ltr'
-  description 'Learning to Rank Query w/ RankLib Models'
-  classname 'com.o19s.es.ltr.LtrQueryParserPlugin'
-  // license of the plugin, may be different than the above license
-  licenseFile = rootProject.file('LICENSE.txt')
-  // copyright notices, may be different than the above notice
-  noticeFile = rootProject.file('NOTICE.txt')
+  name "opensearch-${pluginName}-${plugin_version}.0"
+  description pluginDescription
+  classname "${projectPath}.${pathToPlugin}.${pluginClassName}"
+  licenseFile rootProject.file('LICENSE')
+  noticeFile rootProject.file('NOTICE')
 }
 
-// In this section you declare the dependencies for your production and test code
-// OpenSearch dependency is included due to the build-tools, test-framework as well
+// This requires an additional Jar not published as part of build-tools
+loggerUsageCheck.enabled = false
+
+// No need to validate pom, as we do not upload to maven/sonatype
+validateNebulaPom.enabled = false
+
+buildscript {
+  ext {
+    isSnapshot = "true" == System.getProperty("build.snapshot", "true")
+    opensearch_version = System.getProperty("opensearch.version", "2.7.0")
+    lucene_version = "9.5.0"
+    plugin_version = opensearch_version + ".0"
+    if (isSnapshot) {
+      opensearch_version += "-SNAPSHOT"
+      plugin_version += "-SNAPSHOT"
+    }
+    println("opensearch_version ${opensearch_version}")
+    println("plugin_version ${plugin_version}")
+  }
+
+  repositories {
+    mavenLocal()
+    maven { url "https://aws.oss.sonatype.org/content/repositories/snapshots" }
+    mavenCentral()
+    maven { url "https://plugins.gradle.org/m2/" }
+  }
+
+  dependencies {
+    classpath "org.opensearch.gradle:build-tools:${opensearch_version}"
+  }
+}
+
 repositories {
-  mavenCentral()
   mavenLocal()
+  maven { url "https://aws.oss.sonatype.org/content/repositories/snapshots" }
+  mavenCentral()
+  maven { url "https://plugins.gradle.org/m2/" }
 }
 
 dependencies {
-  implementation "org.apache.lucene:lucene-expressions:${luceneVersion}"
-  implementation "org.antlr:antlr4-runtime:${antlrVersion}"
-  implementation "org.ow2.asm:asm:${ow2Version}"
-  implementation "org.ow2.asm:asm-commons:${ow2Version}"
-  implementation "org.ow2.asm:asm-tree:${ow2Version}"
-  implementation 'com.o19s:RankyMcRankFace:0.1.1'
   implementation "com.github.spullara.mustache.java:compiler:0.9.3"
-
-  //testImplementation 'org.apache.lucene:lucene-test-framework:${luceneVersion}'
-  runtimeOnly 'org.locationtech.spatial4j:spatial4j:0.7'
-  runtimeOnly 'org.locationtech.jts:jts-core:1.15.0'
-  runtimeOnly 'org.apache.logging.log4j:log4j-core:2.17.1'
+  implementation "org.opensearch:opensearch:${opensearch_version}"
+  implementation "org.opensearch:opensearch-x-content:${opensearch_version}"
+  implementation "org.opensearch:opensearch-common:${opensearch_version}"
+  implementation "org.opensearch:opensearch-core:${opensearch_version}"
+  implementation "org.opensearch:common-utils:${plugin_version}"
+  implementation "org.apache.lucene:lucene-expressions:${luceneVersion}"
+  implementation 'com.o19s:RankyMcRankFace:0.1.1'
 }
 
 
+allprojects {
+  plugins.withId('jacoco') {
+    jacoco.toolVersion = '0.8.9'
+  }
+}
 
 
-// see https://github.com/opensearch-project/OpenSearch/blob/0ba0e7cc26060f964fcbf6ee45bae53b3a9941d0/buildSrc/src/main/java/org/opensearch/gradle/precommit/DependencyLicensesTask.java
-dependencyLicenses {
-  mapping from: /lucene-.*/, to: 'lucene'
-  mapping from: /asm-.*/, to: 'asm'
-  mapping from: /RankyMcRankFace.*/, to: 'lucene'
-  //mapping from: /Ranky.*/, to: 'lucene'
-  mapping from: /compiler.*/, to: 'lucene'
+test {
+  include '**/*Tests.class'
+  finalizedBy jacocoTestReport
+}
+
+task integTest(type: RestIntegTestTask) {
+  description = "Run tests against a cluster"
+  testClassesDirs = sourceSets.test.output.classesDirs
+  classpath = sourceSets.test.runtimeClasspath
+}
+tasks.named("check").configure { dependsOn(integTest) }
+
+integTest {
+  // The --debug-jvm command-line option makes the cluster debuggable; this makes the tests debuggable
+  if (System.getProperty("test.debug") != null) {
+    jvmArgs '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005'
+  }
+}
+
+testClusters.integTest {
+  testDistribution = "INTEG_TEST"
+
+  // This installs our plugin into the testClusters
+  plugin(project.tasks.bundlePlugin.archiveFile)
+}
+
+run {
+  useCluster testClusters.integTest
 }
 
 sourceSets {
-  javaRestTest {
-    compileClasspath += sourceSets["main"].output + sourceSets["test"].output + configurations["testRuntimeClasspath"]
-    runtimeClasspath += output + compileClasspath
+  main {
+    resources {
+      srcDirs = ["config"]
+      includes = ["**/*.yml"]
+    }
   }
 }
 
-java {
-  withJavadocJar()
-  withSourcesJar()
+jacocoTestReport {
+  dependsOn test
+  reports {
+    xml.required = true
+    html.required = true
+  }
 }
 
-
-// Set to false to not use opensearch checkstyle rules
-// checkstyleMain.enabled = true
-// checkstyleTest.enabled = true
-
-// FIXME dependency license check needs to be enabled
-// dependencyLicenses.enabled = false
-
-// FIXME thirdparty audit needs to be enabled
-// thirdPartyAudit.enabled = false
-
-// Uncomment this to skip license header checks
-// licenseHeaders.enabled = false
-
-// No need to validate POM, as we do not upload to sonatype
-validateNebulaPom.enabled = false
-
-// Elastic tried to remove the logging requirement for plugins, but didn't get it quite right so this is a short term fix until 7.11
-// https://github.com/elastic/opensearch/issues/65247
+// TODO: Enable these checks
+dependencyLicenses.enabled = false
+thirdPartyAudit.enabled = false
 loggerUsageCheck.enabled = false
-
-githubRelease.doFirst {
-  if (!System.getProperty('GITHUB_TOKEN', '')) {
-    throw new Exception('Missing property GITHUB_TOKEN')
-  }
-
-  // check if zip file is there
-  assert file("build/distributions/ltr-${version}.zip").exists()
-
-  // rename zip file
-  def currentVersion = version.replace('-SNAPSHOT', '')
-  def filename = "build/distributions/ltr-${currentVersion}.zip"
-  Files.copy(file("build/distributions/ltr-${version}.zip").toPath(), file(filename).toPath())
-
-  // configuration
-  github {
-    owner = 'gsingers'
-    repo = 'opensearch-learning-to-rank-base'
-    token = System.getProperty('GITHUB_TOKEN')
-    tagName = currentVersion
-    assets = [ filename ]
-    targetCommitish = 'main'
-  }
-}
