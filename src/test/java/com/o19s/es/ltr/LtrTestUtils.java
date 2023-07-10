@@ -39,7 +39,7 @@ import com.o19s.es.ltr.utils.FeatureStoreLoader;
 import org.apache.lucene.tests.util.TestUtil;
 import org.opensearch.common.CheckedFunction;
 import org.opensearch.common.Strings;
-import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.index.query.WrapperQueryBuilder;
 
