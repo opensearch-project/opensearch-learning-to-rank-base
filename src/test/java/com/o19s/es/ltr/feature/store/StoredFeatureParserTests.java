@@ -255,7 +255,6 @@ public class StoredFeatureParserTests extends LuceneTestCase {
     }
 
     private String writeAsNonFormattedString(AbstractQueryBuilder<?> builder) {
-        //TODO: fix and replace call to org.opensearch.common.Strings
-        return ""; //Strings.toString(builder, false, false);
+        return Strings.toString(XContentType.JSON, builder);
     }
 }
