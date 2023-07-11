@@ -26,7 +26,7 @@ If you already are running OpenSearch, don't forget to restart!
 
 # Releases
 
-Releases can be found at https://github.com/gsingers/opensearch-learning-to-rank-base/releases.
+Releases can be found at https://github.com/opensearch-project/opensearch-learning-to-rank-base/releases.
 
 ## Releasing/Packaging
 
@@ -41,24 +41,23 @@ And there are 14 failing tests.
 
 ```
 Tests with failures:
-- com.o19s.es.ltr.feature.store.StoredFeatureSetParserTests.testExpressionDoubleQueryParameter
-- com.o19s.es.ltr.feature.store.StoredFeatureSetParserTests.testExpressionMissingQueryParameter
-- com.o19s.es.ltr.feature.store.StoredFeatureSetParserTests.testExpressionIntegerQueryParameter
-- com.o19s.es.ltr.feature.store.StoredFeatureSetParserTests.testExpressionShortQueryParameter
-- com.o19s.es.ltr.feature.store.StoredFeatureSetParserTests.testExpressionInvalidQueryParameter
-- com.o19s.es.termstat.TermStatQueryBuilderTests.testMustRewrite
-- com.o19s.es.termstat.TermStatQueryBuilderTests.testToQuery
-- com.o19s.es.termstat.TermStatQueryBuilderTests.testCacheability
-- com.o19s.es.ltr.feature.store.StoredFeatureParserTests.testExpressionOptimization
-- com.o19s.es.termstat.TermStatQueryTests.testEmptyTerms
-- com.o19s.es.termstat.TermStatQueryTests.testUniqueCount
-- com.o19s.es.termstat.TermStatQueryTests.testBasicFormula
-- com.o19s.es.termstat.TermStatQueryTests.testQuery
-- com.o19s.es.termstat.TermStatQueryTests.testMatchCount
+- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionDoubleQueryParameter
+- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionMissingQueryParameter
+- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionIntegerQueryParameter
+- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionShortQueryParameter
+- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionInvalidQueryParameter
+- termstat.org.opensearch.learning2rank.TermStatQueryBuilderTests.testMustRewrite
+- termstat.org.opensearch.learning2rank.TermStatQueryBuilderTests.testToQuery
+- termstat.org.opensearch.learning2rank.TermStatQueryBuilderTests.testCacheability
+- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureParserTests.testExpressionOptimization
+- termstat.org.opensearch.learning2rank.TermStatQueryTests.testEmptyTerms
+- termstat.org.opensearch.learning2rank.TermStatQueryTests.testUniqueCount
+- termstat.org.opensearch.learning2rank.TermStatQueryTests.testBasicFormula
+- termstat.org.opensearch.learning2rank.TermStatQueryTests.testQuery
+- termstat.org.opensearch.learning2rank.TermStatQueryTests.testMatchCount
 
 228 tests completed, 14 failed
 ```
-
 
 # Development
 
@@ -126,4 +125,26 @@ To publish the Docker image to Docker Hub, you need to kick off the Docker actio
         gh workflow run .github/workflows/docker.yml         
 
 
+# Integrating into OpenSearch Project
+After this repo was moved, we started working on integration with the OpenSearch build system. With the latest updates, running the following will build a 2.7.0 compatible plugin (these changes have not been tested against any other OpenSearch version):
+```
+./gradlew -Dopensearch.version=2.7.0 -Dskip.integtests=true -Djava.security.manager=allow -Dbuild.snapshot=false build
+```
+skip.integtests: for the build to work inside opensearch-project, integTests must be present, but they can be skipped until we make them better
+java.security.manager=allow: because the Java SecurityManager is deprecated, this needs to be passed in to get the following tests passing that were failing previously:
+Tests with failures:
+- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionDoubleQueryParameter
+- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionMissingQueryParameter
+- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionIntegerQueryParameter
+- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionShortQueryParameter
+- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionInvalidQueryParameter
+- termstat.org.opensearch.learning2rank.TermStatQueryBuilderTests.testMustRewrite
+- termstat.org.opensearch.learning2rank.TermStatQueryBuilderTests.testToQuery
+- termstat.org.opensearch.learning2rank.TermStatQueryBuilderTests.testCacheability
+- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureParserTests.testExpressionOptimization
+- termstat.org.opensearch.learning2rank.TermStatQueryTests.testEmptyTerms
+- termstat.org.opensearch.learning2rank.TermStatQueryTests.testUniqueCount
+- termstat.org.opensearch.learning2rank.TermStatQueryTests.testBasicFormula
+- termstat.org.opensearch.learning2rank.TermStatQueryTests.testQuery
+- termstat.org.opensearch.learning2rank.TermStatQueryTests.testMatchCount
 
