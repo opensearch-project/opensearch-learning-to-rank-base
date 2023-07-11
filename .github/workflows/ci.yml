@@ -1,5 +1,4 @@
 name: Build & Test Learning to Rank Plugin
-
 on:
   schedule:
     - cron: '0 0 * * *'  # every night
@@ -31,6 +30,11 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: ${{ matrix.java }}
+
+      - name: Run build Windows
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          ./gradlew.bat build
 
       - name: Run non-Windows
         if: ${{ matrix.os != 'windows-latest' }}
