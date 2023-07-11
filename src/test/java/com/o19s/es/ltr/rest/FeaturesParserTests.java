@@ -16,6 +16,7 @@
 
 package com.o19s.es.ltr.rest;
 
+import com.o19s.es.ltr.feature.store.StoredFeatureParserTests;
 import org.apache.lucene.tests.util.LuceneTestCase;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
@@ -33,7 +34,7 @@ public class FeaturesParserTests extends LuceneTestCase {
         RestAddFeatureToSet.FeaturesParserState fparser = new RestAddFeatureToSet.FeaturesParserState();
         int nFeat = random().nextInt(18)+1;
         String featuresArray = IntStream.range(0, nFeat)
-                .mapToObj((i) -> generateTestFeature("feat" + i))
+                .mapToObj((i) -> StoredFeatureParserTests.generateTestFeature("feat" + i))
                 .collect(Collectors.joining(","));
         XContentParser parser = jsonXContent.createParser(NamedXContentRegistry.EMPTY,
                 LoggingDeprecationHandler.INSTANCE, "{\"features\":[" + featuresArray + "]}");

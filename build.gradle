@@ -7,11 +7,11 @@ apply plugin: 'opensearch.yaml-rest-test'
 apply plugin: 'opensearch.pluginzip'
 apply plugin: 'jacoco'
 
-group = 'org.opensearch'
-
+//group = 'org.opensearch'
+group = 'com.o19s.es'
 def pluginName = 'ltr'
 def pluginDescription = 'Make Opensearch results more relevant.'
-def projectPath = 'org.opensearch'
+def projectPath = 'com.o19s.es'
 def pathToPlugin = 'ltr'
 def pluginClassName = 'LtrQueryParserPlugin'
 
@@ -38,7 +38,7 @@ publishing {
   }
 }
 opensearchplugin {
-  name "opensearch-${pluginName}-${plugin_version}.0"
+  name "opensearch-${pluginName}-${plugin_version}"
   description pluginDescription
   classname "${projectPath}.${pathToPlugin}.${pluginClassName}"
   licenseFile rootProject.file('LICENSE')
@@ -63,6 +63,8 @@ buildscript {
     }
     println("opensearch_version ${opensearch_version}")
     println("plugin_version ${plugin_version}")
+
+    skipIntegTests = System.getProperty("skip.integtests", "false")
   }
 
   repositories {
@@ -93,6 +95,10 @@ dependencies {
   implementation "org.opensearch:common-utils:${plugin_version}"
   implementation "org.apache.lucene:lucene-expressions:${luceneVersion}"
   implementation 'com.o19s:RankyMcRankFace:0.1.1'
+  implementation "org.antlr:antlr4-runtime:${antlrVersion}"
+  implementation "org.ow2.asm:asm:${ow2Version}"
+  implementation "org.ow2.asm:asm-commons:${ow2Version}"
+  implementation "org.ow2.asm:asm-tree:${ow2Version}"
 }
 
 
@@ -109,11 +115,16 @@ test {
 }
 
 task integTest(type: RestIntegTestTask) {
+
   description = "Run tests against a cluster"
   testClassesDirs = sourceSets.test.output.classesDirs
   classpath = sourceSets.test.runtimeClasspath
 }
-tasks.named("check").configure { dependsOn(integTest) }
+if (!skipIntegTests) {
+  tasks.named("check").configure { dependsOn(integTest) }
+} else {
+  println("Skipping Integ Tests")
+}
 
 integTest {
   // The --debug-jvm command-line option makes the cluster debuggable; this makes the tests debuggable
@@ -130,7 +141,11 @@ testClusters.integTest {
 }
 
 run {
-  useCluster testClusters.integTest
+  if (skipIntegTests == "false") {
+    useCluster testClusters.integTest
+  } else {
+    println("skipping Integ Tests ${skipIntegTests}")
+  }
 }
 
 sourceSets {
