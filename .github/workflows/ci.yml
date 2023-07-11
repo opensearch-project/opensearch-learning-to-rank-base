@@ -1,5 +1,4 @@
 name: Build & Test Learning to Rank Plugin
-
 on:
   schedule:
     - cron: '0 0 * * *'  # every night
@@ -11,14 +10,13 @@ on:
     branches:
       - "*"
       - "feature/**"
-  workflow_dispatch:
 
 jobs:
   Build-ltr-plugin:
     strategy:
       matrix:
         java: [11, 17]
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
     name: Build and Test Learning to Rank Plugin
     runs-on: ${{ matrix.os }}
@@ -32,25 +30,18 @@ jobs:
         with:
           java-version: ${{ matrix.java }}
 
+      - name: Run build Windows
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          ./gradlew.bat build
+
       - name: Run non-Windows
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
-          ./gradlew build -Dopensearch.version=2.7.0 -Dskip.integtests=true \
-          -Djava.security.manager=allow -Dbuild.snapshot=false
+          ./gradlew build
 
-#      - name: Upload Coverage Report
-#        if: ${{matrix.os}} == 'ubuntu'
-#        uses: codecov/codecov-action@v1
-#        with:
-#          token: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: Create Artifact Path
-        run: |
-           mkdir -p opensearch-ltr-builds
-           cp -r ./build/distributions/*.zip opensearch-ltr-builds
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v1
+      - name: Upload Coverage Report
+        if: ${{matrix.os}} == 'ubuntu'
+        uses: codecov/codecov-action@v1
         with:
-          name: opensearch-ltr-${{ matrix.os }}
-          path: opensearch-ltr-builds
+          token: ${{ secrets.CODECOV_TOKEN }}
