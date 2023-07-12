@@ -1,4 +1,5 @@
 name: Build & Test Learning to Rank Plugin
+
 on:
   schedule:
     - cron: '0 0 * * *'  # every night
@@ -42,3 +43,14 @@ jobs:
         uses: codecov/codecov-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Create Artifact Path
+        run: |
+           mkdir -p opensearch-ltr-builds
+           cp -r ./build/distributions/*.zip opensearch-ltr-builds
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: opensearch-ltr-${{ matrix.os }}
+          path: opensearch-ltr-builds
