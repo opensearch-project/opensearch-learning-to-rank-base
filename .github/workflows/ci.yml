@@ -38,11 +38,11 @@ jobs:
           ./gradlew build -Dopensearch.version=2.7.0 -Dskip.integtests=true \
           -Djava.security.manager=allow -Dbuild.snapshot=false
 
-      - name: Upload Coverage Report
-        if: ${{matrix.os}} == 'ubuntu'
-        uses: codecov/codecov-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+#      - name: Upload Coverage Report
+#        if: ${{matrix.os}} == 'ubuntu'
+#        uses: codecov/codecov-action@v1
+#        with:
+#          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Create Artifact Path
         run: |
