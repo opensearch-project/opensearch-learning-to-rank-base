@@ -6,7 +6,7 @@ name: Tag and publish a release
 on:
   push:
     tags:
-      - 'v*.*.*'
+    - 'v*.*.*'
     branches: [ ${{ github.ref }} ]
 
 jobs:
