@@ -7,7 +7,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
-    branches: [ ${{ github.ref }}, test-release ]
+    branches: [ ${{ github.ref }} ]
 
 jobs:
   release:
