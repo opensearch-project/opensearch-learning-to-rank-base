@@ -18,7 +18,7 @@ To install, you'd run a command like this but replacing with the appropriate pre
 | 1.2.3 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/1.2.3/ltr-1.5.4-os1.2.3.zip`         |
 | 2.2.1 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/2.2.1/ltr-2.0.0-os2.2.1.zip`         |
 | 2.5.0 | `bin/opensearch-plugin install https://github.com/gsingers/opensearch-learning-to-rank-base/releases/download/release-v2.1.0/ltr-plugin-v2.1.0.zip` |
-
+| 2.7.0 | `bin/opensearch-plugin install https://github.com/gsingers/opensearch-learning-to-rank-base/releases/download/release-v2.2.0/ltr-plugin-v2.2.0.zip`
 
 (It's expected you'll confirm some security exceptions, you can pass `-b` to `opensearch-plugin` to automatically install)
 
@@ -30,47 +30,20 @@ Releases can be found at https://github.com/opensearch-project/opensearch-learni
 
 ## Releasing/Packaging
 
-
 Releases are done through Github Workflows (see `.github/workflows` in the root directory) on an as needed basis.  If you do `./gradlew build` as per above under building,
 it will build all the artifacts that are in the release.
 
-## About alpha releases
-
-These releases are alpha because some issues with the tests due to securemock that depends on ElasticSearch security stuff.
-And there are 14 failing tests.
-
-```
-Tests with failures:
-- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionDoubleQueryParameter
-- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionMissingQueryParameter
-- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionIntegerQueryParameter
-- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionShortQueryParameter
-- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionInvalidQueryParameter
-- termstat.org.opensearch.learning2rank.TermStatQueryBuilderTests.testMustRewrite
-- termstat.org.opensearch.learning2rank.TermStatQueryBuilderTests.testToQuery
-- termstat.org.opensearch.learning2rank.TermStatQueryBuilderTests.testCacheability
-- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureParserTests.testExpressionOptimization
-- termstat.org.opensearch.learning2rank.TermStatQueryTests.testEmptyTerms
-- termstat.org.opensearch.learning2rank.TermStatQueryTests.testUniqueCount
-- termstat.org.opensearch.learning2rank.TermStatQueryTests.testBasicFormula
-- termstat.org.opensearch.learning2rank.TermStatQueryTests.testQuery
-- termstat.org.opensearch.learning2rank.TermStatQueryTests.testMatchCount
-
-228 tests completed, 14 failed
-```
-
 # Development
 
-To build, you need to disable the Java security manager
+To build, you need to explicitly enable Java security and disable snapshot builds (until the YamlRestTests are fixed):
 
-./gradlew  -Dtests.security.manager=false clean build
+./gradlew -Dopensearch.version={opensearch-version-to-build-on} -Djava.security.manager=allow -Dbuild.snapshot=false
 
 # Upgrading the OpenSearch Versions
 
-1. Edit `gradle.properties` to have the appropriate versions (it's often easiest to go download the latest tarball from OpenSearch and simply check the versions that ship) and to increment the version of this plugin
-2. Build and test as above
-3. Update this README with the version info in the table above
-4. Upgrade the Docker file versions in the `docker` directory
+1. Build and test as above
+2. Update this README with the version info in the table above
+3. Upgrade the Docker file versions in the `docker` directory
 4. Test the docker image, per below.
 
 ## Development Notes
@@ -123,28 +96,4 @@ See the OpenSearch docs for official instructions, but this should work:
 To publish the Docker image to Docker Hub, you need to kick off the Docker action workflow:
 
         gh workflow run .github/workflows/docker.yml         
-
-
-# Integrating into OpenSearch Project
-After this repo was moved, we started working on integration with the OpenSearch build system. With the latest updates, running the following will build a 2.7.0 compatible plugin (these changes have not been tested against any other OpenSearch version):
-```
-./gradlew -Dopensearch.version=2.7.0 -Dskip.integtests=true -Djava.security.manager=allow -Dbuild.snapshot=false build
-```
-skip.integtests: for the build to work inside opensearch-project, integTests must be present, but they can be skipped until we make them better
-java.security.manager=allow: because the Java SecurityManager is deprecated, this needs to be passed in to get the following tests passing that were failing previously:
-Tests with failures:
-- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionDoubleQueryParameter
-- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionMissingQueryParameter
-- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionIntegerQueryParameter
-- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionShortQueryParameter
-- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureSetParserTests.testExpressionInvalidQueryParameter
-- termstat.org.opensearch.learning2rank.TermStatQueryBuilderTests.testMustRewrite
-- termstat.org.opensearch.learning2rank.TermStatQueryBuilderTests.testToQuery
-- termstat.org.opensearch.learning2rank.TermStatQueryBuilderTests.testCacheability
-- store.feature.ltr.org.opensearch.learning2rank.StoredFeatureParserTests.testExpressionOptimization
-- termstat.org.opensearch.learning2rank.TermStatQueryTests.testEmptyTerms
-- termstat.org.opensearch.learning2rank.TermStatQueryTests.testUniqueCount
-- termstat.org.opensearch.learning2rank.TermStatQueryTests.testBasicFormula
-- termstat.org.opensearch.learning2rank.TermStatQueryTests.testQuery
-- termstat.org.opensearch.learning2rank.TermStatQueryTests.testMatchCount
 
