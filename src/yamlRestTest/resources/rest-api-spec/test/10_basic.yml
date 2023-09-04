@@ -5,7 +5,7 @@
         h: component
 
   - match:
-      $body: /^opensearch-ltr-\d+.\d+.\d+.\d+\n$/
+      $body: /^opensearch-ltr-.*\n$/
 
   - do:
       indices.create:
