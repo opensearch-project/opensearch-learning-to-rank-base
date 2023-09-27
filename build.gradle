@@ -149,11 +149,13 @@ run {
 }
 
 sourceSets {
-  main {
-    resources {
-      srcDirs = ["config"]
-      includes = ["**/*.yml"]
-    }
+  javaRestTest {
+    compileClasspath += sourceSets["main"].output + sourceSets["test"].output + configurations["testRuntimeClasspath"]
+    runtimeClasspath += output + compileClasspath
+  }
+  yamlRestTest {
+    compileClasspath += sourceSets["main"].output + sourceSets["test"].output + configurations["testRuntimeClasspath"]
+    runtimeClasspath += output + compileClasspath
   }
 }
 
