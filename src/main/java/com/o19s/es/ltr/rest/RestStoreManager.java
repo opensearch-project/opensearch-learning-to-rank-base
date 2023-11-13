@@ -20,7 +20,7 @@ import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.opensearch.client.node.NodeClient;
-import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.RestResponse;

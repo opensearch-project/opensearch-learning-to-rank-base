@@ -17,9 +17,10 @@
 package com.o19s.es.ltr.ranker;
 
 import org.opensearch.common.Nullable;
+import com.o19s.es.ltr.query.RankerQuery;
 
 /**
- * A ranker used by {@link com.o19s.es.ltr.query.RankerQuery}
+ * A ranker used by {@link RankerQuery}
  * to compute a score based on a set of feature scores.
  */
 public interface LtrRanker {
