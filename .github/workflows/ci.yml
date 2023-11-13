@@ -35,8 +35,7 @@ jobs:
       - name: Run non-Windows
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
-          ./gradlew build -Dopensearch.version=2.7.0 -Dskip.integtests=true \
-          -Djava.security.manager=allow -Dbuild.snapshot=false
+          ./gradlew build -Dopensearch.version=2.8.0 -Djava.security.manager=allow -Dbuild.snapshot=false
 
 #      - name: Upload Coverage Report
 #        if: ${{matrix.os}} == 'ubuntu'
