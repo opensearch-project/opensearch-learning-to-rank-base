@@ -30,7 +30,7 @@ publishing {
         developers {
           developer {
             name = "OpenSearch"
-            url = "https://github.com/opensearch-project/search-processor"
+            url = "https://github.com/opensearch-project/opensearch-learning-to-rank-base"
           }
         }
       }
