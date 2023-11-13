@@ -21,6 +21,6 @@ public class LearningToRankPluginIT extends OpenSearchRestTestCase {
 
         logger.info("response body: {}", body);
         assertNotNull(body);
-        assertTrue(body.contains("search-processor"));
+        assertTrue(body.contains("ltr"));
     }
 }
