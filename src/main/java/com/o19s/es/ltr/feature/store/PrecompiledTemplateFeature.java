@@ -27,7 +27,7 @@ import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.common.ParsingException;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.XContentFactory;
-import org.opensearch.common.xcontent.XContentParser;
+import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryShardException;
 import org.opensearch.index.query.Rewriteable;
