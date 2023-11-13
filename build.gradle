@@ -93,7 +93,7 @@ dependencies {
   implementation "org.opensearch:opensearch-common:${opensearch_version}"
   implementation "org.opensearch:opensearch-core:${opensearch_version}"
   implementation "org.opensearch:common-utils:${plugin_version}"
-  implementation "org.apache.lucene:lucene-expressions:${luceneVersion}"
+  implementation "org.apache.lucene:lucene-expressions:${lucene_version}"
   implementation 'com.o19s:RankyMcRankFace:0.1.1'
   implementation "org.antlr:antlr4-runtime:${antlrVersion}"
   implementation "org.ow2.asm:asm:${ow2Version}"
