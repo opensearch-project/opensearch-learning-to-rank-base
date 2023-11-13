@@ -17,7 +17,7 @@
 package com.o19s.es.ltr.utils;
 
 import com.o19s.es.ltr.ranker.LtrRanker;
-import org.opensearch.Assertions;
+import org.opensearch.core.Assertions;
 
 import java.util.Objects;
 import java.util.function.Supplier;

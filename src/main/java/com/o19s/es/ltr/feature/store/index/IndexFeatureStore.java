@@ -47,7 +47,7 @@ import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
-import org.opensearch.core.internal.io.Streams;
+import org.opensearch.common.util.io.Streams;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
