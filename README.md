@@ -1,10 +1,3 @@
-# Important Notice
-
-This is a fork of https://github.com/o19s/elasticsearch-learning-to-rank to work with OpenSearch. It's a rewrite of some parts to be able to work with OpenSearch. Please refer to official documentation of [Elasticsearch Learning to Rank](http://elasticsearch-learning-to-rank.readthedocs.io) for usage.
-
-The OpenSearch Learning to Rank plugin uses machine learning to improve search relevance ranking. The original Elasticsearch LTR plugin powers search at places like Wikimedia Foundation and Snagajob.
-
-
 # Installing
 
 To install, you'd run a command like this but replacing with the appropriate prebuilt version zip:
@@ -18,11 +11,18 @@ To install, you'd run a command like this but replacing with the appropriate pre
 | 1.2.3 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/1.2.3/ltr-1.5.4-os1.2.3.zip`         |
 | 2.2.1 | `bin/opensearch-plugin install https://github.com/aparo/opensearch-learning-to-rank/releases/download/2.2.1/ltr-2.0.0-os2.2.1.zip`         |
 | 2.5.0 | `bin/opensearch-plugin install https://github.com/gsingers/opensearch-learning-to-rank-base/releases/download/release-v2.1.0/ltr-plugin-v2.1.0.zip` |
-| 2.7.0 | `bin/opensearch-plugin install https://github.com/gsingers/opensearch-learning-to-rank-base/releases/download/release-v2.7.0/opensearch-ltr-v2.7.0.zip`
+| 2.7.0 | `bin/opensearch-plugin install https://github.com/opensearch-project/opensearch-learning-to-rank-base/releases/download/release-v2.7.0/opensearch-ltr-v2.7.0.zip`
 
 (It's expected you'll confirm some security exceptions, you can pass `-b` to `opensearch-plugin` to automatically install)
 
 If you already are running OpenSearch, don't forget to restart!
+
+# Important Notice
+
+This is a fork of https://github.com/o19s/elasticsearch-learning-to-rank to work with OpenSearch. It's a rewrite of some parts to be able to work with OpenSearch. Please refer to official documentation of [Elasticsearch Learning to Rank](http://elasticsearch-learning-to-rank.readthedocs.io) for usage.
+
+The OpenSearch Learning to Rank plugin uses machine learning to improve search relevance ranking. The original Elasticsearch LTR plugin powers search at places like Wikimedia Foundation and Snagajob.
+
 
 # Releases
 
@@ -92,7 +92,8 @@ See the OpenSearch docs for official instructions, but this should work:
                             
 
 ## Publishing the Docker Image
-                                                
+                           
+### Note: Since moving this into opensearch-project, this doesn't work. TODO:  investigate the standard way of pushing plugins to Docker Hub.
 To publish the Docker image to Docker Hub, you need to kick off the Docker action workflow:
 
         gh workflow run .github/workflows/docker.yml         
