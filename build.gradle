@@ -120,7 +120,7 @@ task integTest(type: RestIntegTestTask) {
   testClassesDirs = sourceSets.test.output.classesDirs
   classpath = sourceSets.test.runtimeClasspath
 }
-if (!skipIntegTests) {
+if (skipIntegTests == "false") {
   tasks.named("check").configure { dependsOn(integTest) }
 } else {
   println("Skipping Integ Tests")
