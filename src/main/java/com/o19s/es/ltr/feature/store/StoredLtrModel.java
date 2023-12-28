@@ -24,11 +24,11 @@ import com.o19s.es.ltr.ranker.parser.LtrRankerParser;
 import com.o19s.es.ltr.ranker.parser.LtrRankerParserFactory;
 import org.opensearch.Version;
 import org.opensearch.core.ParseField;
-import org.opensearch.common.ParsingException;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.core.common.ParsingException;
+import org.opensearch.core.common.Strings;
+import org.opensearch.core.common.io.stream.StreamInput;
+import org.opensearch.core.common.io.stream.StreamOutput;
+import org.opensearch.core.common.io.stream.Writeable;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.core.xcontent.ObjectParser;
 import org.opensearch.core.xcontent.XContentBuilder;
@@ -328,7 +328,8 @@ public class StoredLtrModel implements StorableElement {
                     try (XContentBuilder builder = JsonXContent.contentBuilder()) {
                         builder.copyCurrentStructure(parser);
                         modelAsString = false;
-                        definition = Strings.toString(builder);
+                        //definition = Strings.toString(builder);
+                        definition = builder.toString();
                     }
                 }
         }

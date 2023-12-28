@@ -36,18 +36,17 @@ import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.MetadataCreateIndexService;
 import org.opensearch.common.CheckedFunction;
 import org.opensearch.core.ParseField;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.core.common.bytes.BytesReference;
 import org.apache.logging.log4j.LogManager;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
-import org.opensearch.core.xcontent.NamedXContentRegistry;
-import org.opensearch.core.xcontent.ObjectParser;
-import org.opensearch.core.xcontent.XContentBuilder;
-import org.opensearch.common.xcontent.XContentFactory;
-import org.opensearch.core.xcontent.XContentParser;
+import org.opensearch.core.xcontent.*;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.common.util.io.Streams;
+import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.common.xcontent.XContentFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -96,11 +95,13 @@ public class IndexFeatureStore implements FeatureStore {
     private final String index;
     private final Supplier<Client> clientSupplier;
     private final LtrRankerParserFactory parserFactory;
+    private ThreadPool threadPool;
 
-    public IndexFeatureStore(String index, Supplier<Client> clientSupplier, LtrRankerParserFactory factory) {
+    public IndexFeatureStore(String index, Supplier<Client> clientSupplier, LtrRankerParserFactory factory, ThreadPool threadPool) {
         this.index = Objects.requireNonNull(index);
         this.clientSupplier = Objects.requireNonNull(clientSupplier);
         this.parserFactory = Objects.requireNonNull(factory);
+        this.threadPool = threadPool;
     }
 
     @Override
@@ -174,11 +175,13 @@ public class IndexFeatureStore implements FeatureStore {
     }
 
     public <E extends StorableElement> E getAndParse(String name, Class<E> eltClass, String type) throws IOException {
-        GetResponse response = internalGet(generateId(type, name)).get();
-        if (response.isExists()) {
-            return parse(eltClass, type, response.getSourceAsBytes());
-        } else {
-            return null;
+        try (ThreadContext.StoredContext context = threadPool.getThreadContext().stashContext()) {
+            GetResponse response = internalGet(generateId(type, name)).get();
+            if (response.isExists()) {
+                return parse(eltClass, type, response.getSourceAsBytes());
+            } else {
+                return null;
+            }
         }
     }
 
@@ -195,6 +198,9 @@ public class IndexFeatureStore implements FeatureStore {
     }
 
     private Supplier<GetResponse> internalGet(String id) {
+        //TODO Forbidden method invocation: java.lang.String#format(java.lang.String,java.lang.Object[]) [Uses default locale]
+        //  in com.o19s.es.ltr.feature.store.index.IndexFeatureStore (IndexFeatureStore.java:201)
+        //  LOGGER.info(String.format("internalGet id: %s", id));
         return () -> clientSupplier.get().prepareGet(index, id).get();
     }
 
@@ -206,7 +212,7 @@ public class IndexFeatureStore implements FeatureStore {
      * @throws IOException in case of failures
      */
     public static XContentBuilder toSource(StorableElement elt) throws IOException {
-        XContentBuilder source = XContentFactory.contentBuilder(Requests.INDEX_CONTENT_TYPE);
+        XContentBuilder source = Requests.INDEX_CONTENT_TYPE.contentBuilder();
         source.startObject();
         source.field("name", elt.name());
         source.field("type", elt.type());
@@ -221,15 +227,15 @@ public class IndexFeatureStore implements FeatureStore {
 
     public static <E extends StorableElement> E parse(Class<E> eltClass, String type, byte[] bytes,
                                                       int offset, int length) throws IOException {
-        try (XContentParser parser = XContentFactory.xContent(bytes)
-                .createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE, bytes)) {
+        try (XContentParser parser = MediaTypeRegistry.JSON.xContent().
+                createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE, bytes)) {
             return parse(eltClass, type, parser);
         }
     }
 
     public static <E extends StorableElement> E parse(Class<E> eltClass, String type, BytesReference bytesReference) throws IOException {
         BytesRef ref = bytesReference.toBytesRef();
-        try (XContentParser parser = XContentFactory.xContent(ref.bytes, ref.offset, ref.length)
+        try (XContentParser parser = MediaTypeRegistry.JSON.xContent()
                 .createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE,
                         ref.bytes, ref.offset, ref.length)
         ) {

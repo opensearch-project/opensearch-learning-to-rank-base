@@ -22,13 +22,13 @@ import com.o19s.es.ltr.feature.store.StorableElement;
 import com.o19s.es.ltr.feature.store.StoredFeature;
 import com.o19s.es.ltr.feature.store.StoredFeatureSet;
 import com.o19s.es.ltr.feature.store.StoredLtrModel;
-import org.opensearch.action.ActionListener;
+import org.opensearch.core.action.ActionListener;
 import org.opensearch.action.delete.DeleteResponse;
 import org.opensearch.action.get.GetResponse;
 import org.opensearch.client.node.NodeClient;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestRequest;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.core.rest.RestStatus;
 import org.opensearch.rest.action.RestStatusToXContentListener;
 import org.opensearch.rest.action.RestToXContentListener;
 
@@ -40,8 +40,8 @@ import static com.o19s.es.ltr.feature.store.index.IndexFeatureStore.ES_TYPE;
 import static com.o19s.es.ltr.query.ValidatingLtrQueryBuilder.SUPPORTED_TYPES;
 import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
-import static org.opensearch.rest.RestStatus.NOT_FOUND;
-import static org.opensearch.rest.RestStatus.OK;
+import static org.opensearch.core.rest.RestStatus.NOT_FOUND;
+import static org.opensearch.core.rest.RestStatus.OK;
 
 public class RestFeatureManager extends FeatureStoreBaseRestHandler {
     private final String type;

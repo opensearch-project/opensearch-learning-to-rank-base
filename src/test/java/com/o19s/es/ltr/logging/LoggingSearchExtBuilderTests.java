@@ -16,10 +16,12 @@
 
 package com.o19s.es.ltr.logging;
 
-import org.opensearch.common.ParsingException;
-import org.opensearch.common.Strings;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.core.common.ParsingException;
+import org.opensearch.core.common.Strings;
 import org.opensearch.common.io.stream.BytesStreamOutput;
 import org.opensearch.core.xcontent.ToXContent;
+import org.opensearch.core.xcontent.XContent;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.core.xcontent.XContentParser;
@@ -66,12 +68,12 @@ public class LoggingSearchExtBuilderTests extends OpenSearchTestCase {
         assertTestExt(ext);
     }
 
-    public void testToXCtontent() throws IOException {
+    public void testToXContent() throws IOException {
         LoggingSearchExtBuilder ext1 = buildTestExt();
         XContentBuilder builder = XContentFactory.jsonBuilder();
         ext1.toXContent(builder, ToXContent.EMPTY_PARAMS);
         builder.close();
-        assertEquals(getTestExtAsString(), Strings.toString(builder));
+        assertEquals(getTestExtAsString(), Strings.toString(XContentType.JSON, ext1));
     }
 
     public void testSer() throws IOException {

@@ -24,9 +24,12 @@ import com.o19s.es.template.mustache.MustacheUtils;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.RamUsageEstimator;
-import org.opensearch.common.ParsingException;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.core.common.ParsingException;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.XContentFactory;
+import org.opensearch.core.xcontent.MediaType;
+import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryShardException;
@@ -92,9 +95,10 @@ public class PrecompiledTemplateFeature implements Feature, Accountable {
 
         String query = MustacheUtils.execute(template, params);
         try {
-            XContentParser parser = XContentFactory.xContent(query)
-                    .createParser(context.getQueryShardContext().getXContentRegistry(),
-                            LoggingDeprecationHandler.INSTANCE, query);
+            MediaType mediaType = XContentType.JSON;
+            XContentParser parser = mediaType.xContent().createParser(
+                    context.getQueryShardContext().getXContentRegistry(),
+                    LoggingDeprecationHandler.INSTANCE, query);
             QueryBuilder queryBuilder = parseInnerQueryBuilder(parser);
             // XXX: QueryShardContext extends QueryRewriteContext (for now)
             return Rewriteable.rewrite(queryBuilder, context.getQueryShardContext()).toQuery(context.getQueryShardContext());

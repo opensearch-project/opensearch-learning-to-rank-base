@@ -18,7 +18,7 @@ package com.o19s.es.ltr.ranker.parser;
 
 import com.o19s.es.ltr.feature.FeatureSet;
 import com.o19s.es.ltr.ranker.linear.LinearRanker;
-import org.opensearch.common.ParsingException;
+import org.opensearch.core.common.ParsingException;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.common.xcontent.json.JsonXContent;

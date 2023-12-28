@@ -24,7 +24,7 @@ import com.o19s.es.ltr.feature.store.StorableElement;
 import com.o19s.es.ltr.feature.store.StoredFeature;
 import com.o19s.es.ltr.feature.store.StoredFeatureSet;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
-import org.opensearch.action.ActionListener;
+import org.opensearch.core.action.ActionListener;
 import org.opensearch.action.get.GetRequest;
 import org.opensearch.action.get.GetResponse;
 import org.opensearch.action.get.TransportGetAction;
@@ -52,7 +52,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.opensearch.action.ActionListener.wrap;
+import static org.opensearch.core.action.ActionListener.wrap;
 
 public class TransportAddFeatureToSetAction extends HandledTransportAction<AddFeaturesToSetRequest, AddFeaturesToSetResponse> {
     private final ClusterService clusterService;

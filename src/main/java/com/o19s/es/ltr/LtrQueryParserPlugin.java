@@ -69,15 +69,15 @@ import org.apache.lucene.analysis.core.KeywordTokenizer;
 import org.apache.lucene.analysis.miscellaneous.LengthFilter;
 import org.apache.lucene.analysis.ngram.EdgeNGramTokenFilter;
 import org.opensearch.action.ActionRequest;
-import org.opensearch.action.ActionResponse;
+import org.opensearch.core.action.ActionResponse;
 import org.opensearch.client.Client;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.CheckedFunction;
 import org.opensearch.core.ParseField;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
-import org.opensearch.common.io.stream.NamedWriteableRegistry.Entry;
+import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.core.common.io.stream.NamedWriteableRegistry.Entry;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.IndexScopedSettings;
 import org.opensearch.common.settings.Setting;
@@ -87,7 +87,7 @@ import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;
-import org.opensearch.index.Index;
+import org.opensearch.core.index.Index;
 import org.opensearch.index.analysis.PreConfiguredTokenFilter;
 import org.opensearch.index.analysis.PreConfiguredTokenizer;
 import org.opensearch.plugins.ActionPlugin;
@@ -272,7 +272,7 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
 
     protected FeatureStoreLoader getFeatureStoreLoader() {
         return (storeName, clientSupplier) ->
-            new CachedFeatureStore(new IndexFeatureStore(storeName, clientSupplier, parserFactory), caches);
+            new CachedFeatureStore(new IndexFeatureStore(storeName, clientSupplier, parserFactory, null), caches);
     }
 
     // A simplified version of some token filters needed by the feature stores.

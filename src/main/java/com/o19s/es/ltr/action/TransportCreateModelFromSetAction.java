@@ -23,7 +23,7 @@ import com.o19s.es.ltr.feature.store.StorableElement;
 import com.o19s.es.ltr.feature.store.StoredFeatureSet;
 import com.o19s.es.ltr.feature.store.StoredLtrModel;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
-import org.opensearch.action.ActionListener;
+import org.opensearch.core.action.ActionListener;
 import org.opensearch.action.get.GetRequest;
 import org.opensearch.action.get.GetResponse;
 import org.opensearch.action.get.TransportGetAction;

@@ -38,7 +38,7 @@ import com.o19s.es.ltr.ranker.parser.LinearRankerParser;
 import com.o19s.es.ltr.utils.FeatureStoreLoader;
 import org.apache.lucene.tests.util.TestUtil;
 import org.opensearch.common.CheckedFunction;
-import org.opensearch.common.Strings;
+import org.opensearch.core.common.Strings;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.index.query.WrapperQueryBuilder;
@@ -92,7 +92,8 @@ public class LtrTestUtils {
             builder.field(set.feature(i).name(), random().nextFloat());
         }
         builder.endObject();
-        return new StoredLtrModel(name, set, LinearRankerParser.TYPE, Strings.toString(builder), false, randomFtrNorms(set));
+        return new StoredLtrModel(name, set, LinearRankerParser.TYPE, builder.toString(),
+                false, randomFtrNorms(set));
     }
 
     public static StoredFeatureNormalizers randomFtrNorms(FeatureSet set) {

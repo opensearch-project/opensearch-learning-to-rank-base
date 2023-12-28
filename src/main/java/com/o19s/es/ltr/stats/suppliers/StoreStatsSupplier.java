@@ -27,7 +27,7 @@ import org.opensearch.cluster.health.ClusterIndexHealth;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.index.Index;
+import org.opensearch.core.index.Index;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.search.aggregations.AggregationBuilders;
 import org.opensearch.search.aggregations.bucket.terms.Terms;

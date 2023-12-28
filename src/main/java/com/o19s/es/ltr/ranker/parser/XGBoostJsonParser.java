@@ -22,7 +22,7 @@ import com.o19s.es.ltr.ranker.dectree.NaiveAdditiveDecisionTree.Node;
 import com.o19s.es.ltr.ranker.normalizer.Normalizer;
 import com.o19s.es.ltr.ranker.normalizer.Normalizers;
 import org.opensearch.core.ParseField;
-import org.opensearch.common.ParsingException;
+import org.opensearch.core.common.ParsingException;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.core.xcontent.ObjectParser;

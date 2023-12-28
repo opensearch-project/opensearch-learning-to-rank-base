@@ -112,6 +112,7 @@ allprojects {
 test {
   include '**/*Tests.class'
   finalizedBy jacocoTestReport
+  systemProperty 'tests.security.manager', 'false'
 }
 
 task integTest(type: RestIntegTestTask) {
@@ -131,6 +132,7 @@ integTest {
   if (System.getProperty("test.debug") != null) {
     jvmArgs '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005'
   }
+  systemProperty 'tests.security.manager', 'false'
 }
 
 testClusters.integTest {

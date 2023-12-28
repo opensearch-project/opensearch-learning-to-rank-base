@@ -19,8 +19,8 @@ package com.o19s.es.ltr.feature.store;
 import com.o19s.es.ltr.ranker.normalizer.MinMaxFeatureNormalizer;
 import com.o19s.es.ltr.ranker.normalizer.Normalizer;
 import org.opensearch.core.ParseField;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.core.common.io.stream.StreamInput;
+import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.xcontent.ObjectParser;
 import org.opensearch.core.xcontent.XContentBuilder;
 

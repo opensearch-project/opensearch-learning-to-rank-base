@@ -19,7 +19,7 @@ import com.o19s.es.explore.StatisticsHelper.AggrType;
 
 import com.o19s.es.ltr.LtrQueryParserPlugin;
 import org.apache.lucene.search.Query;
-import org.opensearch.common.ParsingException;
+import org.opensearch.core.common.ParsingException;
 import org.opensearch.index.query.QueryShardContext;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.test.AbstractQueryTestCase;

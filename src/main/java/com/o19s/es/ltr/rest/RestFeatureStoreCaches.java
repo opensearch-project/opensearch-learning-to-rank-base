@@ -31,7 +31,7 @@ import java.util.List;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
-import static org.opensearch.rest.RestStatus.OK;
+import static org.opensearch.core.rest.RestStatus.OK;
 
 /**
  * Clear cache (default store):

@@ -21,16 +21,16 @@ import com.o19s.es.ltr.action.CreateModelFromSetAction.CreateModelFromSetRequest
 import com.o19s.es.ltr.feature.FeatureValidation;
 import com.o19s.es.ltr.feature.store.StoredLtrModel;
 import org.opensearch.ExceptionsHelper;
-import org.opensearch.action.ActionListener;
+import org.opensearch.core.action.ActionListener;
 import org.opensearch.client.node.NodeClient;
 import org.opensearch.core.ParseField;
-import org.opensearch.common.ParsingException;
+import org.opensearch.core.common.ParsingException;
 import org.opensearch.core.xcontent.ObjectParser;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.index.engine.VersionConflictEngineException;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestRequest;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.core.rest.RestStatus;
 import org.opensearch.rest.action.RestStatusToXContentListener;
 
 import java.io.IOException;

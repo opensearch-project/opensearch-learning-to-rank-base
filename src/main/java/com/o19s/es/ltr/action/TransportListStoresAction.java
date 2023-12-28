@@ -19,7 +19,7 @@ package com.o19s.es.ltr.action;
 import com.o19s.es.ltr.action.ListStoresAction.ListStoresActionRequest;
 import com.o19s.es.ltr.action.ListStoresAction.ListStoresActionResponse;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
-import org.opensearch.action.ActionListener;
+import org.opensearch.core.action.ActionListener;
 import org.opensearch.action.admin.cluster.state.ClusterStateRequest;
 import org.opensearch.action.search.MultiSearchRequestBuilder;
 import org.opensearch.action.search.MultiSearchResponse;
@@ -34,7 +34,7 @@ import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.inject.Inject;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.search.aggregations.AggregationBuilders;
@@ -54,7 +54,7 @@ import java.util.stream.Stream;
 
 import static com.o19s.es.ltr.feature.store.index.IndexFeatureStore.STORE_VERSION_PROP;
 import static java.util.stream.Collectors.toMap;
-import static org.opensearch.action.ActionListener.wrap;
+import static org.opensearch.core.action.ActionListener.wrap;
 import static org.opensearch.common.collect.Tuple.tuple;
 
 public class TransportListStoresAction extends TransportMasterNodeReadAction<ListStoresActionRequest, ListStoresActionResponse> {
