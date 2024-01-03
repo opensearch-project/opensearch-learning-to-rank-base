@@ -198,6 +198,11 @@ public class StoredLtrModel implements StorableElement {
     }
 
     @Override
+    public boolean isFragment() {
+        return false;// since toXContent already have enclosing start/endObject braces
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof StoredLtrModel)) return false;
