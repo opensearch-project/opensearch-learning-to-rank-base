@@ -77,9 +77,11 @@ public class LoggingSearchExtBuilder extends SearchExtBuilder {
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject();
-        builder.field(LOG_SPECS.getPreferredName(), logSpecs);
-        return builder.endObject();
+        //builder.startObject(); //since it's marked as XContentFragment,
+        // so Strings.toString(org.opensearch.core.xcontent.MediaType, org.opensearch.core.xcontent.ToXContent, org.opensearch.core.xcontent.ToXContent.Params, boolean, boolean)
+        // embraces fragment
+        return  builder.field(LOG_SPECS.getPreferredName(), logSpecs);
+        //return builder.endObject();
     }
 
     public Stream<LogSpec> logSpecsStream() {

@@ -31,6 +31,7 @@ import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.common.io.stream.Writeable;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.core.xcontent.ObjectParser;
+import org.opensearch.core.xcontent.ToXContentObject;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.common.xcontent.json.JsonXContent;
@@ -42,7 +43,7 @@ import java.util.Objects;
 
 import static org.opensearch.core.xcontent.NamedXContentRegistry.EMPTY;
 
-public class StoredLtrModel implements StorableElement {
+public class StoredLtrModel implements StorableElement, ToXContentObject {
     public static final String TYPE = "model";
 
     private static final ObjectParser<ParsingState, Void> PARSER;
@@ -195,11 +196,6 @@ public class StoredLtrModel implements StorableElement {
         builder.endObject();
         builder.endObject();
         return builder;
-    }
-
-    @Override
-    public boolean isFragment() {
-        return false;// since toXContent already have enclosing start/endObject braces
     }
 
     @Override
