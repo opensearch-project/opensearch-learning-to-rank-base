@@ -45,7 +45,7 @@ import static org.apache.lucene.util.RamUsageEstimator.NUM_BYTES_ARRAY_HEADER;
 import static org.apache.lucene.util.RamUsageEstimator.NUM_BYTES_OBJECT_HEADER;
 import static org.apache.lucene.util.RamUsageEstimator.NUM_BYTES_OBJECT_REF;
 
-public class StoredFeatureSet implements FeatureSet, Accountable, StorableElement, ToXContentObject {
+public class StoredFeatureSet implements FeatureSet, Accountable, StorableElement {
     public static final int MAX_FEATURES = 10000;
     public static final String TYPE = "featureset";
     private final long BASE_RAM_USED = RamUsageEstimator.shallowSizeOfInstance(StoredFeatureSet.class);

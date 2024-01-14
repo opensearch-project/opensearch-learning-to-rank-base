@@ -19,9 +19,10 @@ package com.o19s.es.ltr.feature.store;
 import org.opensearch.core.common.ParsingException;
 import org.opensearch.core.common.io.stream.NamedWriteable;
 import org.opensearch.core.xcontent.ToXContent;
+import org.opensearch.core.xcontent.ToXContentObject;
 import org.opensearch.core.xcontent.XContentParser;
 
-public interface StorableElement extends ToXContent, NamedWriteable {
+public interface StorableElement extends ToXContent, NamedWriteable, ToXContentObject {
     /**
      * @return the element name
      */

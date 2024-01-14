@@ -43,7 +43,7 @@ import java.util.Objects;
 
 import static org.opensearch.core.xcontent.NamedXContentRegistry.EMPTY;
 
-public class StoredLtrModel implements StorableElement, ToXContentObject {
+public class StoredLtrModel implements StorableElement {
     public static final String TYPE = "model";
 
     private static final ObjectParser<ParsingState, Void> PARSER;
