@@ -20,9 +20,9 @@ import com.o19s.es.ltr.action.AddFeaturesToSetAction.AddFeaturesToSetRequestBuil
 import com.o19s.es.ltr.feature.FeatureValidation;
 import com.o19s.es.ltr.feature.store.StoredFeature;
 import org.opensearch.client.node.NodeClient;
-import org.opensearch.common.ParseField;
-import org.opensearch.common.xcontent.ObjectParser;
-import org.opensearch.common.xcontent.XContentParser;
+import org.opensearch.core.ParseField;
+import org.opensearch.core.xcontent.ObjectParser;
+import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestStatusToXContentListener;
 

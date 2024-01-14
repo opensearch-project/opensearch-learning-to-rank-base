@@ -20,7 +20,7 @@ import com.o19s.es.ltr.action.CachesStatsAction;
 import com.o19s.es.ltr.action.ClearCachesAction;
 import com.o19s.es.ltr.action.ClearCachesAction.ClearCachesNodesResponse;
 import org.opensearch.client.node.NodeClient;
-import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.RestResponse;

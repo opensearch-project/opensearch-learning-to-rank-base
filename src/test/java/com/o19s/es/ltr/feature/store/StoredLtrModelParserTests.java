@@ -32,16 +32,16 @@ import org.opensearch.common.io.stream.ByteBufferStreamInput;
 import org.opensearch.common.io.stream.BytesStreamOutput;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
-import org.opensearch.common.xcontent.ToXContent;
-import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.core.xcontent.ToXContent;
+import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
-import org.opensearch.common.xcontent.XContentParser;
+import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 
 import java.io.IOException;
 import java.util.Base64;
 
-import static org.opensearch.common.xcontent.NamedXContentRegistry.EMPTY;
+import static org.opensearch.core.xcontent.NamedXContentRegistry.EMPTY;
 import static org.opensearch.common.xcontent.json.JsonXContent.jsonXContent;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
