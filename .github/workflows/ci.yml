@@ -4,17 +4,11 @@ on:
   schedule:
     - cron: '0 0 * * *'  # every night
   push:
-    branches:
-      - "*"
-      - "feature/**"
   pull_request:
-    branches:
-      - "*"
-      - "feature/**"
   workflow_dispatch:
 
 jobs:
-  Build-ltr-plugin:
+  build-ltr-plugin:
     strategy:
       matrix:
         java: [11, 17]
