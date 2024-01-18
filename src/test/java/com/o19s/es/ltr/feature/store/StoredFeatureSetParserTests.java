@@ -19,11 +19,12 @@ package com.o19s.es.ltr.feature.store;
 import com.o19s.es.ltr.feature.FeatureSet;
 import com.o19s.es.ltr.query.DerivedExpressionQuery;
 import org.apache.lucene.tests.util.LuceneTestCase;
-import org.opensearch.common.ParsingException;
-import org.opensearch.common.Strings;
+import org.opensearch.core.common.ParsingException;
+import org.opensearch.core.common.Strings;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
-import org.opensearch.common.xcontent.ToXContent;
-import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.core.xcontent.MediaTypeRegistry;
+import org.opensearch.core.xcontent.ToXContent;
+import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.query.MatchQueryBuilder;
@@ -39,7 +40,7 @@ import java.util.function.Consumer;
 
 import static org.apache.lucene.tests.util.TestUtil.randomRealisticUnicodeString;
 import static org.apache.lucene.tests.util.TestUtil.randomSimpleString;
-import static org.opensearch.common.xcontent.NamedXContentRegistry.EMPTY;
+import static org.opensearch.core.xcontent.NamedXContentRegistry.EMPTY;
 import static org.opensearch.common.xcontent.json.JsonXContent.jsonXContent;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.containsString;
@@ -87,8 +88,7 @@ public class StoredFeatureSetParserTests extends LuceneTestCase {
         String featureSetString = generateRandomFeatureSet("my_set", features::add);
         StoredFeatureSet featureSet = parse(featureSetString);
 
-        XContentBuilder builder = XContentFactory.contentBuilder(XContentType.JSON);
-        featureSetString = Strings.toString(featureSet.toXContent(builder, ToXContent.EMPTY_PARAMS));
+        featureSetString = Strings.toString(XContentType.JSON, featureSet);//.toXContent(builder, ToXContent.EMPTY_PARAMS));
         StoredFeatureSet featureSetReparsed = parse(featureSetString);
         assertFeatureSet(featureSetReparsed, features);
     }

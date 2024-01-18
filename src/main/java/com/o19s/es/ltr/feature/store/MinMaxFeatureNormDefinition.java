@@ -18,11 +18,11 @@ package com.o19s.es.ltr.feature.store;
 
 import com.o19s.es.ltr.ranker.normalizer.MinMaxFeatureNormalizer;
 import com.o19s.es.ltr.ranker.normalizer.Normalizer;
-import org.opensearch.common.ParseField;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.xcontent.ObjectParser;
-import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.core.ParseField;
+import org.opensearch.core.common.io.stream.StreamInput;
+import org.opensearch.core.common.io.stream.StreamOutput;
+import org.opensearch.core.xcontent.ObjectParser;
+import org.opensearch.core.xcontent.XContentBuilder;
 
 import java.io.IOException;
 

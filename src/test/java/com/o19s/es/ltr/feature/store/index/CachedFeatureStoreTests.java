@@ -24,7 +24,7 @@ import com.o19s.es.ltr.feature.store.StoredFeatureSet;
 import org.apache.lucene.tests.util.LuceneTestCase;
 import org.apache.lucene.tests.util.TestUtil;
 import org.opensearch.common.settings.Settings;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.common.unit.TimeValue;
 
 import java.io.IOException;

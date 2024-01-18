@@ -29,7 +29,7 @@ import com.o19s.es.ltr.query.ValidatingLtrQueryBuilder;
 import com.o19s.es.ltr.ranker.parser.LtrRankerParserFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.action.ActionListener;
+import org.opensearch.core.action.ActionListener;
 import org.opensearch.action.index.IndexAction;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.search.SearchAction;
@@ -47,7 +47,7 @@ import org.opensearch.transport.TransportService;
 import java.io.IOException;
 import java.util.Optional;
 
-import static org.opensearch.action.ActionListener.wrap;
+import static org.opensearch.core.action.ActionListener.wrap;
 
 public class TransportFeatureStoreAction extends HandledTransportAction<FeatureStoreRequest, FeatureStoreResponse> {
     private final LtrRankerParserFactory factory;

@@ -44,8 +44,8 @@ import org.opensearch.common.lucene.search.function.LeafScoreFunction;
 import org.opensearch.common.lucene.search.function.ScriptScoreFunction;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 
-import org.opensearch.common.xcontent.NamedXContentRegistry;
-import org.opensearch.common.xcontent.XContentParser;
+import org.opensearch.core.xcontent.NamedXContentRegistry;
+import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.script.ScoreScript;
@@ -233,7 +233,8 @@ public class ScriptFeature implements Feature {
         Script script = new Script(this.script.getType(), this.script.getLang(),
             this.script.getIdOrCode(), this.script.getOptions(), nparams);
         ScoreScript.Factory factoryFactory  = context.getQueryShardContext().compile(script, ScoreScript.CONTEXT);
-        ScoreScript.LeafFactory leafFactory = factoryFactory.newFactory(nparams, context.getQueryShardContext().lookup());
+        ScoreScript.LeafFactory leafFactory = factoryFactory.newFactory(nparams,
+                context.getQueryShardContext().lookup(), context.getQueryShardContext().searcher());
         ScriptScoreFunction function = new ScriptScoreFunction(script, leafFactory,
                 context.getQueryShardContext().index().getName(),
                 context.getQueryShardContext().getShardId(),

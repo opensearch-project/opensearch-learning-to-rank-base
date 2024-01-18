@@ -47,7 +47,7 @@ import org.apache.lucene.tests.util.TestUtil;
 import org.opensearch.common.lucene.search.function.CombineFunction;
 import org.opensearch.common.lucene.search.function.FieldValueFactorFunction;
 import org.opensearch.common.lucene.search.function.FunctionScoreQuery;
-import org.opensearch.common.text.Text;
+import org.opensearch.core.common.text.Text;
 import org.opensearch.index.fielddata.plain.SortedNumericIndexFieldData;
 import org.opensearch.search.SearchHit;
 import org.opensearch.search.fetch.FetchSubPhase;

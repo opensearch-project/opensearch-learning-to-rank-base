@@ -25,23 +25,21 @@ import com.o19s.es.ltr.ranker.parser.LtrRankerParserFactory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.tests.util.LuceneTestCase;
 import org.opensearch.Version;
-import org.opensearch.common.ParsingException;
+import org.opensearch.core.common.ParsingException;
 import org.opensearch.common.Randomness;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.ByteBufferStreamInput;
+import org.opensearch.core.common.Strings;
+import org.opensearch.core.common.io.stream.ByteBufferStreamInput;
 import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
-import org.opensearch.common.xcontent.ToXContent;
-import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.core.xcontent.*;
 import org.opensearch.common.xcontent.XContentFactory;
-import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 
 import java.io.IOException;
 import java.util.Base64;
 
-import static org.opensearch.common.xcontent.NamedXContentRegistry.EMPTY;
+import static org.opensearch.core.xcontent.NamedXContentRegistry.EMPTY;
 import static org.opensearch.common.xcontent.json.JsonXContent.jsonXContent;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -245,8 +243,9 @@ public class StoredLtrModelParserTests extends LuceneTestCase {
     }
 
     public StoredLtrModel reparseModel(StoredLtrModel srcModel) throws IOException {
-        XContentBuilder builder = XContentFactory.contentBuilder(XContentType.JSON);
-        String modelString = Strings.toString(srcModel.toXContent(builder, ToXContent.EMPTY_PARAMS));
+        XContentBuilder builder = XContentFactory.jsonBuilder();
+        String modelString = Strings.toString(XContentType.JSON, srcModel);
+
         StoredLtrModel modelReparsed = parse(modelString);
         return modelReparsed;
     }
@@ -333,14 +332,15 @@ public class StoredLtrModelParserTests extends LuceneTestCase {
     public void testToXContent() throws IOException {
         StoredLtrModel model = parse(getTestModel());
 
-        XContentBuilder builder = XContentFactory.contentBuilder(XContentType.JSON);
-        String modelString = Strings.toString(model.toXContent(builder, ToXContent.EMPTY_PARAMS));
+
+        String modelString = Strings.toString(XContentType.JSON, model);
         StoredLtrModel modelReparsed = parse(modelString);
         assertTestModel(modelReparsed);
 
         model = parse(getTestModelAsXContent());
-        builder = XContentFactory.contentBuilder(XContentType.JSON);
-        modelString = Strings.toString(model.toXContent(builder, ToXContent.EMPTY_PARAMS));
+
+        XContentBuilder builder = XContentFactory.jsonBuilder();
+        modelString = Strings.toString(XContentType.JSON, model);
         modelReparsed = parse(modelString);
         assertTestModelAsXContent(modelReparsed);
     }

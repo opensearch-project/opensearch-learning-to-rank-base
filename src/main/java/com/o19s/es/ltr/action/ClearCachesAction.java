@@ -27,13 +27,13 @@ import org.opensearch.action.support.nodes.BaseNodesResponse;
 import org.opensearch.client.OpenSearchClient;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.node.DiscoveryNode;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.core.common.io.stream.StreamInput;
+import org.opensearch.core.common.io.stream.StreamOutput;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
-import org.opensearch.common.io.stream.Writeable.Reader;
+import org.opensearch.core.common.io.stream.Writeable.Reader;
 
 import static org.opensearch.action.ValidateActions.addValidationError;
 

@@ -16,13 +16,15 @@
 
 package com.o19s.es.ltr.logging;
 
-import org.opensearch.common.ParsingException;
-import org.opensearch.common.Strings;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.core.common.ParsingException;
+import org.opensearch.core.common.Strings;
 import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.xcontent.ToXContent;
-import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.core.xcontent.ToXContent;
+import org.opensearch.core.xcontent.XContent;
+import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
-import org.opensearch.common.xcontent.XContentParser;
+import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.test.OpenSearchTestCase;
 
@@ -66,12 +68,14 @@ public class LoggingSearchExtBuilderTests extends OpenSearchTestCase {
         assertTestExt(ext);
     }
 
-    public void testToXCtontent() throws IOException {
+    public void testToXContent() throws IOException {
         LoggingSearchExtBuilder ext1 = buildTestExt();
-        XContentBuilder builder = XContentFactory.jsonBuilder();
-        ext1.toXContent(builder, ToXContent.EMPTY_PARAMS);
-        builder.close();
-        assertEquals(getTestExtAsString(), Strings.toString(builder));
+        // this builder goes, nowhere
+        //XContentBuilder builder = XContentFactory.jsonBuilder();
+        // fails with "Can not write a field name, expecting a value", Strings.toString() must embrace the fragment
+        // ext1.toXContent(builder, ToXContent.EMPTY_PARAMS);
+        //builder.close();
+        assertEquals(getTestExtAsString(), Strings.toString(XContentType.JSON, ext1));
     }
 
     public void testSer() throws IOException {

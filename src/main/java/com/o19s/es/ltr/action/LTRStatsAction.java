@@ -26,11 +26,11 @@ import org.opensearch.action.support.nodes.BaseNodesResponse;
 import org.opensearch.client.OpenSearchClient;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.node.DiscoveryNode;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.xcontent.ToXContent;
-import org.opensearch.common.xcontent.ToXContentFragment;
-import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.core.common.io.stream.StreamInput;
+import org.opensearch.core.common.io.stream.StreamOutput;
+import org.opensearch.core.xcontent.ToXContent;
+import org.opensearch.core.xcontent.ToXContentFragment;
+import org.opensearch.core.xcontent.XContentBuilder;
 
 import java.io.IOException;
 import java.util.HashSet;

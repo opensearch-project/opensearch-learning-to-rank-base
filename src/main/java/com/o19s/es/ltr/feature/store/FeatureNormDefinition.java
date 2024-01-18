@@ -17,8 +17,8 @@
 package com.o19s.es.ltr.feature.store;
 
 import com.o19s.es.ltr.ranker.normalizer.Normalizer;
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.xcontent.ToXContent;
+import org.opensearch.core.common.io.stream.Writeable;
+import org.opensearch.core.xcontent.ToXContent;
 
 /**
  * Parsed feature norm from model definition

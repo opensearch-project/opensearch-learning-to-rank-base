@@ -107,7 +107,7 @@ public abstract class BaseIntegrationTest extends OpenSearchSingleNodeTestCase {
     }
 
     public <E extends StorableElement> E getElement(Class<E> clazz, String type, String name, String store) throws IOException {
-        return new IndexFeatureStore(store, this::client, parserFactory()).getAndParse(name, clazz, type);
+        return new IndexFeatureStore(store, this::client, parserFactory(), client().threadPool()).getAndParse(name, clazz, type);
     }
 
     protected LtrRankerParserFactory parserFactory() {
@@ -118,7 +118,7 @@ public abstract class BaseIntegrationTest extends OpenSearchSingleNodeTestCase {
                                            @Nullable FeatureValidation validation,
                                            String store) throws ExecutionException, InterruptedException {
         FeatureStoreRequestBuilder builder =
-            new FeatureStoreRequestBuilder(client(), FeatureStoreAction.INSTANCE);
+                new FeatureStoreRequestBuilder(client(), FeatureStoreAction.INSTANCE);
         builder.request().setStorableElement(element);
         builder.request().setAction(FeatureStoreAction.FeatureStoreRequest.Action.CREATE);
         builder.request().setStore(store);
@@ -167,11 +167,11 @@ public abstract class BaseIntegrationTest extends OpenSearchSingleNodeTestCase {
                                 + "]");
                     }
                     // we use the script "source" as the script identifier
-                    ScoreScript.Factory factory = (p, lookup) ->
+                    ScoreScript.Factory factory = (p, lookup, searcher) ->
                             new ScoreScript.LeafFactory() {
                                 @Override
                                 public ScoreScript newInstance(LeafReaderContext ctx) throws IOException {
-                                    return new ScoreScript(p, lookup, ctx) {
+                                    return new ScoreScript(p, lookup, searcher, ctx) {
                                         @Override
                                         public double execute(ExplanationHolder explainationHolder) {
                                             // For testing purposes just look for the "terms" key and see if stats were injected
@@ -239,7 +239,7 @@ public abstract class BaseIntegrationTest extends OpenSearchSingleNodeTestCase {
                     }
                     // we use the script "source" as the script identifier
                     if (FEATURE_EXTRACTOR.equals(scriptSource)) {
-                        ScoreScript.Factory factory = (p, lookup) ->
+                        ScoreScript.Factory factory = (p, lookup, searcher) ->
                                 new ScoreScript.LeafFactory() {
                                     final Map<String, Float> featureSupplier;
                                     final String dependentFeature;
@@ -267,7 +267,7 @@ public abstract class BaseIntegrationTest extends OpenSearchSingleNodeTestCase {
 
                                     @Override
                                     public ScoreScript newInstance(LeafReaderContext ctx) throws IOException {
-                                        return new ScoreScript(p, lookup, ctx) {
+                                        return new ScoreScript(p, lookup, searcher, ctx) {
                                             @Override
                                             public double execute(ExplanationHolder explainationHolder ) {
                                                 return extraMultiplier == 0.0d ?
@@ -286,7 +286,7 @@ public abstract class BaseIntegrationTest extends OpenSearchSingleNodeTestCase {
                         return context.factoryClazz.cast(factory);
                     }
                     else if (scriptSource.equals(FEATURE_EXTRACTOR + "_extra_logging")) {
-                        ScoreScript.Factory factory = (p, lookup) ->
+                        ScoreScript.Factory factory = (p, lookup, searcher) ->
                                 new ScoreScript.LeafFactory() {
                                     {
                                         if (!p.containsKey(FEATURE_VECTOR)) {
@@ -299,7 +299,7 @@ public abstract class BaseIntegrationTest extends OpenSearchSingleNodeTestCase {
 
                                     @Override
                                     public ScoreScript newInstance(LeafReaderContext ctx) throws IOException {
-                                        return new ScoreScript(p, lookup, ctx) {
+                                        return new ScoreScript(p, lookup, searcher, ctx) {
 
                                             @Override
                                             public double execute(ExplanationHolder explanation) {
