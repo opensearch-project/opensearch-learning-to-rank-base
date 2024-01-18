@@ -88,8 +88,6 @@ public class StoredFeatureSetParserTests extends LuceneTestCase {
         String featureSetString = generateRandomFeatureSet("my_set", features::add);
         StoredFeatureSet featureSet = parse(featureSetString);
 
-        XContentBuilder builder = XContentFactory.jsonBuilder();//contentBuilder(XContentType.JSON);
-
         featureSetString = Strings.toString(XContentType.JSON, featureSet);//.toXContent(builder, ToXContent.EMPTY_PARAMS));
         StoredFeatureSet featureSetReparsed = parse(featureSetString);
         assertFeatureSet(featureSetReparsed, features);

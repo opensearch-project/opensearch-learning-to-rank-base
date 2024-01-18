@@ -70,9 +70,11 @@ public class LoggingSearchExtBuilderTests extends OpenSearchTestCase {
 
     public void testToXContent() throws IOException {
         LoggingSearchExtBuilder ext1 = buildTestExt();
-        XContentBuilder builder = XContentFactory.jsonBuilder();
-        ext1.toXContent(builder, ToXContent.EMPTY_PARAMS);
-        builder.close();
+        // this builder goes, nowhere
+        //XContentBuilder builder = XContentFactory.jsonBuilder();
+        // fails with "Can not write a field name, expecting a value", Strings.toString() must embrace the fragment
+        // ext1.toXContent(builder, ToXContent.EMPTY_PARAMS);
+        //builder.close();
         assertEquals(getTestExtAsString(), Strings.toString(XContentType.JSON, ext1));
     }
 

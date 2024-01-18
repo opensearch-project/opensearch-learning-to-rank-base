@@ -98,7 +98,8 @@ public class StoredFeatureParserTests extends LuceneTestCase {
         String featureString = generateTestFeature();
         StoredFeature feature = parse(featureString);
         XContentBuilder builder = MediaTypeRegistry.contentBuilder(XContentType.JSON);
-        featureString = String.valueOf(feature.toXContent(builder, ToXContent.EMPTY_PARAMS));
+        //featureString = String.valueOf(feature.toXContent(builder, ToXContent.EMPTY_PARAMS));
+        featureString = Strings.toString(XContentType.JSON, feature);//.toXContent(builder, ToXContent.EMPTY_PARAMS));
         StoredFeature featureReparsed = parse(featureString);
         assertTestFeature(featureReparsed);
     }
