@@ -144,8 +144,13 @@ githubRelease.doFirst {
   }
 }
 
-tasks.withType(Test) { task ->
-  if (JavaVersion.current().compareTo(JavaVersion.VERSION_17) > 0) {
-    task.jvmArgs += ["-Djava.security.manager=allow"]
-  }
+tasks.withType(Test).configureEach { task ->
+    if (JavaVersion.current().compareTo(JavaVersion.VERSION_17) > 0) {
+        def policyFile = file("${projectDir}/src/main/plugin-metadata/plugin-security.policy").absolutePath
+        task.jvmArgs += [
+            "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+            "-Djava.security.manager",
+            "-Djava.security.policy=" + policyFile
+        ]
+    }
 }
