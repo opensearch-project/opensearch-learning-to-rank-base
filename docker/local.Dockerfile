@@ -1,9 +1,9 @@
 # Build an image from a local distribution
 
-ARG opensearch_version=2.5.0
+ARG opensearch_version=2.15.0
 FROM opensearchproject/opensearch:${opensearch_version}
-ARG ltrversion=2.1.0
-ARG opensearch_version=2.5.0
+ARG ltrversion=2.15.0
+ARG opensearch_version=2.15.0
 ARG zip_file=ltr-${ltrversion}-os${opensearch_version}.zip
 ARG plugin_file=/usr/share/opensearch/${zip_file}
 
