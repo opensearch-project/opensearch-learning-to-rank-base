@@ -107,7 +107,7 @@ public abstract class BaseIntegrationTest extends OpenSearchSingleNodeTestCase {
     }
 
     public <E extends StorableElement> E getElement(Class<E> clazz, String type, String name, String store) throws IOException {
-        return new IndexFeatureStore(store, this::client, parserFactory()).getAndParse(name, clazz, type);
+        return new IndexFeatureStore(store, this::client, parserFactory()).getAndParse(name, clazz, type).get();
     }
 
     protected LtrRankerParserFactory parserFactory() {
