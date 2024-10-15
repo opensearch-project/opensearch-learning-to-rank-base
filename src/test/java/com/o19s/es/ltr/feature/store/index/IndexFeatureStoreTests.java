@@ -22,20 +22,26 @@ import com.o19s.es.ltr.feature.store.StoredFeature;
 import com.o19s.es.ltr.feature.store.StoredFeatureNormalizers;
 import com.o19s.es.ltr.feature.store.StoredFeatureSet;
 import com.o19s.es.ltr.feature.store.StoredLtrModel;
+import com.o19s.es.ltr.ranker.parser.LtrRankerParserFactory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.tests.util.LuceneTestCase;
 import org.apache.lucene.tests.util.TestUtil;
+import org.hamcrest.MatcherAssert;
+import org.opensearch.ResourceNotFoundException;
+import org.opensearch.action.get.GetRequestBuilder;
+import org.opensearch.action.get.GetResponse;
+import org.opensearch.client.Client;
 import org.opensearch.client.Requests;
 import org.opensearch.core.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.core.xcontent.XContentBuilder;
-import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.core.xcontent.XContentParser;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static com.o19s.es.ltr.feature.store.index.IndexFeatureStore.STORE_PREFIX;
 import static com.o19s.es.ltr.feature.store.index.IndexFeatureStore.indexName;
@@ -44,8 +50,67 @@ import static com.o19s.es.ltr.feature.store.index.IndexFeatureStore.storeName;
 import static org.apache.lucene.tests.util.TestUtil.randomRealisticUnicodeString;
 import static org.apache.lucene.tests.util.TestUtil.randomSimpleString;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class IndexFeatureStoreTests extends LuceneTestCase {
+
+    private Client clientMock;
+    private GetRequestBuilder getRequestBuilder;
+    private GetResponse getResponseMock;
+
+    private Supplier<Client> clientSupplier = () -> clientMock;
+
+    private void setupMocks() {
+        clientMock = mock(Client.class);
+        getRequestBuilder = mock(GetRequestBuilder.class);
+        getResponseMock = mock(GetResponse.class);
+        when(clientMock.prepareGet(anyString(), anyString())).thenReturn(getRequestBuilder);
+        when(getRequestBuilder.get()).thenReturn(getResponseMock);
+    }
+
+    public void testThat_exceptionIsThrown_forNonExistingFeature() {
+        setupMocks();
+        when(getResponseMock.isExists()).thenReturn(false);
+        IndexFeatureStore store = new IndexFeatureStore("index", clientSupplier, mock(LtrRankerParserFactory.class));
+
+        MatcherAssert.assertThat(
+                expectThrows(
+                        ResourceNotFoundException.class,
+                        () -> store.load("my_feature")
+                ).getMessage(),
+                equalTo("Unknown feature [my_feature]")
+        );
+    }
+
+    public void testThat_exceptionIsThrown_forNonExistingFeatureSet() {
+        setupMocks();
+        when(getResponseMock.isExists()).thenReturn(false);
+        IndexFeatureStore store = new IndexFeatureStore("index", clientSupplier, mock(LtrRankerParserFactory.class));
+
+        MatcherAssert.assertThat(
+                expectThrows(
+                        ResourceNotFoundException.class,
+                        () -> store.loadSet("my_feature_set")
+                ).getMessage(),
+                equalTo("Unknown featureset [my_feature_set]")
+        );
+    }
+
+    public void testThat_exceptionIsThrown_forNonExistingModel() {
+        setupMocks();
+        when(getResponseMock.isExists()).thenReturn(false);
+        IndexFeatureStore store = new IndexFeatureStore("index", clientSupplier, mock(LtrRankerParserFactory.class));
+
+        MatcherAssert.assertThat(
+                expectThrows(
+                        ResourceNotFoundException.class,
+                        () -> store.loadModel("my_model")
+                ).getMessage(),
+                equalTo("Unknown model [my_model]")
+        );
+    }
 
     public void testParse() throws Exception {
         parseAssertions(LtrTestUtils.randomFeature());
@@ -102,10 +167,16 @@ public class IndexFeatureStoreTests extends LuceneTestCase {
         builder = XContentBuilder.builder(Requests.INDEX_CONTENT_TYPE.xContent());
         map.put("featureset", LtrTestUtils.randomFeatureSet());
         BytesReference bytes2 = BytesReference.bytes(builder.map(map));
-        assertThat(expectThrows(IllegalArgumentException.class,
-                () -> IndexFeatureStore.parse(StoredFeature.class, StoredFeature.TYPE, bytes2))
-                .getMessage(), equalTo("Expected an element of type [" + StoredFeature.TYPE + "] but" +
-                " got [" + StoredFeatureSet.TYPE + "]."));
+        assertThat(
+                expectThrows(
+                        IllegalArgumentException.class,
+                        () -> IndexFeatureStore.parse(StoredFeature.class, StoredFeature.TYPE, bytes2)
+                ).getMessage(),
+                equalTo(
+                        "Expected an element of type [" + StoredFeature.TYPE + "] but" +
+                                " got [" + StoredFeatureSet.TYPE + "]."
+                )
+        );
     }
 
     private void parseAssertions(StorableElement elt) throws IOException {

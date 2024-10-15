@@ -28,6 +28,7 @@ import com.o19s.es.ltr.ranker.parser.LtrRankerParserFactory;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.lucene.util.BytesRef;
+import org.opensearch.ResourceNotFoundException;
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
 import org.opensearch.action.get.GetResponse;
 import org.opensearch.client.Client;
@@ -53,6 +54,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -108,13 +110,21 @@ public class IndexFeatureStore implements FeatureStore {
     }
 
     @Override
-    public Feature load(String name) throws IOException {
-        return getAndParse(name, StoredFeature.class, StoredFeature.TYPE).optimize();
+    public Feature load(final String name) throws IOException {
+        return getAndParse(name, StoredFeature.class, StoredFeature.TYPE)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Unknown feature [" + name + "]")
+                )
+                .optimize();
     }
 
     @Override
-    public FeatureSet loadSet(String name) throws IOException {
-        return getAndParse(name, StoredFeatureSet.class, StoredFeatureSet.TYPE).optimize();
+    public FeatureSet loadSet(final String name) throws IOException {
+        return getAndParse(name, StoredFeatureSet.class, StoredFeatureSet.TYPE)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Unknown featureset [" + name + "]")
+                )
+                .optimize();
     }
 
     /**
@@ -165,19 +175,21 @@ public class IndexFeatureStore implements FeatureStore {
 
     @Override
     public CompiledLtrModel loadModel(String name) throws IOException {
-        StoredLtrModel model = getAndParse(name, StoredLtrModel.class, StoredLtrModel.TYPE);
-        if (model == null) {
-            throw new IllegalArgumentException("Unknown model [" + name + "]");
-        }
+        StoredLtrModel model = getAndParse(name, StoredLtrModel.class, StoredLtrModel.TYPE)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Unknown model [" + name + "]")
+                );
+
         return model.compile(parserFactory);
     }
 
-    public <E extends StorableElement> E getAndParse(String name, Class<E> eltClass, String type) throws IOException {
+    public <E extends StorableElement> Optional<E> getAndParse(String name, Class<E> eltClass, String type) throws IOException {
         GetResponse response = internalGet(generateId(type, name)).get();
         if (response.isExists()) {
-            return parse(eltClass, type, response.getSourceAsBytes());
+            return Optional.of(parse(eltClass, type, response.getSourceAsBytes()));
+
         } else {
-            return null;
+            return Optional.empty();
         }
     }
 
