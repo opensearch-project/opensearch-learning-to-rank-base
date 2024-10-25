@@ -17,6 +17,7 @@
 package com.o19s.es.ltr;
 
 import ciir.umass.edu.learning.RankerFactory;
+import org.opensearch.ltr.breaker.LTRCircuitBreakerService;
 import com.o19s.es.explore.ExplorerQueryBuilder;
 import com.o19s.es.ltr.action.AddFeaturesToSetAction;
 import com.o19s.es.ltr.action.CachesStatsAction;
@@ -90,6 +91,7 @@ import org.opensearch.env.NodeEnvironment;
 import org.opensearch.core.index.Index;
 import org.opensearch.index.analysis.PreConfiguredTokenFilter;
 import org.opensearch.index.analysis.PreConfiguredTokenizer;
+import org.opensearch.monitor.jvm.JvmService;
 import org.opensearch.plugins.ActionPlugin;
 import org.opensearch.plugins.AnalysisPlugin;
 import org.opensearch.plugins.Plugin;
@@ -121,6 +123,8 @@ import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableMap;
 
 public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, ScriptPlugin, ActionPlugin, AnalysisPlugin {
+    public static final String LTR_BASE_URI = "/_plugins/_ltr";
+    public static final String LTR_LEGACY_BASE_URI = "/_opendistro/_ltr";
     private final LtrRankerParserFactory parserFactory;
     private final Caches caches;
 
@@ -256,7 +260,10 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
                 }
             }
         });
-        return asList(caches, parserFactory, getStats(client, clusterService, indexNameExpressionResolver));
+        final JvmService jvmService = new JvmService(environment.settings());
+        final LTRCircuitBreakerService ltrCircuitBreakerService = new LTRCircuitBreakerService(jvmService).init();
+
+        return asList(caches, parserFactory, ltrCircuitBreakerService, getStats(client, clusterService, indexNameExpressionResolver));
     }
 
     private LTRStats getStats(Client client, ClusterService clusterService, IndexNameExpressionResolver indexNameExpressionResolver) {

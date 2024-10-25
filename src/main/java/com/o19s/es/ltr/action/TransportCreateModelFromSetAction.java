@@ -16,6 +16,8 @@
 
 package com.o19s.es.ltr.action;
 
+import org.opensearch.ltr.breaker.LTRCircuitBreakerService;
+import org.opensearch.ltr.exception.LimitExceededException;
 import com.o19s.es.ltr.action.CreateModelFromSetAction.CreateModelFromSetRequest;
 import com.o19s.es.ltr.action.CreateModelFromSetAction.CreateModelFromSetResponse;
 import com.o19s.es.ltr.action.FeatureStoreAction.FeatureStoreRequest;
@@ -43,23 +45,30 @@ public class TransportCreateModelFromSetAction extends HandledTransportAction<Cr
     private final ClusterService clusterService;
     private final TransportGetAction getAction;
     private final TransportFeatureStoreAction featureStoreAction;
+    private final LTRCircuitBreakerService ltrCircuitBreakerService;
 
     @Inject
     public TransportCreateModelFromSetAction(Settings settings, ThreadPool threadPool,
                                                 TransportService transportService, ActionFilters actionFilters,
                                                 IndexNameExpressionResolver indexNameExpressionResolver,
                                                 ClusterService clusterService, TransportGetAction getAction,
-                                                TransportFeatureStoreAction featureStoreAction) {
+                                                TransportFeatureStoreAction featureStoreAction,
+                                                LTRCircuitBreakerService ltrCircuitBreakerService) {
         super(CreateModelFromSetAction.NAME, transportService, actionFilters, CreateModelFromSetRequest::new);
         this.clusterService = clusterService;
         this.getAction = getAction;
         this.featureStoreAction = featureStoreAction;
+        this.ltrCircuitBreakerService = ltrCircuitBreakerService;
     }
 
     @Override
     protected void doExecute(Task task, CreateModelFromSetRequest request, ActionListener<CreateModelFromSetResponse> listener) {
         if (!clusterService.state().routingTable().hasIndex(request.getStore())) {
             throw new IllegalArgumentException("Store [" + request.getStore() + "] does not exist, please create it first.");
+        }
+        if (this.ltrCircuitBreakerService.isOpen()) {
+            throw new LimitExceededException("Store [" + request.getStore() + "] creating model is not allowed " +
+                    "as memory circuit is broken.");
         }
         GetRequest getRequest = new GetRequest(request.getStore())
                 .id(StorableElement.generateId(StoredFeatureSet.TYPE, request.getFeatureSetName()));

@@ -16,6 +16,8 @@
 
 package com.o19s.es.ltr.action;
 
+import org.opensearch.ltr.breaker.LTRCircuitBreakerService;
+import org.opensearch.ltr.exception.LimitExceededException;
 import com.o19s.es.ltr.action.AddFeaturesToSetAction.AddFeaturesToSetRequest;
 import com.o19s.es.ltr.action.AddFeaturesToSetAction.AddFeaturesToSetResponse;
 import com.o19s.es.ltr.action.FeatureStoreAction.FeatureStoreRequest;
@@ -59,24 +61,31 @@ public class TransportAddFeatureToSetAction extends HandledTransportAction<AddFe
     private final TransportSearchAction searchAction;
     private final TransportGetAction getAction;
     private final TransportFeatureStoreAction featureStoreAction;
+    private final LTRCircuitBreakerService ltrCircuitBreakerService;
 
     @Inject
     public TransportAddFeatureToSetAction(Settings settings, ThreadPool threadPool,
                                              TransportService transportService, ActionFilters actionFilters,
                                              IndexNameExpressionResolver indexNameExpressionResolver,
                                              ClusterService clusterService, TransportSearchAction searchAction,
-                                             TransportGetAction getAction, TransportFeatureStoreAction featureStoreAction) {
+                                             TransportGetAction getAction, TransportFeatureStoreAction featureStoreAction,
+                                             LTRCircuitBreakerService ltrCircuitBreakerService) {
         super(AddFeaturesToSetAction.NAME, transportService, actionFilters, AddFeaturesToSetRequest::new);
         this.clusterService = clusterService;
         this.searchAction = searchAction;
         this.getAction = getAction;
         this.featureStoreAction = featureStoreAction;
+        this.ltrCircuitBreakerService = ltrCircuitBreakerService;
     }
 
     @Override
     protected void doExecute(Task task, AddFeaturesToSetRequest request, ActionListener<AddFeaturesToSetResponse> listener) {
         if (!clusterService.state().routingTable().hasIndex(request.getStore())) {
             throw new IllegalArgumentException("Store [" + request.getStore() + "] does not exist, please create it first.");
+        }
+        if (this.ltrCircuitBreakerService.isOpen()) {
+            throw new LimitExceededException("Store [" + request.getStore() + "] adding feature set is not allowed " +
+                    "as memory circuit is broken.");
         }
         new AsyncAction(task, request, listener, clusterService, searchAction, getAction, featureStoreAction).start();
     }
