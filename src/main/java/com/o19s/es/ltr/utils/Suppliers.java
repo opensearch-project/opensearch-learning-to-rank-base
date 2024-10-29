@@ -17,7 +17,6 @@
 package com.o19s.es.ltr.utils;
 
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 public final class Suppliers {
@@ -57,22 +56,6 @@ public final class Suppliers {
                 }
             }
             return value;
-        }
-    }
-
-    /**
-     * A mutable supplier
-     */
-    public static class MutableSupplier<T> implements Supplier<T> {
-        private final AtomicReference<T> ref = new AtomicReference<>();
-
-        @Override
-        public T get() {
-            return ref.get();
-        }
-
-        public void set(T obj) {
-            this.ref.set(obj);
         }
     }
 }

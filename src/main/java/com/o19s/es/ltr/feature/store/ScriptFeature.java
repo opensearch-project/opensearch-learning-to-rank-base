@@ -60,6 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class ScriptFeature implements Feature {
@@ -70,6 +71,14 @@ public class ScriptFeature implements Feature {
     public static final String UNIQUE_TERMS = "uniqueTerms";
     public static final String EXTRA_LOGGING = "extra_logging";
     public static final String EXTRA_SCRIPT_PARAMS = "extra_script_params";
+
+    /**
+     * A thread local allowing for term stats to made available for the script score feature.
+     * This is needed as the parameters for the script score are created up-front when creating the
+     * lucene query with their values being swapped out for each document using a Supplier. A thread
+     * local is used to allow for different documents to have their scores computed concurrently.
+     */
+    private static final ThreadLocal<TermStatSupplier> CURRENT_TERM_STATS = new ThreadLocal<>();
 
     private final String name;
     private final Script script;
@@ -143,7 +152,6 @@ public class ScriptFeature implements Feature {
 
         FeatureSupplier supplier = new FeatureSupplier(featureSet);
         ExtraLoggingSupplier extraLoggingSupplier = new ExtraLoggingSupplier();
-        TermStatSupplier termstatSupplier = new TermStatSupplier();
         Map<String, Object> nparams = new HashMap<>();
 
         // Parse terms if set
@@ -220,8 +228,8 @@ public class ScriptFeature implements Feature {
                 }
             }
 
-            nparams.put(TERM_STAT, termstatSupplier);
-            nparams.put(MATCH_COUNT, termstatSupplier.getMatchedTermCountSupplier());
+            nparams.put(TERM_STAT, (Supplier<TermStatSupplier>) CURRENT_TERM_STATS::get);
+            nparams.put(MATCH_COUNT, (Supplier<Integer>) () -> CURRENT_TERM_STATS.get().getMatchedTermCount());
             nparams.put(UNIQUE_TERMS, terms.size());
         }
 
@@ -240,25 +248,22 @@ public class ScriptFeature implements Feature {
                 context.getQueryShardContext().indexVersionCreated(),
                 null //TODO: this is different from ES LTR
                 );
-        return new LtrScript(function, supplier, extraLoggingSupplier, termstatSupplier, terms);
+        return new LtrScript(function, supplier, extraLoggingSupplier, terms);
     }
 
     static class LtrScript extends Query implements LtrRewritableQuery {
         private final ScriptScoreFunction function;
         private final FeatureSupplier supplier;
         private final ExtraLoggingSupplier extraLoggingSupplier;
-        private final TermStatSupplier termStatSupplier;
         private final Set<Term> terms;
 
         LtrScript(ScriptScoreFunction function,
                   FeatureSupplier supplier,
                   ExtraLoggingSupplier extraLoggingSupplier,
-                  TermStatSupplier termStatSupplier,
                   Set<Term> terms) {
             this.function = function;
             this.supplier = supplier;
             this.extraLoggingSupplier = extraLoggingSupplier;
-            this.termStatSupplier = termStatSupplier;
             this.terms = terms;
         }
 
@@ -285,7 +290,7 @@ public class ScriptFeature implements Feature {
             if (!scoreMode.needsScores()) {
                 return new MatchAllDocsQuery().createWeight(searcher, scoreMode, 1F);
             }
-            return new LtrScriptWeight(this, this.function, termStatSupplier, terms, searcher, scoreMode);
+            return new LtrScriptWeight(this, this.function, terms, searcher, scoreMode);
         }
 
         @Override
@@ -317,18 +322,15 @@ public class ScriptFeature implements Feature {
         private final IndexSearcher searcher;
         private final ScoreMode scoreMode;
         private final ScriptScoreFunction function;
-        private final TermStatSupplier termStatSupplier;
         private final Set<Term> terms;
         private final HashMap<Term, TermStates> termContexts;
 
         LtrScriptWeight(Query query, ScriptScoreFunction function,
-                        TermStatSupplier termStatSupplier,
                         Set<Term> terms,
                         IndexSearcher searcher,
                         ScoreMode scoreMode) throws IOException {
             super(query);
             this.function = function;
-            this.termStatSupplier = termStatSupplier;
             this.terms = terms;
             this.searcher = searcher;
             this.scoreMode = scoreMode;
@@ -355,6 +357,7 @@ public class ScriptFeature implements Feature {
         public Scorer scorer(LeafReaderContext context) throws IOException {
             LeafScoreFunction leafScoreFunction = function.getLeafScoreFunction(context);
             DocIdSetIterator iterator = DocIdSetIterator.all(context.reader().maxDoc());
+            TermStatSupplier termStatSupplier = new TermStatSupplier();
             return new Scorer(this) {
                 @Override
                 public int docID() {
@@ -363,12 +366,15 @@ public class ScriptFeature implements Feature {
 
                 @Override
                 public float score() throws IOException {
+                    CURRENT_TERM_STATS.set(termStatSupplier);
                     // Do the terms magic if the user asked for it
                     if (terms.size() > 0) {
                         termStatSupplier.bump(searcher, context, docID(), terms, scoreMode, termContexts);
                     }
 
-                    return (float) leafScoreFunction.score(iterator.docID(), 0F);
+                    float score = (float) leafScoreFunction.score(iterator.docID(), 0F);
+                    CURRENT_TERM_STATS.remove();
+                    return score;
                 }
 
                 @Override

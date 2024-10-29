@@ -24,8 +24,6 @@ import com.o19s.es.ltr.feature.PrebuiltLtrModel;
 import com.o19s.es.ltr.ranker.LogLtrRanker;
 import com.o19s.es.ltr.ranker.LtrRanker;
 import com.o19s.es.ltr.ranker.NullRanker;
-import com.o19s.es.ltr.utils.Suppliers;
-import com.o19s.es.ltr.utils.Suppliers.MutableSupplier;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Term;
@@ -61,6 +59,26 @@ import java.util.stream.Stream;
  * or within a BooleanQuery and an appropriate filter clause.
  */
 public class RankerQuery extends Query {
+    /**
+     * A thread local to allow for sharing the current feature vector between features. This
+     * is used primarily for derived expression and script features which derive one feature
+     * score from another. It relies on the following invariants to work:
+     * <ul>
+     *     <li>
+     *         Any call to {@link LtrRanker#newFeatureVector(LtrRanker.FeatureVector)} is
+     *         followed by a subsequent call to {@link LtrRanker#score(LtrRanker.FeatureVector)}
+     *     </li>
+     *     <li>
+     *         All feature scorers are invoked only between the creation of the feature vector and
+     *         the final score being computed (the calls outlined above)
+     *     </li>
+     *     <li>
+     *         All calls described above happen on the same thread for a single document
+     *     </li>
+     * </ul>
+     */
+    private static final ThreadLocal<LtrRanker.FeatureVector> CURRENT_VECTOR = new ThreadLocal<>();
+
     private final List<Query> queries;
     private final FeatureSet features;
     private final LtrRanker ranker;
@@ -200,12 +218,9 @@ public class RankerQuery extends Query {
         }
 
         List<Weight> weights = new ArrayList<>(queries.size());
-        // XXX: this is not thread safe and may run into extremely weird issues
-        // if the searcher uses the parallel collector
-        // Hopefully elastic never runs
-        MutableSupplier<LtrRanker.FeatureVector> vectorSupplier = new Suppliers.MutableSupplier<>();
-        FVLtrRankerWrapper ltrRankerWrapper = new FVLtrRankerWrapper(ranker, vectorSupplier);
-        LtrRewriteContext context = new LtrRewriteContext(ranker, vectorSupplier);
+
+        FVLtrRankerWrapper ltrRankerWrapper = new FVLtrRankerWrapper(ranker);
+        LtrRewriteContext context = new LtrRewriteContext(ranker, CURRENT_VECTOR::get);
         for (Query q : queries) {
             if (q instanceof LtrRewritableQuery) {
                 q = ((LtrRewritableQuery) q).ltrRewrite(context);
@@ -442,11 +457,9 @@ public class RankerQuery extends Query {
 
     static class FVLtrRankerWrapper implements LtrRanker {
         private final LtrRanker wrapped;
-        private final MutableSupplier<FeatureVector> vectorSupplier;
 
-        FVLtrRankerWrapper(LtrRanker wrapped, MutableSupplier<FeatureVector> vectorSupplier) {
+        FVLtrRankerWrapper(LtrRanker wrapped) {
             this.wrapped = Objects.requireNonNull(wrapped);
-            this.vectorSupplier = Objects.requireNonNull(vectorSupplier);
         }
 
         @Override
@@ -457,13 +470,15 @@ public class RankerQuery extends Query {
         @Override
         public FeatureVector newFeatureVector(FeatureVector reuse) {
             FeatureVector fv = wrapped.newFeatureVector(reuse);
-            vectorSupplier.set(fv);
+            CURRENT_VECTOR.set(fv);
             return fv;
         }
 
         @Override
         public float score(FeatureVector point) {
-            return wrapped.score(point);
+            float score = wrapped.score(point);
+            CURRENT_VECTOR.remove();
+            return score;
         }
 
         @Override
@@ -471,13 +486,12 @@ public class RankerQuery extends Query {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             FVLtrRankerWrapper that = (FVLtrRankerWrapper) o;
-            return Objects.equals(wrapped, that.wrapped) &&
-                    Objects.equals(vectorSupplier, that.vectorSupplier);
+            return Objects.equals(wrapped, that.wrapped);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(wrapped, vectorSupplier);
+            return Objects.hash(wrapped);
         }
     }
 
