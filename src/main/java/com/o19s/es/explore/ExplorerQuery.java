@@ -16,12 +16,15 @@
 
 package com.o19s.es.explore;
 
+import org.apache.lucene.search.QueryVisitor;
+import org.opensearch.ltr.settings.LTRSettings;
+import org.opensearch.ltr.stats.LTRStats;
+import org.opensearch.ltr.stats.StatName;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermStates;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Weight;
@@ -35,7 +38,6 @@ import org.apache.lucene.search.BooleanClause;
 
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.similarities.ClassicSimilarity;
-import org.opensearch.ltr.settings.LTRSettings;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -45,10 +47,12 @@ import java.util.Set;
 public class ExplorerQuery extends Query {
     private final Query query;
     private final String type;
+    private final LTRStats ltrStats;
 
-    public ExplorerQuery(Query query, String type) {
+    public ExplorerQuery(Query query, String type, LTRStats ltrStats) {
         this.query = query;
         this.type = type;
+        this.ltrStats = ltrStats;
     }
 
     private boolean isCollectionScoped() {
@@ -62,6 +66,7 @@ public class ExplorerQuery extends Query {
 
     public String getType() { return this.type; }
 
+    @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
     @Override
     public boolean equals(Object other) {
         return sameClassAs(other) &&
@@ -78,7 +83,7 @@ public class ExplorerQuery extends Query {
         Query rewritten = query.rewrite(reader);
 
         if (rewritten != query) {
-            return new ExplorerQuery(rewritten, type);
+            return new ExplorerQuery(rewritten, type, ltrStats);
         }
 
         return this;
@@ -95,133 +100,138 @@ public class ExplorerQuery extends Query {
         if (!LTRSettings.isLTRPluginEnabled()) {
             throw new IllegalStateException("LTR plugin is disabled. To enable update ltr.plugin.enabled to true");
         }
+        try {
 
-        if (!scoreMode.needsScores()) {
-            return searcher.createWeight(query, scoreMode, boost);
-        }
-        final Set<Term> terms = new HashSet<>();
-        this.visit(QueryVisitor.termCollector(terms));
-        if (isCollectionScoped()) {
-            ClassicSimilarity sim = new ClassicSimilarity();
-            StatisticsHelper df_stats = new StatisticsHelper();
-            StatisticsHelper idf_stats = new StatisticsHelper();
-            StatisticsHelper ttf_stats = new StatisticsHelper();
+            if (!scoreMode.needsScores()) {
+                return searcher.createWeight(query, scoreMode, boost);
+            }
+            final Set<Term> terms = new HashSet<>();
+            this.visit(QueryVisitor.termCollector(terms));
+            if (isCollectionScoped()) {
+                ClassicSimilarity sim = new ClassicSimilarity();
+                StatisticsHelper df_stats = new StatisticsHelper();
+                StatisticsHelper idf_stats = new StatisticsHelper();
+                StatisticsHelper ttf_stats = new StatisticsHelper();
 
-            for (Term term : terms) {
-                TermStates ctx = TermStates.build(searcher, term, scoreMode.needsScores());
-                if(ctx != null && ctx.docFreq() > 0){
-                    TermStatistics tStats = searcher.termStatistics(term, ctx.docFreq(), ctx.totalTermFreq());
-                    df_stats.add(tStats.docFreq());
-                    idf_stats.add(sim.idf(tStats.docFreq(), searcher.collectionStatistics(term.field()).docCount()));
-                    ttf_stats.add(tStats.totalTermFreq());
+                for (Term term : terms) {
+                    TermStates ctx = TermStates.build(searcher, term, scoreMode.needsScores());
+                    if(ctx != null && ctx.docFreq() > 0){
+                        TermStatistics tStats = searcher.termStatistics(term, ctx.docFreq(), ctx.totalTermFreq());
+                        df_stats.add(tStats.docFreq());
+                        idf_stats.add(sim.idf(tStats.docFreq(), searcher.collectionStatistics(term.field()).docCount()));
+                        ttf_stats.add(tStats.totalTermFreq());
+                    } else {
+                        df_stats.add(0.0f);
+                        idf_stats.add(0.0f);
+                        ttf_stats.add(0.0f);
+                    }
+                }
+
+                /*
+                    If no terms are parsed in the query we opt for returning 0
+                    instead of throwing an exception that could break various
+                    pipelines.
+                 */
+                float constantScore;
+
+                if (terms.size() > 0) {
+                    switch (type) {
+                        case ("sum_classic_idf"):
+                            constantScore = idf_stats.getSum();
+                            break;
+                        case ("mean_classic_idf"):
+                            constantScore = idf_stats.getMean();
+                            break;
+                        case ("max_classic_idf"):
+                            constantScore = idf_stats.getMax();
+                            break;
+                        case ("min_classic_idf"):
+                            constantScore = idf_stats.getMin();
+                            break;
+                        case ("stddev_classic_idf"):
+                            constantScore = idf_stats.getStdDev();
+                            break;
+                        case "sum_raw_df":
+                            constantScore = df_stats.getSum();
+                            break;
+                        case "min_raw_df":
+                            constantScore = df_stats.getMin();
+                            break;
+                        case "max_raw_df":
+                            constantScore = df_stats.getMax();
+                            break;
+                        case "mean_raw_df":
+                            constantScore = df_stats.getMean();
+                            break;
+                        case "stddev_raw_df":
+                            constantScore = df_stats.getStdDev();
+                            break;
+                        case "sum_raw_ttf":
+                            constantScore = ttf_stats.getSum();
+                            break;
+                        case "min_raw_ttf":
+                            constantScore = ttf_stats.getMin();
+                            break;
+                        case "max_raw_ttf":
+                            constantScore = ttf_stats.getMax();
+                            break;
+                        case "mean_raw_ttf":
+                            constantScore = ttf_stats.getMean();
+                            break;
+                        case "stddev_raw_ttf":
+                            constantScore = ttf_stats.getStdDev();
+                            break;
+                        case "unique_terms_count":
+                            constantScore = terms.size();
+                            break;
+
+                        default:
+                            throw new RuntimeException("Invalid stat type specified.");
+                    }
                 } else {
-                    df_stats.add(0.0f);
-                    idf_stats.add(0.0f);
-                    ttf_stats.add(0.0f);
+                    constantScore = 0.0f;
                 }
+
+                return new ConstantScoreWeight(ExplorerQuery.this, constantScore) {
+
+                    @Override
+                    public Explanation explain(LeafReaderContext context, int doc) throws IOException {
+                        Scorer scorer = scorer(context);
+                        int newDoc = scorer.iterator().advance(doc);
+                        assert newDoc == doc; // this is a DocIdSetIterator.all
+                        return Explanation.match(
+                                scorer.score(),
+                                "Stat Score: " + type);
+                    }
+
+                    @Override
+                    public Scorer scorer(LeafReaderContext context) throws IOException {
+                        return new ConstantScoreScorer(this, constantScore, scoreMode, DocIdSetIterator.all(context.reader().maxDoc()));
+                    }
+
+                    @Override
+                    public boolean isCacheable(LeafReaderContext ctx) {
+                        return true;
+                    }
+
+                };
+            } else if (type.endsWith("_raw_tf") || type.endsWith("_raw_tp")) {
+                // Rewrite this into a boolean query where we can inject our PostingsExplorerQuery
+                BooleanQuery.Builder qb = new BooleanQuery.Builder();
+                for (Term t : terms) {
+                    qb.add(makeBooleanClause(t, type));
+                }
+                // FIXME: completely refactor this class and stop accepting a random query but a list of terms directly
+                // rewriting at this point is wrong, additionally we certainly build the TermContext twice for every terms
+                // problem is that we rely on extractTerms which happen too late in the process
+                Query q = qb.build().rewrite(searcher.getIndexReader());
+                return new ExplorerQuery.ExplorerWeight(this, searcher.createWeight(q, scoreMode, boost), type);
             }
-
-            /*
-                If no terms are parsed in the query we opt for returning 0
-                instead of throwing an exception that could break various
-                pipelines.
-             */
-            float constantScore;
-
-            if (terms.size() > 0) {
-                switch (type) {
-                    case ("sum_classic_idf"):
-                        constantScore = idf_stats.getSum();
-                        break;
-                    case ("mean_classic_idf"):
-                        constantScore = idf_stats.getMean();
-                        break;
-                    case ("max_classic_idf"):
-                        constantScore = idf_stats.getMax();
-                        break;
-                    case ("min_classic_idf"):
-                        constantScore = idf_stats.getMin();
-                        break;
-                    case ("stddev_classic_idf"):
-                        constantScore = idf_stats.getStdDev();
-                        break;
-                    case "sum_raw_df":
-                        constantScore = df_stats.getSum();
-                        break;
-                    case "min_raw_df":
-                        constantScore = df_stats.getMin();
-                        break;
-                    case "max_raw_df":
-                        constantScore = df_stats.getMax();
-                        break;
-                    case "mean_raw_df":
-                        constantScore = df_stats.getMean();
-                        break;
-                    case "stddev_raw_df":
-                        constantScore = df_stats.getStdDev();
-                        break;
-                    case "sum_raw_ttf":
-                        constantScore = ttf_stats.getSum();
-                        break;
-                    case "min_raw_ttf":
-                        constantScore = ttf_stats.getMin();
-                        break;
-                    case "max_raw_ttf":
-                        constantScore = ttf_stats.getMax();
-                        break;
-                    case "mean_raw_ttf":
-                        constantScore = ttf_stats.getMean();
-                        break;
-                    case "stddev_raw_ttf":
-                        constantScore = ttf_stats.getStdDev();
-                        break;
-                    case "unique_terms_count":
-                        constantScore = terms.size();
-                        break;
-
-                    default:
-                        throw new RuntimeException("Invalid stat type specified.");
-                }
-            } else {
-                constantScore = 0.0f;
-            }
-
-            return new ConstantScoreWeight(ExplorerQuery.this, constantScore) {
-
-                @Override
-                public Explanation explain(LeafReaderContext context, int doc) throws IOException {
-                    Scorer scorer = scorer(context);
-                    int newDoc = scorer.iterator().advance(doc);
-                    assert newDoc == doc; // this is a DocIdSetIterator.all
-                    return Explanation.match(
-                            scorer.score(),
-                            "Stat Score: " + type);
-                }
-
-                @Override
-                public Scorer scorer(LeafReaderContext context) throws IOException {
-                    return new ConstantScoreScorer(this, constantScore, scoreMode, DocIdSetIterator.all(context.reader().maxDoc()));
-                }
-
-                @Override
-                public boolean isCacheable(LeafReaderContext ctx) {
-                    return true;
-                }
-
-            };
-        } else if (type.endsWith("_raw_tf") || type.endsWith("_raw_tp")) {
-            // Rewrite this into a boolean query where we can inject our PostingsExplorerQuery
-            BooleanQuery.Builder qb = new BooleanQuery.Builder();
-            for (Term t : terms) {
-                qb.add(makeBooleanClause(t, type));
-            }
-            // FIXME: completely refactor this class and stop accepting a random query but a list of terms directly
-            // rewriting at this point is wrong, additionally we certainly build the TermContext twice for every terms
-            // problem is that we rely on extractTerms which happen too late in the process
-            Query q = qb.build().rewrite(searcher.getIndexReader());
-            return new ExplorerQuery.ExplorerWeight(this, searcher.createWeight(q, scoreMode, boost), type);
+            throw new IllegalArgumentException("Unknown ExplorerQuery type [" + type + "]");
+        } catch (Exception e) {
+            ltrStats.getStats().get(StatName.LTR_REQUEST_ERROR_COUNT.getName()).increment();
+            throw e;
         }
-        throw new IllegalArgumentException("Unknown ExplorerQuery type [" + type + "]");
     }
 
     private BooleanClause makeBooleanClause(Term term, String type) throws IllegalArgumentException {

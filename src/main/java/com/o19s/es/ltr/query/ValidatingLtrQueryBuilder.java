@@ -16,6 +16,8 @@
 
 package com.o19s.es.ltr.query;
 
+import org.opensearch.ltr.stats.LTRStats;
+import org.opensearch.ltr.stats.StatName;
 import com.o19s.es.ltr.LtrQueryContext;
 import com.o19s.es.ltr.feature.Feature;
 import com.o19s.es.ltr.feature.FeatureSet;
@@ -88,17 +90,22 @@ public class ValidatingLtrQueryBuilder extends AbstractQueryBuilder<ValidatingLt
     private final transient LtrRankerParserFactory factory;
     private StorableElement element;
     private FeatureValidation validation;
+    private LTRStats ltrStats;
     private ValidatingLtrQueryBuilder(LtrRankerParserFactory factory) {
         this.factory = factory;
     }
 
-    public ValidatingLtrQueryBuilder(StorableElement element, FeatureValidation validation, LtrRankerParserFactory factory) {
+    public ValidatingLtrQueryBuilder(StorableElement element,
+                                     FeatureValidation validation,
+                                     LtrRankerParserFactory factory,
+                                     LTRStats ltrStats) {
         this(factory);
         this.element = Objects.requireNonNull(element);
         this.validation = Objects.requireNonNull(validation);
+        this.ltrStats = ltrStats;
     }
 
-    public ValidatingLtrQueryBuilder(StreamInput input, LtrRankerParserFactory factory) throws IOException {
+    public ValidatingLtrQueryBuilder(StreamInput input, LtrRankerParserFactory factory, LTRStats ltrStats) throws IOException {
         super(input);
         // XXX: hack because AbstractQueryTest does not inject
         // our NamedWriteable to the context.
@@ -120,10 +127,12 @@ public class ValidatingLtrQueryBuilder extends AbstractQueryBuilder<ValidatingLt
         this.element = reader.read(input);
         this.validation = new FeatureValidation(input);
         this.factory = factory;
+        this.ltrStats = ltrStats;
     }
 
     public static ValidatingLtrQueryBuilder fromXContent(XContentParser parser,
-                                                         LtrRankerParserFactory factory) throws IOException {
+                                                         LtrRankerParserFactory factory,
+                                                         LTRStats ltrStats) throws IOException {
         try {
             ValidatingLtrQueryBuilder builder = new ValidatingLtrQueryBuilder(factory);
             PARSER.parse(parser, builder, null);
@@ -134,7 +143,7 @@ public class ValidatingLtrQueryBuilder extends AbstractQueryBuilder<ValidatingLt
             if (builder.validation == null) {
                 throw new ParsingException(parser.getTokenLocation(), "Expected field [" + VALIDATION.getPreferredName() + "]");
             }
-
+            builder.ltrStats(ltrStats);
             return builder;
         } catch (IllegalArgumentException iae) {
             throw new ParsingException(parser.getTokenLocation(), iae.getMessage(), iae);
@@ -159,26 +168,32 @@ public class ValidatingLtrQueryBuilder extends AbstractQueryBuilder<ValidatingLt
 
     @Override
     protected Query doToQuery(QueryShardContext queryShardContext) throws IOException {
-        //TODO: should we be passing activeFeatures here?
-        LtrQueryContext context = new LtrQueryContext(queryShardContext);
-        if (StoredFeature.TYPE.equals(element.type())) {
-            Feature feature = ((StoredFeature) element).optimize();
-            if (feature instanceof PrecompiledExpressionFeature) {
-                // Derived features cannot be tested alone
-                return new MatchAllDocsQuery();
+        ltrStats.getStat(StatName.LTR_REQUEST_TOTAL_COUNT.getName()).increment();
+        try {
+            //TODO: should we be passing activeFeatures here?
+            LtrQueryContext context = new LtrQueryContext(queryShardContext);
+            if (StoredFeature.TYPE.equals(element.type())) {
+                Feature feature = ((StoredFeature) element).optimize();
+                if (feature instanceof PrecompiledExpressionFeature) {
+                    // Derived features cannot be tested alone
+                    return new MatchAllDocsQuery();
+                }
+                //TODO: support activeFeatures in Validating queries
+                return feature.doToQuery(context, null, validation.getParams());
+            } else if (StoredFeatureSet.TYPE.equals(element.type())) {
+                FeatureSet set = ((StoredFeatureSet) element).optimize();
+                LinearRanker ranker = new LinearRanker(new float[set.size()]);
+                CompiledLtrModel model = new CompiledLtrModel("validation", set, ranker);
+                return RankerQuery.build(model, context, validation.getParams(), false, ltrStats);
+            } else if (StoredLtrModel.TYPE.equals(element.type())) {
+                CompiledLtrModel model = ((StoredLtrModel) element).compile(factory);
+                return RankerQuery.build(model, context, validation.getParams(), false, ltrStats);
+            } else {
+                throw new QueryShardException(queryShardContext, "Unknown element type [" + element.type() + "]");
             }
-            //TODO: support activeFeatures in Validating queries
-            return feature.doToQuery(context, null, validation.getParams());
-        } else if (StoredFeatureSet.TYPE.equals(element.type())) {
-            FeatureSet set = ((StoredFeatureSet) element).optimize();
-            LinearRanker ranker = new LinearRanker(new float[set.size()]);
-            CompiledLtrModel model = new CompiledLtrModel("validation", set, ranker);
-            return RankerQuery.build(model, context, validation.getParams(), false);
-        } else if (StoredLtrModel.TYPE.equals(element.type())) {
-            CompiledLtrModel model = ((StoredLtrModel) element).compile(factory);
-            return RankerQuery.build(model, context, validation.getParams(), false);
-        } else {
-            throw new QueryShardException(queryShardContext, "Unknown element type [" + element.type() + "]");
+        } catch (Exception e) {
+            ltrStats.getStat(StatName.LTR_REQUEST_ERROR_COUNT.getName()).increment();
+            throw e;
         }
     }
 
@@ -204,5 +219,10 @@ public class ValidatingLtrQueryBuilder extends AbstractQueryBuilder<ValidatingLt
 
     public FeatureValidation getValidation() {
         return validation;
+    }
+
+    public ValidatingLtrQueryBuilder ltrStats(LTRStats ltrStats) {
+        this.ltrStats = ltrStats;
+        return this;
     }
 }

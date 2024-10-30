@@ -16,6 +16,10 @@
 
 package com.o19s.es.ltr.logging;
 
+import org.opensearch.ltr.stats.LTRStat;
+import org.opensearch.ltr.stats.LTRStats;
+import org.opensearch.ltr.stats.StatName;
+import org.opensearch.ltr.stats.suppliers.CounterSupplier;
 import com.o19s.es.ltr.feature.PrebuiltFeature;
 import com.o19s.es.ltr.feature.PrebuiltFeatureSet;
 import com.o19s.es.ltr.feature.PrebuiltLtrModel;
@@ -47,6 +51,7 @@ import org.apache.lucene.tests.util.TestUtil;
 import org.opensearch.common.lucene.search.function.CombineFunction;
 import org.opensearch.common.lucene.search.function.FieldValueFactorFunction;
 import org.opensearch.common.lucene.search.function.FunctionScoreQuery;
+import org.opensearch.core.common.text.Text;
 import org.opensearch.index.fielddata.plain.SortedNumericIndexFieldData;
 import org.opensearch.search.SearchHit;
 import org.opensearch.search.fetch.FetchSubPhase;
@@ -63,6 +68,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static java.util.Collections.unmodifiableMap;
 import static org.opensearch.common.lucene.search.function.FieldValueFactorFunction.Modifier.LN2P;
 import static org.opensearch.index.fielddata.IndexNumericFieldData.NumericType.FLOAT;
 
@@ -71,7 +77,12 @@ public class LoggingFetchSubPhaseTests extends LuceneTestCase {
     private static Directory directory;
     private static IndexSearcher searcher;
     private static Map<String,Document> docs;
-
+    private LTRStats ltrStats = new LTRStats(unmodifiableMap(new HashMap<String, LTRStat<?>>() {{
+        put(StatName.LTR_REQUEST_TOTAL_COUNT.getName(),
+                new LTRStat<>(false, new CounterSupplier()));
+        put(StatName.LTR_REQUEST_ERROR_COUNT.getName(),
+                new LTRStat<>(false, new CounterSupplier()));
+    }}));
 
     @BeforeClass
     public static void init() throws Exception {
@@ -209,7 +220,7 @@ public class LoggingFetchSubPhaseTests extends LuceneTestCase {
         features.add(new PrebuiltFeature("score_feat", buildFunctionScore()));
         PrebuiltFeatureSet set = new PrebuiltFeatureSet("my_set", features);
         LtrRanker ranker = LinearRankerTests.generateRandomRanker(set.size());
-        return RankerQuery.build(new PrebuiltLtrModel("my_model", ranker, set));
+        return RankerQuery.build(new PrebuiltLtrModel("my_model", ranker, set), ltrStats);
 
     }
 

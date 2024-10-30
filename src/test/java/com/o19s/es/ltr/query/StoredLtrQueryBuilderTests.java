@@ -16,6 +16,10 @@
 
 package com.o19s.es.ltr.query;
 
+import org.opensearch.ltr.stats.LTRStat;
+import org.opensearch.ltr.stats.LTRStats;
+import org.opensearch.ltr.stats.StatName;
+import org.opensearch.ltr.stats.suppliers.CounterSupplier;
 import com.o19s.es.ltr.LtrQueryParserPlugin;
 import com.o19s.es.ltr.LtrTestUtils;
 import com.o19s.es.ltr.feature.store.CompiledLtrModel;
@@ -60,11 +64,18 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static java.util.Collections.unmodifiableMap;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 
 public class StoredLtrQueryBuilderTests extends AbstractQueryTestCase<StoredLtrQueryBuilder> {
     private static final MemStore store = new MemStore();
+    private LTRStats ltrStats = new LTRStats(unmodifiableMap(new HashMap<String, LTRStat<?>>() {{
+        put(StatName.LTR_REQUEST_TOTAL_COUNT.getName(),
+                new LTRStat<>(false, new CounterSupplier()));
+        put(StatName.LTR_REQUEST_ERROR_COUNT.getName(),
+                new LTRStat<>(false, new CounterSupplier()));
+    }}));
 
     // TODO: Remove the TestGeoShapeFieldMapperPlugin once upstream has completed the migration.
     protected Collection<Class<? extends Plugin>> getPlugins() {
@@ -125,11 +136,13 @@ public class StoredLtrQueryBuilderTests extends AbstractQueryTestCase<StoredLtrQ
         Map<String, Object> params = new HashMap<>();
         params.put("query_string", "a wonderful query");
         builder.params(params);
+        builder.ltrStats(ltrStats);
         return builder;
     }
 
     public void testMissingParams() {
         StoredLtrQueryBuilder builder = new StoredLtrQueryBuilder(LtrTestUtils.wrapMemStore(StoredLtrQueryBuilderTests.store));
+        builder.ltrStats(ltrStats);
         builder.modelName("model1");
 
         assertThat(expectThrows(IllegalArgumentException.class, () -> builder.toQuery(createShardContext())).getMessage(),
@@ -147,6 +160,7 @@ public class StoredLtrQueryBuilderTests extends AbstractQueryTestCase<StoredLtrQ
         StoredLtrQueryBuilder builder = new StoredLtrQueryBuilder(LtrTestUtils.wrapMemStore(StoredLtrQueryBuilderTests.store));
         builder.modelName("model1");
         builder.activeFeatures(Collections.singletonList("non_existent_feature"));
+        builder.ltrStats(ltrStats);
         assertThat(expectThrows(IllegalArgumentException.class, () -> builder.toQuery(createShardContext())).getMessage(),
                 equalTo("Feature: [non_existent_feature] provided in active_features does not exist"));
     }
@@ -161,7 +175,7 @@ public class StoredLtrQueryBuilderTests extends AbstractQueryTestCase<StoredLtrQ
         BytesRef ref = out.bytes().toBytesRef();
         StreamInput input = ByteBufferStreamInput.wrap(ref.bytes, ref.offset, ref.length);
         StoredLtrQueryBuilder builderFromInputStream = new StoredLtrQueryBuilder(
-                LtrTestUtils.wrapMemStore(StoredLtrQueryBuilderTests.store), input);
+                LtrTestUtils.wrapMemStore(StoredLtrQueryBuilderTests.store), input, ltrStats);
         List<String> expected = Collections.singletonList("match1");
         assertEquals(expected, builderFromInputStream.activeFeatures());
     }
@@ -183,6 +197,7 @@ public class StoredLtrQueryBuilderTests extends AbstractQueryTestCase<StoredLtrQ
         if (setActiveFeature) {
             builder.activeFeatures(Arrays.asList("match1", "match2"));
         }
+        builder.ltrStats(ltrStats);
 
         RankerQuery rankerQuery = builder.doToQuery(createShardContext());
         List<Query> queries = rankerQuery.stream().collect(Collectors.toList());

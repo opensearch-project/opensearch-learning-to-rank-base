@@ -16,6 +16,10 @@
  */
 package com.o19s.es.ltr.query;
 
+import org.opensearch.ltr.stats.LTRStat;
+import org.opensearch.ltr.stats.LTRStats;
+import org.opensearch.ltr.stats.StatName;
+import org.opensearch.ltr.stats.suppliers.CounterSupplier;
 import com.o19s.es.ltr.LtrQueryParserPlugin;
 import org.apache.lucene.search.Query;
 import org.opensearch.index.query.MatchAllQueryBuilder;
@@ -34,8 +38,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
+import static java.util.Collections.unmodifiableMap;
 import static org.hamcrest.CoreMatchers.instanceOf;
 
 /**
@@ -47,6 +53,12 @@ public class LtrQueryBuilderTests extends AbstractQueryTestCase<LtrQueryBuilder>
     protected Collection<Class<? extends Plugin>> getPlugins() {
         return Arrays.asList(LtrQueryParserPlugin.class, TestGeoShapeFieldMapperPlugin.class);
     }
+    private LTRStats ltrStats = new LTRStats(unmodifiableMap(new HashMap<String, LTRStat<?>>() {{
+        put(StatName.LTR_REQUEST_TOTAL_COUNT.getName(),
+                new LTRStat<>(false, new CounterSupplier()));
+        put(StatName.LTR_REQUEST_ERROR_COUNT.getName(),
+                new LTRStat<>(false, new CounterSupplier()));
+    }}));
 
     private static final String simpleModel = "## LambdaMART\\n" +
             "## name:foo\\n" +
@@ -125,6 +137,7 @@ public class LtrQueryBuilderTests extends AbstractQueryTestCase<LtrQueryBuilder>
                 "   } " +
                 "}";
         LtrQueryBuilder queryBuilder = (LtrQueryBuilder)parseQuery(ltrQuery);
+        queryBuilder.ltrStats(ltrStats);
         QueryShardContext context = createShardContext();
         RankerQuery query = (RankerQuery)queryBuilder.toQuery(context);
         assertEquals(query.getFeature(0).name(), "bar_query");
@@ -152,6 +165,7 @@ public class LtrQueryBuilderTests extends AbstractQueryTestCase<LtrQueryBuilder>
                 "   } " +
                 "}";
         LtrQueryBuilder queryBuilder = (LtrQueryBuilder)parseQuery(ltrQuery);
+        queryBuilder.ltrStats(ltrStats);
         QueryShardContext context = createShardContext();
         RankerQuery query = (RankerQuery)queryBuilder.toQuery(context);
         assertNull(query.getFeature(0).name());
@@ -186,6 +200,7 @@ public class LtrQueryBuilderTests extends AbstractQueryTestCase<LtrQueryBuilder>
                 simpleModel.replace("\\\"", "\"")
                         .replace("\\n", "\n"),
                 Collections.emptyMap()));
+        builder.ltrStats(ltrStats);
         return builder;
     }
 
@@ -214,7 +229,7 @@ public class LtrQueryBuilderTests extends AbstractQueryTestCase<LtrQueryBuilder>
             features.add(new MatchQueryBuilder("test", "foo2"));
         }
 
-        LtrQueryBuilder builder = new LtrQueryBuilder(script, features);
+        LtrQueryBuilder builder = new LtrQueryBuilder(script, features, ltrStats);
         QueryBuilder rewritten = builder.rewrite(createShardContext());
         if (!mustRewrite && features.isEmpty()) {
             // if it's empty we rewrite to match all

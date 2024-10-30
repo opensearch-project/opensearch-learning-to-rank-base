@@ -17,6 +17,8 @@
 package com.o19s.es.ltr.query;
 
 import org.opensearch.ltr.settings.LTRSettings;
+import org.opensearch.ltr.stats.LTRStats;
+import org.opensearch.ltr.stats.StatName;
 import com.o19s.es.ltr.LtrQueryContext;
 import com.o19s.es.ltr.feature.Feature;
 import com.o19s.es.ltr.feature.FeatureSet;
@@ -80,17 +82,23 @@ public class RankerQuery extends Query {
      */
     private static final ThreadLocal<LtrRanker.FeatureVector> CURRENT_VECTOR = new ThreadLocal<>();
 
+    private final LTRStats ltrStats;
     private final List<Query> queries;
     private final FeatureSet features;
     private final LtrRanker ranker;
     private final Map<Integer, float[]> featureScoreCache;
 
-    private RankerQuery(List<Query> queries, FeatureSet features, LtrRanker ranker,
-                        Map<Integer, float[]> featureScoreCache) {
+    private RankerQuery(
+            List<Query> queries,
+            FeatureSet features,
+            LtrRanker ranker,
+            Map<Integer, float[]> featureScoreCache,
+            LTRStats ltrStats) {
         this.queries = Objects.requireNonNull(queries);
         this.features = Objects.requireNonNull(features);
         this.ranker = Objects.requireNonNull(ranker);
         this.featureScoreCache = featureScoreCache;
+        this.ltrStats = ltrStats;
     }
 
     /**
@@ -100,9 +108,15 @@ public class RankerQuery extends Query {
      * @param model a prebuilt model
      * @return the lucene query
      */
-    public static RankerQuery build(PrebuiltLtrModel model) {
-        return build(model.ranker(), model.featureSet(),
-                new LtrQueryContext(null, Collections.emptySet()), Collections.emptyMap(), false);
+    public static RankerQuery build(PrebuiltLtrModel model, LTRStats ltrStats) {
+        return build(
+                model.ranker(),
+                model.featureSet(),
+                new LtrQueryContext(null, Collections.emptySet()),
+                Collections.emptyMap(),
+                false,
+                ltrStats
+        );
     }
 
     /**
@@ -113,31 +127,46 @@ public class RankerQuery extends Query {
      * @param params  the query params
      * @return the lucene query
      */
-    public static RankerQuery build(LtrModel model, LtrQueryContext context, Map<String, Object> params,
-                                    Boolean featureScoreCacheFlag) {
-        return build(model.ranker(), model.featureSet(), context, params, featureScoreCacheFlag);
+    public static RankerQuery build(
+            LtrModel model,
+            LtrQueryContext context,
+            Map<String, Object> params,
+            Boolean featureScoreCacheFlag,
+            LTRStats ltrStats) {
+        return build(
+                model.ranker(),
+                model.featureSet(),
+                context,
+                params,
+                featureScoreCacheFlag,
+                ltrStats);
     }
 
-    private static RankerQuery build(LtrRanker ranker, FeatureSet features,
-                                     LtrQueryContext context, Map<String, Object> params, Boolean featureScoreCacheFlag) {
+    private static RankerQuery build(
+            LtrRanker ranker,
+            FeatureSet features,
+            LtrQueryContext context,
+            Map<String, Object> params,
+            Boolean featureScoreCacheFlag,
+            LTRStats ltrStats) {
         List<Query> queries = features.toQueries(context, params);
         Map<Integer, float[]> featureScoreCache = null;
         if (null != featureScoreCacheFlag && featureScoreCacheFlag) {
             featureScoreCache = new HashMap<>();
         }
-        return new RankerQuery(queries, features, ranker, featureScoreCache);
+        return new RankerQuery(queries, features, ranker, featureScoreCache, ltrStats);
     }
 
     public static RankerQuery buildLogQuery(LogLtrRanker.LogConsumer consumer, FeatureSet features,
-                                            LtrQueryContext context, Map<String, Object> params) {
+                                            LtrQueryContext context, Map<String, Object> params, LTRStats ltrStats) {
         List<Query> queries = features.toQueries(context, params);
         return new RankerQuery(queries, features,
-                new LogLtrRanker(consumer, features.size()), null);
+                new LogLtrRanker(consumer, features.size()), null, ltrStats);
     }
 
     public RankerQuery toLoggerQuery(LogLtrRanker.LogConsumer consumer) {
         NullRanker newRanker = new NullRanker(features.size());
-        return new RankerQuery(queries, features, new LogLtrRanker(newRanker, consumer), featureScoreCache);
+        return new RankerQuery(queries, features, new LogLtrRanker(newRanker, consumer), featureScoreCache, ltrStats);
     }
 
     @Override
@@ -149,7 +178,7 @@ public class RankerQuery extends Query {
             rewritten |= rewrittenQuery != query;
             rewrittenQueries.add(rewrittenQuery);
         }
-        return rewritten ? new RankerQuery(rewrittenQueries, features, ranker, featureScoreCache) : this;
+        return rewritten ? new RankerQuery(rewrittenQueries, features, ranker, featureScoreCache, ltrStats) : this;
     }
 
     @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
@@ -205,34 +234,38 @@ public class RankerQuery extends Query {
         if (!LTRSettings.isLTRPluginEnabled()) {
             throw new IllegalStateException("LTR plugin is disabled. To enable update ltr.plugin.enabled to true");
         }
+        try {
+            if (!scoreMode.needsScores()) {
+                // If scores are not needed simply return a constant score on all docs
+                return new ConstantScoreWeight(this, boost) {
+                    @Override
+                    public Scorer scorer(LeafReaderContext context) throws IOException {
+                        return new ConstantScoreScorer(this, score(),
+                                scoreMode, DocIdSetIterator.all(context.reader().maxDoc()));
+                    }
 
-        if (!scoreMode.needsScores()) {
-            // If scores are not needed simply return a constant score on all docs
-            return new ConstantScoreWeight(this, boost) {
-                @Override
-                public Scorer scorer(LeafReaderContext context) throws IOException {
-                    return new ConstantScoreScorer(this, score(),
-                            scoreMode, DocIdSetIterator.all(context.reader().maxDoc()));
-                }
-
-                @Override
-                public boolean isCacheable(LeafReaderContext ctx) {
-                    return false;
-                }
-            };
-        }
-
-        List<Weight> weights = new ArrayList<>(queries.size());
-
-        FVLtrRankerWrapper ltrRankerWrapper = new FVLtrRankerWrapper(ranker);
-        LtrRewriteContext context = new LtrRewriteContext(ranker, CURRENT_VECTOR::get);
-        for (Query q : queries) {
-            if (q instanceof LtrRewritableQuery) {
-                q = ((LtrRewritableQuery) q).ltrRewrite(context);
+                    @Override
+                    public boolean isCacheable(LeafReaderContext ctx) {
+                        return false;
+                    }
+                };
             }
-            weights.add(searcher.createWeight(q, ScoreMode.COMPLETE, boost));
+
+            List<Weight> weights = new ArrayList<>(queries.size());
+
+            FVLtrRankerWrapper ltrRankerWrapper = new FVLtrRankerWrapper(ranker);
+            LtrRewriteContext context = new LtrRewriteContext(ranker, CURRENT_VECTOR::get);
+            for (Query q : queries) {
+                if (q instanceof LtrRewritableQuery) {
+                    q = ((LtrRewritableQuery) q).ltrRewrite(context);
+                }
+                weights.add(searcher.createWeight(q, ScoreMode.COMPLETE, boost));
+            }
+            return new RankerWeight(this, weights, ltrRankerWrapper, features, featureScoreCache);
+        } catch (Exception e) {
+            ltrStats.getStat(StatName.LTR_REQUEST_ERROR_COUNT.getName()).increment();
+            throw e;
         }
-        return new RankerWeight(this, weights, ltrRankerWrapper, features, featureScoreCache);
     }
 
     public static class RankerWeight extends Weight {
