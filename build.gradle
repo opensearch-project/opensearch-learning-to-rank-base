@@ -106,7 +106,6 @@ java {
 
 // FIXME dependency license check needs to be enabled
 // dependencyLicenses.enabled = false
-
 // FIXME thirdparty audit needs to be enabled
 // thirdPartyAudit.enabled = false
 
