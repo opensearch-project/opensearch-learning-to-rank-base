@@ -22,7 +22,6 @@ import com.o19s.es.ltr.action.ClearCachesAction.ClearCachesNodesResponse;
 import com.o19s.es.ltr.feature.store.index.Caches;
 import org.opensearch.action.FailedNodeException;
 import org.opensearch.action.support.ActionFilters;
-import org.opensearch.action.support.nodes.BaseNodeRequest;
 import org.opensearch.action.support.nodes.TransportNodesAction;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.service.ClusterService;
@@ -31,6 +30,7 @@ import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.TransportRequest;
 import org.opensearch.transport.TransportService;
 
 import java.io.IOException;
@@ -88,7 +88,7 @@ public class TransportClearCachesAction extends TransportNodesAction<ClearCaches
         return new ClearCachesNodeResponse(clusterService.localNode());
     }
 
-    public static class ClearCachesNodeRequest extends BaseNodeRequest {
+    public static class ClearCachesNodeRequest extends TransportRequest {
         private ClearCachesNodesRequest request;
 
         public ClearCachesNodeRequest() {}

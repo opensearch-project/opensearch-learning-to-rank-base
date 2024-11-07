@@ -22,7 +22,6 @@ import com.o19s.es.ltr.action.CachesStatsAction.CachesStatsNodesResponse;
 import com.o19s.es.ltr.feature.store.index.Caches;
 import org.opensearch.action.FailedNodeException;
 import org.opensearch.action.support.ActionFilters;
-import org.opensearch.action.support.nodes.BaseNodeRequest;
 import org.opensearch.action.support.nodes.TransportNodesAction;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.service.ClusterService;
@@ -30,6 +29,7 @@ import org.opensearch.common.inject.Inject;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.TransportRequest;
 import org.opensearch.transport.TransportService;
 
 import java.io.IOException;
@@ -71,7 +71,7 @@ public class TransportCacheStatsAction extends TransportNodesAction<CachesStatsN
         return new CachesStatsNodeResponse(clusterService.localNode()).initFromCaches(caches);
     }
 
-    public static class CachesStatsNodeRequest extends BaseNodeRequest {
+    public static class CachesStatsNodeRequest extends TransportRequest {
         public CachesStatsNodeRequest() {}
 
         public CachesStatsNodeRequest(StreamInput in) throws IOException {

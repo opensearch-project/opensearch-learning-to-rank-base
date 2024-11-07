@@ -23,7 +23,6 @@ import com.o19s.es.ltr.feature.store.FeatureStore;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
 import com.o19s.es.ltr.ranker.linear.LinearRanker;
 import com.o19s.es.ltr.utils.FeatureStoreLoader;
-import org.opensearch.Version;
 import org.opensearch.core.ParseField;
 import org.opensearch.core.common.ParsingException;
 import org.opensearch.core.common.io.stream.NamedWriteable;
@@ -90,10 +89,8 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
         featureScoreCacheFlag = input.readOptionalBoolean();
         featureSetName = input.readOptionalString();
         params = input.readMap();
-        if (input.getVersion().onOrAfter(Version.V_1_0_0)) {//TODO: check this.  In the Elastic LTR plugin this is set to 7_0_0
-            String[] activeFeat = input.readOptionalStringArray();
-            activeFeatures = activeFeat == null ? null : Arrays.asList(activeFeat);
-        }
+        String[] activeFeat = input.readOptionalStringArray();
+        activeFeatures = activeFeat == null ? null : Arrays.asList(activeFeat);
         storeName = input.readOptionalString();
     }
 
@@ -121,9 +118,7 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
         out.writeOptionalBoolean(featureScoreCacheFlag);
         out.writeOptionalString(featureSetName);
         out.writeMap(params);
-        if (out.getVersion().onOrAfter(Version.V_1_0_0)) {
-            out.writeOptionalStringArray(activeFeatures != null ? activeFeatures.toArray(new String[0]) : null);
-        }
+        out.writeOptionalStringArray(activeFeatures != null ? activeFeatures.toArray(new String[0]) : null);
         out.writeOptionalString(storeName);
     }
 

@@ -19,7 +19,6 @@ package com.o19s.es.ltr.action;
 import org.opensearch.action.ActionRequestBuilder;
 import org.opensearch.action.ActionType;
 import org.opensearch.action.FailedNodeException;
-import org.opensearch.action.support.nodes.BaseNodeRequest;
 import org.opensearch.action.support.nodes.BaseNodeResponse;
 import org.opensearch.action.support.nodes.BaseNodesRequest;
 import org.opensearch.action.support.nodes.BaseNodesResponse;
@@ -31,6 +30,7 @@ import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.xcontent.ToXContent;
 import org.opensearch.core.xcontent.ToXContentFragment;
 import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.transport.TransportRequest;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -55,7 +55,7 @@ public class LTRStatsAction extends ActionType<LTRStatsAction.LTRStatsNodesRespo
         }
     }
 
-    public static class LTRStatsNodeRequest extends BaseNodeRequest {
+    public static class LTRStatsNodeRequest extends TransportRequest {
         private final LTRStatsNodesRequest nodesRequest;
 
         public LTRStatsNodeRequest(LTRStatsNodesRequest nodesRequest) {
