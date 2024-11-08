@@ -1,6 +1,6 @@
 # Important Notice
 
-This is a fork of https://github.com/o19s/elasticsearch-learning-to-rank to work with OpenSearch. It's a rewrite of some parts to be able to work with OpenSearch. Please refer to official documentation of [Elasticsearch Learning to Rank](http://elasticsearch-learning-to-rank.readthedocs.io) for usage.
+This is a fork of https://github.com/o19s/elasticsearch-learning-to-rank to work with OpenSearch. It's a rewrite of some parts to be able to work with OpenSearch. Please refer to official documentation of [OpenSearch Learning to Rank](https://opensearch.org/docs/latest/search-plugins/ltr/index/) for usage.
 
 The OpenSearch Learning to Rank plugin uses machine learning to improve search relevance ranking. The original Elasticsearch LTR plugin powers search at places like Wikimedia Foundation and Snagajob.
 
@@ -57,7 +57,7 @@ A custom image of [OpenSearch](https://hub.docker.com/r/opensearchproject/opense
 
 This image was created for the [Search with Machine Learning](https://corise.com/course/search-with-machine-learning?utm_source=daniel) course and [Search Fundamentals](https://corise.com/course/search-fundamentals?utm_source=daniel) taught by Grant Ingersoll and Daniel Tunkelang.
 
-See the [Elasticsearch Learning to Rank](https://elasticsearch-learning-to-rank.readthedocs.io/en/latest/index.html) documentation for details on how to us.
+See the [OpenSearch Learning to Rank](https://opensearch.org/docs/latest/search-plugins/ltr/index/) documentation for details on how to use.
 
 ## Building
 
