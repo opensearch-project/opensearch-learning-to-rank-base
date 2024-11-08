@@ -19,7 +19,6 @@ package com.o19s.es.ltr.feature.store;
 import com.o19s.es.ltr.feature.FeatureSet;
 import com.o19s.es.ltr.ranker.DenseFeatureVector;
 import com.o19s.es.ltr.ranker.LtrRanker;
-import com.o19s.es.ltr.utils.Suppliers;
 import org.apache.lucene.tests.util.LuceneTestCase;
 import org.opensearch.index.query.QueryBuilders;
 
@@ -45,10 +44,8 @@ public class FeatureSupplierTests extends LuceneTestCase {
 
     public void testGetWhenFeatureVectorSet() {
         FeatureSupplier featureSupplier = new FeatureSupplier(getFeatureSet());
-        Suppliers.MutableSupplier<LtrRanker.FeatureVector> vectorSupplier = new Suppliers.MutableSupplier<>();
         LtrRanker.FeatureVector featureVector = new DenseFeatureVector(1);
-        vectorSupplier.set(featureVector);
-        featureSupplier.set(vectorSupplier);
+        featureSupplier.set(() -> featureVector);
         assertEquals(featureVector, featureSupplier.get());
     }
 
@@ -60,11 +57,9 @@ public class FeatureSupplierTests extends LuceneTestCase {
 
     public void testGetFeatureScore() {
         FeatureSupplier featureSupplier = new FeatureSupplier(getFeatureSet());
-        Suppliers.MutableSupplier<LtrRanker.FeatureVector> vectorSupplier = new Suppliers.MutableSupplier<>();
         LtrRanker.FeatureVector featureVector = new DenseFeatureVector(1);
         featureVector.setFeatureScore(0, 10.0f);
-        vectorSupplier.set(featureVector);
-        featureSupplier.set(vectorSupplier);
+        featureSupplier.set(() -> featureVector);
         assertEquals(10.0f, featureSupplier.get("test"), 0.0f);
         assertNull(featureSupplier.get("bad_test"));
     }
@@ -81,11 +76,9 @@ public class FeatureSupplierTests extends LuceneTestCase {
 
     public void testEntrySetWhenFeatureVectorIsSet(){
         FeatureSupplier featureSupplier = new FeatureSupplier(getFeatureSet());
-        Suppliers.MutableSupplier<LtrRanker.FeatureVector> vectorSupplier = new Suppliers.MutableSupplier<>();
         LtrRanker.FeatureVector featureVector = new DenseFeatureVector(1);
         featureVector.setFeatureScore(0, 10.0f);
-        vectorSupplier.set(featureVector);
-        featureSupplier.set(vectorSupplier);
+        featureSupplier.set(() -> featureVector);
 
         Set<Map.Entry<String, Float>> entrySet = featureSupplier.entrySet();
         assertFalse(entrySet.isEmpty());

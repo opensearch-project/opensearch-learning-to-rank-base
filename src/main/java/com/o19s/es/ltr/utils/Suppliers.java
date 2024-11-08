@@ -16,9 +16,6 @@
 
 package com.o19s.es.ltr.utils;
 
-import com.o19s.es.ltr.ranker.LtrRanker;
-import org.opensearch.core.Assertions;
-
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -59,40 +56,6 @@ public final class Suppliers {
                 }
             }
             return value;
-        }
-    }
-
-    /**
-     * A mutable supplier
-     */
-    public static class MutableSupplier<T> implements Supplier<T> {
-        T obj;
-
-        @Override
-        public T get() {
-            return obj;
-        }
-
-        public void set(T obj) {
-            this.obj = obj;
-        }
-    }
-
-    /**
-     * Simple wrapper to make sure we run on the same thread
-     */
-    public static class FeatureVectorSupplier extends MutableSupplier<LtrRanker.FeatureVector> {
-        private final long threadId = Assertions.ENABLED ? Thread.currentThread().getId() : 0;
-
-        public LtrRanker.FeatureVector get() {
-            assert threadId == Thread.currentThread().getId();
-            return super.get();
-        }
-
-        @Override
-        public void set(LtrRanker.FeatureVector obj) {
-            assert threadId == Thread.currentThread().getId();
-            super.set(obj);
         }
     }
 }

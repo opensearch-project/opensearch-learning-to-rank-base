@@ -17,7 +17,6 @@ package com.o19s.es.termstat;
 
 import com.o19s.es.explore.StatisticsHelper;
 import com.o19s.es.explore.StatisticsHelper.AggrType;
-import com.o19s.es.ltr.utils.Suppliers;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.ReaderUtil;
@@ -48,12 +47,10 @@ public class TermStatSupplier extends AbstractMap<String, ArrayList<Float>>  {
 
     private final ClassicSimilarity sim;
     private final StatisticsHelper df_stats, idf_stats, tf_stats, ttf_stats, tp_stats;
-    private final Suppliers.MutableSupplier<Integer> matchedCountSupplier;
 
     private int matchedTermCount = 0;
 
     public TermStatSupplier() {
-        this.matchedCountSupplier = new Suppliers.MutableSupplier<>();
         this.sim = new ClassicSimilarity();
         this.df_stats = new StatisticsHelper();
         this.idf_stats = new StatisticsHelper();
@@ -124,8 +121,6 @@ public class TermStatSupplier extends AbstractMap<String, ArrayList<Float>>  {
                 tp_stats.add(0.0f);
             }
         }
-
-        matchedCountSupplier.set(matchedTermCount);
     }
 
     /**
@@ -227,10 +222,6 @@ public class TermStatSupplier extends AbstractMap<String, ArrayList<Float>>  {
 
     public int getMatchedTermCount() {
         return matchedTermCount;
-    }
-
-    public Suppliers.MutableSupplier<Integer> getMatchedTermCountSupplier() {
-        return matchedCountSupplier;
     }
 
     public void setPosAggr(AggrType type) {

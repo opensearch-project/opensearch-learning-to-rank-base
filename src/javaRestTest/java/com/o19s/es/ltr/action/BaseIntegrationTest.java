@@ -107,7 +107,7 @@ public abstract class BaseIntegrationTest extends OpenSearchSingleNodeTestCase {
     }
 
     public <E extends StorableElement> E getElement(Class<E> clazz, String type, String name, String store) throws IOException {
-        return new IndexFeatureStore(store, this::client, parserFactory()).getAndParse(name, clazz, type);
+        return new IndexFeatureStore(store, this::client, parserFactory()).getAndParse(name, clazz, type).get();
     }
 
     protected LtrRankerParserFactory parserFactory() {
@@ -176,9 +176,9 @@ public abstract class BaseIntegrationTest extends OpenSearchSingleNodeTestCase {
                                         public double execute(ExplanationHolder explainationHolder) {
                                             // For testing purposes just look for the "terms" key and see if stats were injected
                                             if(p.containsKey("termStats")) {
-                                                AbstractMap<String, ArrayList<Float>> termStats = (AbstractMap<String,
-                                                        ArrayList<Float>>) p.get("termStats");
-                                                ArrayList<Float> dfStats = termStats.get("df");
+                                                Supplier<AbstractMap<String, ArrayList<Float>>> termStats = (Supplier<AbstractMap<String,
+                                                        ArrayList<Float>>>) p.get("termStats");
+                                                ArrayList<Float> dfStats = termStats.get().get("df");
                                                 return dfStats.size() > 0 ? dfStats.get(0) : 0.0;
                                             } else {
                                                 return 0.0;
