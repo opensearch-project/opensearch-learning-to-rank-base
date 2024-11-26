@@ -16,6 +16,8 @@
 
 package com.o19s.es.ltr.action;
 
+import org.opensearch.ltr.breaker.LTRCircuitBreakerService;
+import org.opensearch.ltr.exception.LimitExceededException;
 import com.o19s.es.ltr.action.ClearCachesAction.ClearCachesNodesRequest;
 import com.o19s.es.ltr.action.FeatureStoreAction.FeatureStoreRequest;
 import com.o19s.es.ltr.action.FeatureStoreAction.FeatureStoreResponse;
@@ -55,18 +57,22 @@ public class TransportFeatureStoreAction extends HandledTransportAction<FeatureS
     private final TransportClearCachesAction clearCachesAction;
     private final Client client;
     private final Logger logger = LogManager.getLogger(getClass());
+    private final LTRCircuitBreakerService ltrCircuitBreakerService;
+
 
     @Inject
     public TransportFeatureStoreAction(TransportService transportService,
                                        ActionFilters actionFilters,
                                        ClusterService clusterService, Client client,
                                        LtrRankerParserFactory factory,
-                                       TransportClearCachesAction clearCachesAction) {
+                                       TransportClearCachesAction clearCachesAction,
+                                       LTRCircuitBreakerService ltrCircuitBreakerService) {
         super(FeatureStoreAction.NAME, false, transportService, actionFilters, FeatureStoreRequest::new);
         this.factory = factory;
         this.clusterService = clusterService;
         this.clearCachesAction = clearCachesAction;
         this.client = client;
+        this.ltrCircuitBreakerService = ltrCircuitBreakerService;
     }
 
     @Override
@@ -74,6 +80,10 @@ public class TransportFeatureStoreAction extends HandledTransportAction<FeatureS
         if (!clusterService.state().routingTable().hasIndex(request.getStore())) {
             // To prevent index auto creation
             throw new IllegalArgumentException("Store [" + request.getStore() + "] does not exist, please create it first.");
+        }
+        if (this.ltrCircuitBreakerService.isOpen()) {
+            throw new LimitExceededException("Store [" + request.getStore() + "] creating/updating features " +
+                    "through simple CRUD is not allowed as memory circuit is broken.");
         }
         // some synchronous pre-checks that require the parser factory
         precheck(request);
