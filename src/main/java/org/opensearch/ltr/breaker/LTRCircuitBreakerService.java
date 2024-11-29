@@ -17,6 +17,7 @@ package org.opensearch.ltr.breaker;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.opensearch.ltr.settings.LTRSettings;
 import org.opensearch.monitor.jvm.JvmService;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -79,6 +80,10 @@ public class LTRCircuitBreakerService {
     }
 
     public Boolean isOpen() {
+        if (!LTRSettings.isLTRBreakerEnabled()) {
+            return false;
+        }
+
         for (CircuitBreaker breaker : breakers.values()) {
             if (breaker.isOpen()) {
                 return true;
