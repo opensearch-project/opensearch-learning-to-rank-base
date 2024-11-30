@@ -203,7 +203,7 @@ public class RankerQuery extends Query {
     @Override
     public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost) throws IOException {
         if (!LTRSettings.isLTRPluginEnabled()) {
-            throw new IllegalStateException("LTR plugin is disabled. To enable update ltr.plugin.enabled to true");
+            throw new IllegalStateException("LTR plugin is disabled. To enable, update ltr.plugin.enabled to true");
         }
 
         if (!scoreMode.needsScores()) {

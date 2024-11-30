@@ -64,7 +64,7 @@ public class RestLTRStats extends BaseRestHandler {
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client)
             throws IOException {
         if (!LTRSettings.isLTRPluginEnabled()) {
-            throw new IllegalStateException("LTR plugin is disabled. To enable update ltr.plugin.enabled to true");
+            throw new IllegalStateException("LTR plugin is disabled. To enable, update ltr.plugin.enabled to true");
         }
 
         LTRStatsNodesRequest ltrStatsRequest = getRequest(request);

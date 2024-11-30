@@ -63,7 +63,7 @@ public class RestFeatureStoreCaches extends FeatureStoreBaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
         if (!LTRSettings.isLTRPluginEnabled()) {
-            throw new IllegalStateException("LTR plugin is disabled. To enable update ltr.plugin.enabled to true");
+            throw new IllegalStateException("LTR plugin is disabled. To enable, update ltr.plugin.enabled to true");
         }
 
         if (request.method() == RestRequest.Method.POST) {

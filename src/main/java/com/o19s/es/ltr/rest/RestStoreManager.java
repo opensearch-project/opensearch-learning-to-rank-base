@@ -71,7 +71,7 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         if (!LTRSettings.isLTRPluginEnabled()) {
-            throw new IllegalStateException("LTR plugin is disabled. To enable update ltr.plugin.enabled to true");
+            throw new IllegalStateException("LTR plugin is disabled. To enable, update ltr.plugin.enabled to true");
         }
 
         String indexName = indexName(request);
