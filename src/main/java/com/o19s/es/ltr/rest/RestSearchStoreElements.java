@@ -18,6 +18,7 @@ package com.o19s.es.ltr.rest;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
 import org.opensearch.client.node.NodeClient;
 import org.opensearch.index.query.BoolQueryBuilder;
+import org.opensearch.ltr.settings.LTRSettings;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestStatusToXContentListener;
 
@@ -51,6 +52,10 @@ public class RestSearchStoreElements extends FeatureStoreBaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
+        if (!LTRSettings.isLTRPluginEnabled()) {
+            throw new IllegalStateException("LTR plugin is disabled. To enable, update ltr.plugin.enabled to true");
+        }
+
         return search(client, type, indexName(request), request);
     }
 

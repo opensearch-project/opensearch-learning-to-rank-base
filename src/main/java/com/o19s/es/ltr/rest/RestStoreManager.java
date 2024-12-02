@@ -21,6 +21,7 @@ import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.opensearch.client.node.NodeClient;
 import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.ltr.settings.LTRSettings;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.RestResponse;
@@ -69,6 +70,10 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
      */
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+        if (!LTRSettings.isLTRPluginEnabled()) {
+            throw new IllegalStateException("LTR plugin is disabled. To enable, update ltr.plugin.enabled to true");
+        }
+
         String indexName = indexName(request);
 
         if (request.method() == RestRequest.Method.PUT) {

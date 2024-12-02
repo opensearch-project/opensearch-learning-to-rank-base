@@ -38,6 +38,7 @@ import org.apache.lucene.search.DoubleValues;
 import org.apache.lucene.search.ConstantScoreWeight;
 import org.apache.lucene.search.ConstantScoreWeight;
 import org.apache.lucene.search.ConstantScoreWeight;
+import org.opensearch.ltr.settings.LTRSettings;
 
 
 import java.io.IOException;
@@ -102,6 +103,10 @@ public class DerivedExpressionQuery extends Query implements LtrRewritableQuery 
 
         @Override
         public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost) throws IOException {
+            if (!LTRSettings.isLTRPluginEnabled()) {
+                throw new IllegalStateException("LTR plugin is disabled. To enable, update ltr.plugin.enabled to true");
+            }
+
             if (!scoreMode.needsScores()) {
                 // If scores are not needed simply return a constant score on all docs
                 return new ConstantScoreWeight(this.query, boost) {

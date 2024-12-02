@@ -48,6 +48,7 @@ import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.mapper.MappedFieldType;
+import org.opensearch.ltr.settings.LTRSettings;
 import org.opensearch.script.ScoreScript;
 import org.opensearch.script.Script;
 
@@ -287,6 +288,10 @@ public class ScriptFeature implements Feature {
 
         @Override
         public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost) throws IOException {
+            if (!LTRSettings.isLTRPluginEnabled()) {
+                throw new IllegalStateException("LTR plugin is disabled. To enable, update ltr.plugin.enabled to true");
+            }
+
             if (!scoreMode.needsScores()) {
                 return new MatchAllDocsQuery().createWeight(searcher, scoreMode, 1F);
             }

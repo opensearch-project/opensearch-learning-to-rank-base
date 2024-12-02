@@ -25,6 +25,7 @@ import org.apache.lucene.search.Weight;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.ScoreMode;
 import org.opensearch.common.Nullable;
+import org.opensearch.ltr.settings.LTRSettings;
 
 import java.io.IOException;
 import java.util.Map;
@@ -79,6 +80,10 @@ public class PrebuiltFeature extends Query implements Feature {
 
     @Override
     public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost) throws IOException {
+        if (!LTRSettings.isLTRPluginEnabled()) {
+            throw new IllegalStateException("LTR plugin is disabled. To enable, update ltr.plugin.enabled to true");
+        }
+
         return query.createWeight(searcher, scoreMode, boost);
     }
 

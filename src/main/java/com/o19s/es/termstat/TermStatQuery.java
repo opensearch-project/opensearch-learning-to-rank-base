@@ -31,6 +31,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.Scorer;
+import org.opensearch.ltr.settings.LTRSettings;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -89,6 +90,10 @@ public class TermStatQuery extends Query {
     @Override
     public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost)
             throws IOException {
+        if (!LTRSettings.isLTRPluginEnabled()) {
+            throw new IllegalStateException("LTR plugin is disabled. To enable, update ltr.plugin.enabled to true");
+        }
+
         assert scoreMode.needsScores() : "Should not be used in filtering mode";
 
         return new TermStatWeight(searcher, this, terms, scoreMode, aggr, posAggr);

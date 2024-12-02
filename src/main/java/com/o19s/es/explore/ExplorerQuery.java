@@ -35,6 +35,7 @@ import org.apache.lucene.search.BooleanClause;
 
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.similarities.ClassicSimilarity;
+import org.opensearch.ltr.settings.LTRSettings;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -91,6 +92,10 @@ public class ExplorerQuery extends Query {
     @Override
     public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost)
             throws IOException {
+        if (!LTRSettings.isLTRPluginEnabled()) {
+            throw new IllegalStateException("LTR plugin is disabled. To enable, update ltr.plugin.enabled to true");
+        }
+
         if (!scoreMode.needsScores()) {
             return searcher.createWeight(query, scoreMode, boost);
         }

@@ -20,6 +20,7 @@ import com.o19s.es.ltr.action.LTRStatsAction;
 import com.o19s.es.ltr.action.LTRStatsAction.LTRStatsNodesRequest;
 import com.o19s.es.ltr.stats.StatName;
 import org.opensearch.client.node.NodeClient;
+import org.opensearch.ltr.settings.LTRSettings;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestActions;
@@ -62,6 +63,10 @@ public class RestLTRStats extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client)
             throws IOException {
+        if (!LTRSettings.isLTRPluginEnabled()) {
+            throw new IllegalStateException("LTR plugin is disabled. To enable, update ltr.plugin.enabled to true");
+        }
+
         LTRStatsNodesRequest ltrStatsRequest = getRequest(request);
         return (channel) -> client.execute(LTRStatsAction.INSTANCE,
                 ltrStatsRequest,
