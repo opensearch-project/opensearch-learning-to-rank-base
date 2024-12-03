@@ -49,6 +49,7 @@ import java.util.stream.Stream;
  * information such as the index health and count of feature sets, features and
  * models in the store.
  */
+@Deprecated
 public class StoreStatsSupplier implements Supplier<Map<String, Map<String, Object>>> {
     private static final Logger LOG = LogManager.getLogger(StoreStatsSupplier.class);
     private static final String AGG_FIELD = "type";

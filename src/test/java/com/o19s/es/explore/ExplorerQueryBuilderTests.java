@@ -15,6 +15,10 @@
  */
 package com.o19s.es.explore;
 
+import org.opensearch.ltr.stats.LTRStat;
+import org.opensearch.ltr.stats.LTRStats;
+import org.opensearch.ltr.stats.StatName;
+import org.opensearch.ltr.stats.suppliers.CounterSupplier;
 import com.o19s.es.ltr.LtrQueryParserPlugin;
 import org.apache.lucene.search.Query;
 import org.opensearch.core.common.ParsingException;
@@ -28,7 +32,8 @@ import org.opensearch.test.TestGeoShapeFieldMapperPlugin;
 
 import java.io.IOException;
 import java.util.Collection;
-
+import java.util.HashMap;
+import static java.util.Collections.unmodifiableMap;
 import static java.util.Arrays.asList;
 import static org.hamcrest.CoreMatchers.instanceOf;
 
@@ -37,12 +42,18 @@ public class ExplorerQueryBuilderTests extends AbstractQueryTestCase<ExplorerQue
     protected Collection<Class<? extends Plugin>> getPlugins() {
         return asList(LtrQueryParserPlugin.class, TestGeoShapeFieldMapperPlugin.class);
     }
-
+    private LTRStats ltrStats = new LTRStats(unmodifiableMap(new HashMap<String, LTRStat<?>>() {{
+        put(StatName.LTR_REQUEST_TOTAL_COUNT.getName(),
+                new LTRStat<>(false, new CounterSupplier()));
+        put(StatName.LTR_REQUEST_ERROR_COUNT.getName(),
+                new LTRStat<>(false, new CounterSupplier()));
+    }}));
     @Override
     protected ExplorerQueryBuilder doCreateTestQueryBuilder() {
         ExplorerQueryBuilder builder = new ExplorerQueryBuilder();
         builder.query(new TermQueryBuilder("foo", "bar"));
         builder.statsType("sum_raw_ttf");
+        builder.ltrStats(ltrStats);
         return builder;
     }
 

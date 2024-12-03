@@ -22,6 +22,7 @@ import java.util.function.Supplier;
  * an underlying supplier. The stat instance also stores a flag to indicate whether
  * this is a cluster level or a node level stat.
  */
+@Deprecated
 public class LTRStat {
     private final boolean clusterLevel;
     private final Supplier<?> supplier;

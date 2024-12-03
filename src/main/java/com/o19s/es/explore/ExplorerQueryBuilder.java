@@ -15,6 +15,8 @@
 
 package com.o19s.es.explore;
 
+import org.opensearch.ltr.stats.LTRStats;
+import org.opensearch.ltr.stats.StatName;
 import org.apache.lucene.search.Query;
 import org.opensearch.core.ParseField;
 import org.opensearch.core.common.ParsingException;
@@ -53,18 +55,20 @@ public class ExplorerQueryBuilder extends AbstractQueryBuilder<ExplorerQueryBuil
 
     private QueryBuilder query;
     private String type;
+    private LTRStats ltrStats;
 
     public ExplorerQueryBuilder() {
     }
 
 
-    public ExplorerQueryBuilder(StreamInput in) throws IOException {
+    public ExplorerQueryBuilder(StreamInput in, LTRStats ltrStats) throws IOException {
         super(in);
         query = in.readNamedWriteable(QueryBuilder.class);
         type = in.readString();
+        this.ltrStats = ltrStats;
     }
 
-    public static ExplorerQueryBuilder fromXContent(XContentParser parser) throws IOException {
+    public static ExplorerQueryBuilder fromXContent(XContentParser parser, LTRStats ltrStats) throws IOException {
         final ExplorerQueryBuilder builder;
 
         try {
@@ -79,6 +83,7 @@ public class ExplorerQueryBuilder extends AbstractQueryBuilder<ExplorerQueryBuil
         if (builder.statsType() == null) {
             throw new ParsingException(parser.getTokenLocation(), "Field [" + TYPE_NAME + "] is mandatory.");
         }
+        builder.ltrStats(ltrStats);
         return builder;
     }
 
@@ -99,7 +104,8 @@ public class ExplorerQueryBuilder extends AbstractQueryBuilder<ExplorerQueryBuil
 
     @Override
     protected Query doToQuery(QueryShardContext context) throws IOException {
-        return new ExplorerQuery(query.toQuery(context), type);
+        ltrStats.getStat(StatName.LTR_REQUEST_TOTAL_COUNT.getName()).increment();
+        return new ExplorerQuery(query.toQuery(context), type, ltrStats);
     }
 
     @Override
@@ -109,6 +115,7 @@ public class ExplorerQueryBuilder extends AbstractQueryBuilder<ExplorerQueryBuil
             ExplorerQueryBuilder rewritten = new ExplorerQueryBuilder();
             rewritten.type = this.type;
             rewritten.query = Rewriteable.rewrite(query, queryRewriteContext);
+            rewritten.ltrStats = this.ltrStats;
             rewritten.boost(boost());
             rewritten.queryName(queryName());
 
@@ -141,6 +148,11 @@ public class ExplorerQueryBuilder extends AbstractQueryBuilder<ExplorerQueryBuil
 
     public ExplorerQueryBuilder query(QueryBuilder query) {
         this.query = query;
+        return this;
+    }
+
+    public ExplorerQueryBuilder ltrStats(LTRStats ltrStats) {
+        this.ltrStats = ltrStats;
         return this;
     }
 

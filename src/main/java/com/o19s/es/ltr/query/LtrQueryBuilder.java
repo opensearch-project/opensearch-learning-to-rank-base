@@ -17,6 +17,8 @@
 
 package com.o19s.es.ltr.query;
 
+import org.opensearch.ltr.stats.LTRStats;
+import org.opensearch.ltr.stats.StatName;
 import com.o19s.es.ltr.feature.PrebuiltFeature;
 import com.o19s.es.ltr.feature.PrebuiltFeatureSet;
 import com.o19s.es.ltr.feature.PrebuiltLtrModel;
@@ -64,19 +66,22 @@ public class LtrQueryBuilder extends AbstractQueryBuilder<LtrQueryBuilder> {
 
     private Script _rankLibScript;
     private List<QueryBuilder> _features;
+    private LTRStats _ltrStats;
 
     public LtrQueryBuilder() {
     }
 
-    public LtrQueryBuilder(Script _rankLibScript, List<QueryBuilder> features) {
+    public LtrQueryBuilder(Script _rankLibScript, List<QueryBuilder> features, LTRStats ltrStats) {
         this._rankLibScript = _rankLibScript;
         this._features = features;
+        this._ltrStats = ltrStats;
     }
 
-    public LtrQueryBuilder(StreamInput in) throws IOException {
+    public LtrQueryBuilder(StreamInput in, LTRStats ltrStats) throws IOException {
         super(in);
         _features = AbstractQueryBuilderUtils.readQueries(in);
         _rankLibScript = new Script(in);
+        _ltrStats = ltrStats;
     }
 
     private static void doXArrayContent(String field, List<QueryBuilder> clauses, XContentBuilder builder, Params params)
@@ -91,7 +96,7 @@ public class LtrQueryBuilder extends AbstractQueryBuilder<LtrQueryBuilder> {
         builder.endArray();
     }
 
-    public static LtrQueryBuilder fromXContent(XContentParser parser) throws IOException {
+    public static LtrQueryBuilder fromXContent(XContentParser parser, LTRStats ltrStats) throws IOException {
         final LtrQueryBuilder builder;
         try {
             builder = PARSER.apply(parser, null);
@@ -102,6 +107,7 @@ public class LtrQueryBuilder extends AbstractQueryBuilder<LtrQueryBuilder> {
             throw new ParsingException(parser.getTokenLocation(),
                     "[ltr] query requires a model, none specified");
         }
+        builder.ltrStats(ltrStats);
         return builder;
     }
 
@@ -123,6 +129,16 @@ public class LtrQueryBuilder extends AbstractQueryBuilder<LtrQueryBuilder> {
 
     @Override
     protected Query doToQuery(QueryShardContext context) throws IOException {
+        _ltrStats.getStat(StatName.LTR_REQUEST_TOTAL_COUNT.getName()).increment();
+        try {
+            return _doToQuery(context);
+        } catch (Exception e) {
+            _ltrStats.getStat(StatName.LTR_REQUEST_ERROR_COUNT.getName()).increment();
+            throw e;
+        }
+    }
+
+    private Query _doToQuery(QueryShardContext context) throws IOException {
         List<PrebuiltFeature> features = new ArrayList<>(_features.size());
         for (QueryBuilder builder : _features) {
             features.add(new PrebuiltFeature(builder.queryName(), builder.toQuery(context)));
@@ -137,7 +153,7 @@ public class LtrQueryBuilder extends AbstractQueryBuilder<LtrQueryBuilder> {
 
         PrebuiltFeatureSet featureSet = new PrebuiltFeatureSet(queryName(), features);
         PrebuiltLtrModel model = new PrebuiltLtrModel(ranker.name(), ranker, featureSet);
-        return RankerQuery.build(model);
+        return RankerQuery.build(model, _ltrStats);
     }
 
     @Override
@@ -164,7 +180,7 @@ public class LtrQueryBuilder extends AbstractQueryBuilder<LtrQueryBuilder> {
         }
         if (changed) {
             assert newFeatures.size() == _features.size();
-            return new LtrQueryBuilder(_rankLibScript, newFeatures);
+            return new LtrQueryBuilder(_rankLibScript, newFeatures, _ltrStats);
         }
         return this;
     }
@@ -193,6 +209,12 @@ public class LtrQueryBuilder extends AbstractQueryBuilder<LtrQueryBuilder> {
         _rankLibScript = rankLibModel;
         return this;
     }
+
+    public final LtrQueryBuilder ltrStats(LTRStats ltrStats) {
+        _ltrStats = ltrStats;
+        return this;
+    }
+
 
     public List<QueryBuilder> features() {
         return _features;

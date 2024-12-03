@@ -16,6 +16,8 @@
 
 package com.o19s.es.ltr.query;
 
+import org.opensearch.ltr.stats.LTRStats;
+import org.opensearch.ltr.stats.StatName;
 import com.o19s.es.ltr.LtrQueryContext;
 import com.o19s.es.ltr.feature.FeatureSet;
 import com.o19s.es.ltr.feature.store.CompiledLtrModel;
@@ -76,13 +78,14 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
     private String storeName;
     private Map<String, Object> params;
     private List<String> activeFeatures;
+    private LTRStats ltrStats;
 
     public StoredLtrQueryBuilder(FeatureStoreLoader storeLoader) {
         this.storeLoader = storeLoader;
     }
 
 
-    public StoredLtrQueryBuilder(FeatureStoreLoader storeLoader, StreamInput input) throws IOException {
+    public StoredLtrQueryBuilder(FeatureStoreLoader storeLoader, StreamInput input, LTRStats ltrStats) throws IOException {
         super(input);
         this.storeLoader = Objects.requireNonNull(storeLoader);
         modelName = input.readOptionalString();
@@ -92,10 +95,12 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
         String[] activeFeat = input.readOptionalStringArray();
         activeFeatures = activeFeat == null ? null : Arrays.asList(activeFeat);
         storeName = input.readOptionalString();
+        this.ltrStats = ltrStats;
     }
 
     public static StoredLtrQueryBuilder fromXContent(FeatureStoreLoader storeLoader,
-                                                     XContentParser parser) throws IOException {
+                                                     XContentParser parser,
+                                                     LTRStats ltrStats) throws IOException {
         storeLoader = Objects.requireNonNull(storeLoader);
         final StoredLtrQueryBuilder builder = new StoredLtrQueryBuilder(storeLoader);
         try {
@@ -109,6 +114,7 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
         if (builder.params() == null) {
             throw new ParsingException(parser.getTokenLocation(), "Field [" + PARAMS + "] is mandatory.");
         }
+        builder.ltrStats(ltrStats);
         return builder;
     }
 
@@ -157,6 +163,16 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
 
     @Override
     protected RankerQuery doToQuery(QueryShardContext context) throws IOException {
+        this.ltrStats.getStat(StatName.LTR_REQUEST_TOTAL_COUNT.getName()).increment();
+        try {
+            return _doToQuery(context);
+        } catch (Exception e) {
+            ltrStats.getStat(StatName.LTR_REQUEST_ERROR_COUNT.getName()).increment();
+            throw e;
+        }
+    }
+
+    private RankerQuery _doToQuery(QueryShardContext context) throws IOException {
         String indexName = storeName != null ? IndexFeatureStore.indexName(storeName) : IndexFeatureStore.DEFAULT_STORE;
         FeatureStore store = storeLoader.load(indexName, context::getClient);
         LtrQueryContext ltrQueryContext = new LtrQueryContext(context,
@@ -164,7 +180,7 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
         if (modelName != null) {
             CompiledLtrModel model = store.loadModel(modelName);
             validateActiveFeatures(model.featureSet(), ltrQueryContext);
-            return RankerQuery.build(model, ltrQueryContext, params, featureScoreCacheFlag);
+            return RankerQuery.build(model, ltrQueryContext, params, featureScoreCacheFlag, ltrStats);
         } else {
             assert featureSetName != null;
             FeatureSet set = store.loadSet(featureSetName);
@@ -173,7 +189,7 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
             LinearRanker ranker = new LinearRanker(weights);
             CompiledLtrModel model = new CompiledLtrModel("linear", set, ranker);
             validateActiveFeatures(model.featureSet(), ltrQueryContext);
-            return RankerQuery.build(model, ltrQueryContext, params, featureScoreCacheFlag);
+            return RankerQuery.build(model, ltrQueryContext, params, featureScoreCacheFlag, ltrStats);
         }
     }
 
@@ -217,6 +233,11 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
 
     public StoredLtrQueryBuilder featureSetName(String featureSetName) {
         this.featureSetName = featureSetName;
+        return this;
+    }
+
+    public StoredLtrQueryBuilder ltrStats(LTRStats ltrStats) {
+        this.ltrStats = ltrStats;
         return this;
     }
 

@@ -26,6 +26,7 @@ import java.util.function.Supplier;
 /**
  * Aggregate stats on the cache used by the plugin per node.
  */
+@Deprecated
 public class CacheStatsOnNodeSupplier implements Supplier<Map<String, Map<String, Object>>> {
     private final Caches caches;
 

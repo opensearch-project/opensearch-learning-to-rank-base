@@ -24,6 +24,10 @@ import ciir.umass.edu.learning.RankerFactory;
 import ciir.umass.edu.learning.RankerTrainer;
 import ciir.umass.edu.metric.NDCGScorer;
 import ciir.umass.edu.utilities.MyThreadPool;
+import org.opensearch.ltr.stats.LTRStat;
+import org.opensearch.ltr.stats.LTRStats;
+import org.opensearch.ltr.stats.StatName;
+import org.opensearch.ltr.stats.suppliers.CounterSupplier;
 import com.o19s.es.ltr.feature.FeatureSet;
 import com.o19s.es.ltr.feature.PrebuiltFeature;
 import com.o19s.es.ltr.feature.PrebuiltFeatureSet;
@@ -93,7 +97,7 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-
+import static java.util.Collections.unmodifiableMap;
 
 @LuceneTestCase.SuppressSysoutChecks(bugUrl = "RankURL does this when training models... ")
 public class LtrQueryTests extends LuceneTestCase {
@@ -110,6 +114,13 @@ public class LtrQueryTests extends LuceneTestCase {
 
         return result;
     }
+
+    private LTRStats ltrStats = new LTRStats(unmodifiableMap(new HashMap<String, LTRStat<?>>() {{
+        put(StatName.LTR_REQUEST_TOTAL_COUNT.getName(),
+                new LTRStat<>(false, new CounterSupplier()));
+        put(StatName.LTR_REQUEST_ERROR_COUNT.getName(),
+                new LTRStat<>(false, new CounterSupplier()));
+    }}));
 
     private Field newField(String name, String value, Store stored) {
         FieldType tagsFieldType = new FieldType();
@@ -189,7 +200,7 @@ public class LtrQueryTests extends LuceneTestCase {
                 }
             }
         };
-        RankerQuery query = RankerQuery.buildLogQuery(logger, set, null, Collections.emptyMap());
+        RankerQuery query = RankerQuery.buildLogQuery(logger, set, null, Collections.emptyMap(), ltrStats);
 
         searcherUnderTest.search(query, new SimpleCollector() {
 
@@ -364,7 +375,7 @@ public class LtrQueryTests extends LuceneTestCase {
             ltrRanker = new FeatureNormalizingRanker(ltrRanker, ftrNorms);
         }
         PrebuiltLtrModel model = new PrebuiltLtrModel(ltrRanker.name(), ltrRanker, new PrebuiltFeatureSet(null, features));
-        return RankerQuery.build(model);
+        return RankerQuery.build(model, ltrStats);
     }
 
     public void testTrainModel() throws IOException {
