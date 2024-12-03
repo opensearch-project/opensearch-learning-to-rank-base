@@ -108,7 +108,7 @@ public class ExplorerQuery extends Query {
         }
     }
 
-    public Weight _createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost) throws IOException {
+    private Weight _createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost) throws IOException {
         if (!scoreMode.needsScores()) {
             return searcher.createWeight(query, scoreMode, boost);
         }
