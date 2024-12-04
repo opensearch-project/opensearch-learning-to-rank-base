@@ -236,14 +236,14 @@ public class RankerQuery extends Query {
         }
 
         try {
-            return _createWeight(searcher, scoreMode, boost);
+            return createWeightInternal(searcher, scoreMode, boost);
         } catch (Exception e) {
             ltrStats.getStat(StatName.LTR_REQUEST_ERROR_COUNT.getName()).increment();
             throw e;
         }
     }
 
-    private Weight _createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost) throws IOException {
+    private Weight createWeightInternal(IndexSearcher searcher, ScoreMode scoreMode, float boost) throws IOException {
         if (!scoreMode.needsScores()) {
             // If scores are not needed simply return a constant score on all docs
             return new ConstantScoreWeight(this, boost) {

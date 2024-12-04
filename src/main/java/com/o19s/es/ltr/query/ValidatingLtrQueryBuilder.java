@@ -170,14 +170,14 @@ public class ValidatingLtrQueryBuilder extends AbstractQueryBuilder<ValidatingLt
     protected Query doToQuery(QueryShardContext queryShardContext) throws IOException {
         ltrStats.getStat(StatName.LTR_REQUEST_TOTAL_COUNT.getName()).increment();
         try {
-            return _doToQuery(queryShardContext);
+            return doToQueryInternal(queryShardContext);
         } catch (Exception e) {
             ltrStats.getStat(StatName.LTR_REQUEST_ERROR_COUNT.getName()).increment();
             throw e;
         }
     }
 
-    private Query _doToQuery(QueryShardContext queryShardContext) throws IOException {
+    private Query doToQueryInternal(QueryShardContext queryShardContext) throws IOException {
         //TODO: should we be passing activeFeatures here?
         LtrQueryContext context = new LtrQueryContext(queryShardContext);
         if (StoredFeature.TYPE.equals(element.type())) {

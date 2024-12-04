@@ -165,14 +165,14 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
     protected RankerQuery doToQuery(QueryShardContext context) throws IOException {
         this.ltrStats.getStat(StatName.LTR_REQUEST_TOTAL_COUNT.getName()).increment();
         try {
-            return _doToQuery(context);
+            return doToQueryInternal(context);
         } catch (Exception e) {
             ltrStats.getStat(StatName.LTR_REQUEST_ERROR_COUNT.getName()).increment();
             throw e;
         }
     }
 
-    private RankerQuery _doToQuery(QueryShardContext context) throws IOException {
+    private RankerQuery doToQueryInternal(QueryShardContext context) throws IOException {
         String indexName = storeName != null ? IndexFeatureStore.indexName(storeName) : IndexFeatureStore.DEFAULT_STORE;
         FeatureStore store = storeLoader.load(indexName, context::getClient);
         LtrQueryContext ltrQueryContext = new LtrQueryContext(context,
