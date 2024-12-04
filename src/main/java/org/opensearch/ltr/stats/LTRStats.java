@@ -49,7 +49,11 @@ public class LTRStats {
      * @return LTRStat
      * @throws IllegalArgumentException thrown on illegal statName
      */
-    public LTRStat<?> getStat(String key) throws IllegalArgumentException {
+    public LTRStat<?> getStat(final String key) throws IllegalArgumentException {
+        if (key == null) {
+            throw new IllegalArgumentException("Stat name cannot be null");
+        }
+
         if (!stats.containsKey(key)) {
             throw new IllegalArgumentException("Stat=\"" + key + "\" does not exist");
         }
@@ -62,6 +66,10 @@ public class LTRStats {
      * @param stat Stat
      */
     public void addStats(String key, LTRStat<?> stat) {
+        if (key == null) {
+            throw new IllegalArgumentException("Stat name cannot be null");
+        }
+
         this.stats.put(key, stat);
     }
 
