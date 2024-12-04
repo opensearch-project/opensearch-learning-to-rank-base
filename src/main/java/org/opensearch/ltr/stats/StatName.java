@@ -26,7 +26,7 @@ public enum StatName {
     LTR_REQUEST_ERROR_COUNT("request_error_count"),
     LTR_CACHE_STATS("cache");
 
-    private String name;
+    private final String name;
 
     StatName(String name) {
         this.name = name;

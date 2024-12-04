@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
  * This class is the main entry-point for access to the stats that the LTR plugin keeps track of.
  */
 public class LTRStats {
-    private Map<String, LTRStat<?>> stats;
+    private final Map<String, LTRStat<?>> stats;
 
     /**
      * Constructor

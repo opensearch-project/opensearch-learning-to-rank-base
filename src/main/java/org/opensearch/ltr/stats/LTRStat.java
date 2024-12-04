@@ -23,8 +23,8 @@ import java.util.function.Supplier;
  * Class represents a stat the plugin keeps track of
  */
 public class LTRStat<T> {
-    private Boolean clusterLevel;
-    private Supplier<T> supplier;
+    private final boolean clusterLevel;
+    private final Supplier<T> supplier;
 
     /**
      * Constructor
