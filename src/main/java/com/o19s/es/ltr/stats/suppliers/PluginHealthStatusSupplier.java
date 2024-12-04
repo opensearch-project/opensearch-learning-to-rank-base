@@ -29,7 +29,6 @@ import java.util.function.Supplier;
 /**
  * Supplier for an overall plugin health status.
  */
-@Deprecated
 public class PluginHealthStatusSupplier implements Supplier<String> {
     private static final String STATUS_GREEN = "green";
     private static final String STATUS_YELLOW = "yellow";
