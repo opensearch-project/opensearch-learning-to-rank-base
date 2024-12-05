@@ -25,7 +25,11 @@ import java.util.function.Supplier;
 
 /**
  * Aggregate stats on the cache used by the plugin per node.
+ *
+ * @deprecated This class is outdated since 3.0.0-3.0.0 and will be removed in the future.
+ * Please use the new stats framework in the {@link org.opensearch.ltr.stats} package.
  */
+@Deprecated(since = "3.0.0-3.0.0", forRemoval = true)
 public class CacheStatsOnNodeSupplier implements Supplier<Map<String, Map<String, Object>>> {
     private final Caches caches;
 

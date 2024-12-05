@@ -21,7 +21,11 @@ import java.util.stream.Collectors;
 
 /**
  * This class is the main entry-point for access to the stats that the LTR plugin keeps track of.
+ *
+ * @deprecated This class is outdated since 3.0.0-3.0.0 and will be removed in the future.
+ * Please use the new stats framework in the {@link org.opensearch.ltr.stats} package.
  */
+@Deprecated(since = "3.0.0-3.0.0", forRemoval = true)
 public class LTRStats {
     private final Map<String, LTRStat> stats;
 

@@ -16,6 +16,10 @@
 
 package com.o19s.es.ltr.query;
 
+import org.opensearch.ltr.stats.LTRStat;
+import org.opensearch.ltr.stats.LTRStats;
+import org.opensearch.ltr.stats.StatName;
+import org.opensearch.ltr.stats.suppliers.CounterSupplier;
 import com.carrotsearch.randomizedtesting.RandomizedRunner;
 import com.o19s.es.ltr.LtrQueryParserPlugin;
 import com.o19s.es.ltr.feature.FeatureValidation;
@@ -48,6 +52,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.unmodifiableMap;
 import static java.util.stream.Collectors.joining;
 import static org.hamcrest.CoreMatchers.instanceOf;
 
@@ -56,6 +61,13 @@ public class ValidatingLtrQueryBuilderTests extends AbstractQueryTestCase<Valida
     private final LtrRankerParserFactory factory = new LtrRankerParserFactory.Builder()
             .register(LinearRankerParser.TYPE, LinearRankerParser::new)
             .build();
+
+    private LTRStats ltrStats = new LTRStats(unmodifiableMap(new HashMap<String, LTRStat<?>>() {{
+        put(StatName.LTR_REQUEST_TOTAL_COUNT.getName(),
+                new LTRStat<>(false, new CounterSupplier()));
+        put(StatName.LTR_REQUEST_ERROR_COUNT.getName(),
+                new LTRStat<>(false, new CounterSupplier()));
+    }}));
 
     // TODO: Remove the TestGeoShapeFieldMapperPlugin once upstream has completed the migration.
     protected Collection<Class<? extends Plugin>> getPlugins() {
@@ -106,7 +118,7 @@ public class ValidatingLtrQueryBuilderTests extends AbstractQueryTestCase<Valida
         Map<String, Object> params = new HashMap<>();
         params.put("query_string", "hello world");
         FeatureValidation val = new FeatureValidation("test_index", params);
-        return new ValidatingLtrQueryBuilder(element, val, factory);
+        return new ValidatingLtrQueryBuilder(element, val, factory, ltrStats);
     }
 
     @Override

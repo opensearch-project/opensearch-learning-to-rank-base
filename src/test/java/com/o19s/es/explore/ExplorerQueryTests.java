@@ -15,6 +15,10 @@
  */
 package com.o19s.es.explore;
 
+import org.opensearch.ltr.stats.LTRStat;
+import org.opensearch.ltr.stats.LTRStats;
+import org.opensearch.ltr.stats.StatName;
+import org.opensearch.ltr.stats.suppliers.CounterSupplier;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StoredField;
@@ -37,12 +41,17 @@ import org.opensearch.common.lucene.Lucene;
 import org.junit.After;
 import org.junit.Before;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import static java.util.Collections.unmodifiableMap;
 import static org.hamcrest.Matchers.equalTo;
 
 public class ExplorerQueryTests extends LuceneTestCase {
     private Directory dir;
     private IndexReader reader;
     private IndexSearcher searcher;
+    private LTRStats ltrStats;
 
     // Some simple documents to index
     private final String[] docs = new String[] {
@@ -69,6 +78,12 @@ public class ExplorerQueryTests extends LuceneTestCase {
 
         reader = DirectoryReader.open(dir);
         searcher = new IndexSearcher(reader);
+        Map<String, LTRStat<?>> stats = new HashMap<>();
+        stats.put(StatName.LTR_REQUEST_TOTAL_COUNT.getName(),
+                new LTRStat<>(false, new CounterSupplier()));
+        stats.put(StatName.LTR_REQUEST_ERROR_COUNT.getName(),
+                new LTRStat<>(false, new CounterSupplier()));
+        ltrStats = new LTRStats(unmodifiableMap(stats));
     }
 
     @After
@@ -84,7 +99,7 @@ public class ExplorerQueryTests extends LuceneTestCase {
         Query q = new TermQuery(new Term("text", "cow"));
         String statsType = "sum_raw_tf";
 
-        ExplorerQuery eq = new ExplorerQuery(q, statsType);
+        ExplorerQuery eq = new ExplorerQuery(q, statsType, ltrStats);
 
         // Basic query check, should match 2 docs
         assertThat(searcher.count(eq), equalTo(2));
@@ -100,7 +115,7 @@ public class ExplorerQueryTests extends LuceneTestCase {
 
         String statsType = "sum_raw_tf";
 
-        ExplorerQuery eq = new ExplorerQuery(q, statsType);
+        ExplorerQuery eq = new ExplorerQuery(q, statsType, ltrStats);
 
         // Basic query check, should match 0 docs
         assertThat(searcher.count(eq), equalTo(0));
@@ -114,7 +129,7 @@ public class ExplorerQueryTests extends LuceneTestCase {
         Query q = new TermQuery(new Term("text", "dance"));
         String statsType = "avg_raw_tp";
 
-        ExplorerQuery eq = new ExplorerQuery(q, statsType);
+        ExplorerQuery eq = new ExplorerQuery(q, statsType, ltrStats);
 
         // Basic query check, should match 1 docs
         assertThat(searcher.count(eq), equalTo(1));
@@ -129,7 +144,7 @@ public class ExplorerQueryTests extends LuceneTestCase {
         Query q = new TermQuery(new Term("text", "dance"));
         String statsType = "max_raw_tp";
 
-        ExplorerQuery eq = new ExplorerQuery(q, statsType);
+        ExplorerQuery eq = new ExplorerQuery(q, statsType, ltrStats);
 
         // Basic query check, should match 1 docs
         assertThat(searcher.count(eq), equalTo(1));
@@ -144,7 +159,7 @@ public class ExplorerQueryTests extends LuceneTestCase {
         Query q = new TermQuery(new Term("text", "dance"));
         String statsType = "min_raw_tp";
 
-        ExplorerQuery eq = new ExplorerQuery(q, statsType);
+        ExplorerQuery eq = new ExplorerQuery(q, statsType, ltrStats);
 
         // Basic query check, should match 1 docs
         assertThat(searcher.count(eq), equalTo(1));
@@ -168,7 +183,7 @@ public class ExplorerQueryTests extends LuceneTestCase {
         Query q = builder.build();
         String statsType = "min_raw_tp";
 
-        ExplorerQuery eq = new ExplorerQuery(q, statsType);
+        ExplorerQuery eq = new ExplorerQuery(q, statsType, ltrStats);
 
         // Verify score is 5 (5 unique terms)
         TopDocs docs = searcher.search(eq, 4);
@@ -189,7 +204,7 @@ public class ExplorerQueryTests extends LuceneTestCase {
         Query q = builder.build();
         String statsType = "max_raw_tp";
 
-        ExplorerQuery eq = new ExplorerQuery(q, statsType);
+        ExplorerQuery eq = new ExplorerQuery(q, statsType, ltrStats);
 
         // Verify score is 5 (5 unique terms)
         TopDocs docs = searcher.search(eq, 4);
@@ -210,7 +225,7 @@ public class ExplorerQueryTests extends LuceneTestCase {
         Query q = builder.build();
         String statsType = "avg_raw_tp";
 
-        ExplorerQuery eq = new ExplorerQuery(q, statsType);
+        ExplorerQuery eq = new ExplorerQuery(q, statsType, ltrStats);
 
         // Verify score is 5 (5 unique terms)
         TopDocs docs = searcher.search(eq, 4);
@@ -222,7 +237,7 @@ public class ExplorerQueryTests extends LuceneTestCase {
         Query q = new TermQuery(new Term("text", "xxxxxxxxxxxxxxxxxx"));
         String statsType = "avg_raw_tp";
 
-        ExplorerQuery eq = new ExplorerQuery(q, statsType);
+        ExplorerQuery eq = new ExplorerQuery(q, statsType, ltrStats);
 
         // Basic query check, should match 1 docs
         assertThat(searcher.count(eq), equalTo(0));
@@ -246,7 +261,7 @@ public class ExplorerQueryTests extends LuceneTestCase {
         Query q = builder.build();
         String statsType = "sum_raw_tf";
 
-        ExplorerQuery eq = new ExplorerQuery(q, statsType);
+        ExplorerQuery eq = new ExplorerQuery(q, statsType, ltrStats);
 
         // Verify tf score
         TopDocs docs = searcher.search(eq, 4);
@@ -271,7 +286,7 @@ public class ExplorerQueryTests extends LuceneTestCase {
         Query q = builder.build();
         String statsType = "unique_terms_count";
 
-        ExplorerQuery eq = new ExplorerQuery(q, statsType);
+        ExplorerQuery eq = new ExplorerQuery(q, statsType, ltrStats);
 
         // Verify score is 5 (5 unique terms)
         TopDocs docs = searcher.search(eq, 4);
@@ -283,7 +298,7 @@ public class ExplorerQueryTests extends LuceneTestCase {
         Query q = new TermQuery(new Term("text", "cow"));
         String statsType = "sum_invalid_stat";
 
-        ExplorerQuery eq = new ExplorerQuery(q, statsType);
+        ExplorerQuery eq = new ExplorerQuery(q, statsType, ltrStats);
 
         expectThrows(RuntimeException.class, () -> searcher.search(eq, 4));
     }

@@ -21,7 +21,11 @@ import java.util.function.Supplier;
  * A container for a stat provided by the plugin. Each instance is associated with
  * an underlying supplier. The stat instance also stores a flag to indicate whether
  * this is a cluster level or a node level stat.
+ *
+ * @deprecated This class is outdated since 3.0.0-3.0.0 and will be removed in the future.
+ * Please use the new stats framework in the {@link org.opensearch.ltr.stats} package.
  */
+@Deprecated(since = "3.0.0-3.0.0", forRemoval = true)
 public class LTRStat {
     private final boolean clusterLevel;
     private final Supplier<?> supplier;

@@ -19,6 +19,11 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * @deprecated This class is outdated since 3.0.0-3.0.0 and will be removed in the future.
+ * Please use the new stats framework in the {@link org.opensearch.ltr.stats} package.
+ */
+@Deprecated(since = "3.0.0-3.0.0", forRemoval = true)
 public enum StatName {
     PLUGIN_STATUS("status"),
     STORES("stores"),
