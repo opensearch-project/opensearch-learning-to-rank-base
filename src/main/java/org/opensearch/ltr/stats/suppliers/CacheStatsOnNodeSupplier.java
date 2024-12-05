@@ -27,13 +27,18 @@ import java.util.function.Supplier;
  * Aggregate stats on the cache used by the plugin per node.
  */
 public class CacheStatsOnNodeSupplier implements Supplier<Map<String, Map<String, Object>>> {
-    private static final String LTR_CACHE_HIT_COUNT = "hit_count";
-    private static final String LTR_CACHE_MISS_COUNT = "miss_count";
-    private static final String LTR_CACHE_EVICTION_COUNT = "eviction_count";
-    private static final String LTR_CACHE_ENTRY_COUNT = "entry_count";
-    private static final String LTR_CACHE_MEMORY_USAGE_IN_BYTES = "memory_usage_in_bytes";
 
-    private Caches caches;
+    private static final String LTR_CACHE_OBJECT_FEATURE = "feature";
+    private static final String LTR_CACHE_OBJECT_FEATURESET = "featureset";
+    private static final String LTR_CACHE_OBJECT_MODEL = "model";
+
+    private static final String LTR_CACHE_METRIC_HIT_COUNT = "hit_count";
+    private static final String LTR_CACHE_METRIC_MISS_COUNT = "miss_count";
+    private static final String LTR_CACHE_METRIC_EVICTION_COUNT = "eviction_count";
+    private static final String LTR_CACHE_METRIC_ENTRY_COUNT = "entry_count";
+    private static final String LTR_CACHE_METRIC_MEMORY_USAGE_IN_BYTES = "memory_usage_in_bytes";
+
+    private final Caches caches;
 
     public CacheStatsOnNodeSupplier(Caches caches) {
         this.caches = caches;
@@ -42,19 +47,19 @@ public class CacheStatsOnNodeSupplier implements Supplier<Map<String, Map<String
     @Override
     public Map<String, Map<String, Object>> get() {
         Map<String, Map<String, Object>> values = new HashMap<>();
-        values.put("feature", getCacheStats(caches.featureCache()));
-        values.put("featureset", getCacheStats(caches.featureSetCache()));
-        values.put("model", getCacheStats(caches.modelCache()));
+        values.put(LTR_CACHE_OBJECT_FEATURE, getCacheStats(caches.featureCache()));
+        values.put(LTR_CACHE_OBJECT_FEATURESET, getCacheStats(caches.featureSetCache()));
+        values.put(LTR_CACHE_OBJECT_MODEL, getCacheStats(caches.modelCache()));
         return Collections.unmodifiableMap(values);
     }
 
     private Map<String, Object> getCacheStats(Cache<Caches.CacheKey, ?> cache) {
         Map<String, Object> stat = new HashMap<>();
-        stat.put(LTR_CACHE_HIT_COUNT, cache.stats().getHits());
-        stat.put(LTR_CACHE_MISS_COUNT, cache.stats().getMisses());
-        stat.put(LTR_CACHE_EVICTION_COUNT, cache.stats().getEvictions());
-        stat.put(LTR_CACHE_ENTRY_COUNT, cache.count());
-        stat.put(LTR_CACHE_MEMORY_USAGE_IN_BYTES, cache.weight());
+        stat.put(LTR_CACHE_METRIC_HIT_COUNT, cache.stats().getHits());
+        stat.put(LTR_CACHE_METRIC_MISS_COUNT, cache.stats().getMisses());
+        stat.put(LTR_CACHE_METRIC_EVICTION_COUNT, cache.stats().getEvictions());
+        stat.put(LTR_CACHE_METRIC_ENTRY_COUNT, cache.count());
+        stat.put(LTR_CACHE_METRIC_MEMORY_USAGE_IN_BYTES, cache.weight());
         return Collections.unmodifiableMap(stat);
     }
 }
