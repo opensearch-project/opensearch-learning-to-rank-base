@@ -30,7 +30,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.Mockito.when;
 
-public class LTRCircuitBreakerServiceTest {
+public class LTRCircuitBreakerServiceTests {
 
     @InjectMocks
     private LTRCircuitBreakerService ltrCircuitBreakerService;
