@@ -28,10 +28,7 @@ import java.util.function.Supplier;
 
 /**
  * Supplier for an overall plugin health status.
- * @deprecated This class is outdated since 3.0.0-3.0.0 and will be removed in the future.
- * Please use the new stats framework in the {@link org.opensearch.ltr.stats} package.
  */
-@Deprecated(since = "3.0.0-3.0.0", forRemoval = true)
 public class PluginHealthStatusSupplier implements Supplier<String> {
     private static final String STATUS_GREEN = "green";
     private static final String STATUS_YELLOW = "yellow";
