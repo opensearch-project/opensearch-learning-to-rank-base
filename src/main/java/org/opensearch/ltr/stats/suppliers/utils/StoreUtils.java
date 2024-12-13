@@ -30,9 +30,9 @@ public class StoreUtils {
     private static final String FEATURE_SET_KEY = "featureset";
     private static final String FEATURE_SET_NAME_KEY = "name";
     private static final String FEATURES_KEY = "features";
-    private Client client;
-    private ClusterService clusterService;
-    private IndexNameExpressionResolver indexNameExpressionResolver;
+    private final Client client;
+    private final ClusterService clusterService;
+    private final IndexNameExpressionResolver indexNameExpressionResolver;
 
     public StoreUtils(Client client, ClusterService clusterService) {
         this.client = client;
@@ -96,10 +96,6 @@ public class StoreUtils {
 
         return Optional.empty();
     }
-
-
-
-//    private
 
     public long getModelCount(String storeName) {
         return searchStore(storeName, StoredLtrModel.TYPE).getTotalHits().value;

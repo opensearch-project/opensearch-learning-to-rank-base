@@ -1,5 +1,19 @@
-package org.opensearch.ltr.stats.suppliers;
+/*
+ * Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
 
+package org.opensearch.ltr.stats.suppliers;
 
 import org.opensearch.client.Client;
 import org.opensearch.cluster.service.ClusterService;
@@ -42,10 +56,10 @@ public class PluginHealthStatusSupplier implements Supplier<String> {
                 .reduce(STATUS_GREEN, this::combineStatuses);
     }
 
-    private String combineStatuses(String s1, String s2) {
-        if (s2 == null || STATUS_RED.equals(s1) || STATUS_RED.equals(s2)) {
+    private String combineStatuses(String status1, String status2) {
+        if (status2 == null || STATUS_RED.equals(status1) || STATUS_RED.equals(status2)) {
             return STATUS_RED;
-        } else if (STATUS_YELLOW.equals(s1) || STATUS_YELLOW.equals(s2)) {
+        } else if (STATUS_YELLOW.equals(status1) || STATUS_YELLOW.equals(status2)) {
             return STATUS_YELLOW;
         } else {
             return STATUS_GREEN;
