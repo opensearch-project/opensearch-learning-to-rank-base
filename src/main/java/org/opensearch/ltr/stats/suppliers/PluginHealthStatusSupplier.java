@@ -57,7 +57,7 @@ public class PluginHealthStatusSupplier implements Supplier<String> {
     }
 
     private String combineStatuses(String status1, String status2) {
-        if (status2 == null || STATUS_RED.equals(status1) || STATUS_RED.equals(status2)) {
+        if (STATUS_RED.equals(status1) || STATUS_RED.equals(status2)) {
             return STATUS_RED;
         } else if (STATUS_YELLOW.equals(status1) || STATUS_YELLOW.equals(status2)) {
             return STATUS_YELLOW;
