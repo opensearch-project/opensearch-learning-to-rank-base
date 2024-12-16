@@ -48,7 +48,10 @@ import java.util.stream.Stream;
  * A supplier which provides information on all feature stores. It provides basic
  * information such as the index health and count of feature sets, features and
  * models in the store.
+ * @deprecated This class is outdated since 3.0.0-3.0.0 and will be removed in the future.
+ * Please use the new stats framework in the {@link org.opensearch.ltr.stats} package.
  */
+@Deprecated(since = "3.0.0-3.0.0", forRemoval = true)
 public class StoreStatsSupplier implements Supplier<Map<String, Map<String, Object>>> {
     private static final Logger LOG = LogManager.getLogger(StoreStatsSupplier.class);
     private static final String AGG_FIELD = "type";

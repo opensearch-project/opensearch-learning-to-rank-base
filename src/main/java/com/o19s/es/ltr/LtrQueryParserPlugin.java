@@ -23,6 +23,8 @@ import org.opensearch.ltr.stats.LTRStat;
 import org.opensearch.ltr.stats.LTRStats;
 import org.opensearch.ltr.stats.StatName;
 import org.opensearch.ltr.stats.suppliers.CacheStatsOnNodeSupplier;
+import org.opensearch.ltr.stats.suppliers.PluginHealthStatusSupplier;
+import org.opensearch.ltr.stats.suppliers.StoreStatsSupplier;
 import org.opensearch.ltr.stats.suppliers.CounterSupplier;
 import com.o19s.es.explore.ExplorerQueryBuilder;
 import com.o19s.es.ltr.action.AddFeaturesToSetAction;
@@ -125,7 +127,7 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
     public static final String LTR_LEGACY_BASE_URI = "/_opendistro/_ltr";
     private final LtrRankerParserFactory parserFactory;
     private final Caches caches;
-    private LTRStats ltrStats;
+    private final LTRStats ltrStats;
 
     public LtrQueryParserPlugin(Settings settings) {
         caches = new Caches(settings);
@@ -281,7 +283,21 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
         final JvmService jvmService = new JvmService(environment.settings());
         final LTRCircuitBreakerService ltrCircuitBreakerService = new LTRCircuitBreakerService(jvmService).init();
 
+        addStats(client, clusterService, ltrCircuitBreakerService);
         return asList(caches, parserFactory, ltrCircuitBreakerService, ltrStats);
+    }
+
+    private void addStats(
+            final Client client,
+            final ClusterService clusterService,
+            final LTRCircuitBreakerService ltrCircuitBreakerService
+    ) {
+        final StoreStatsSupplier storeStatsSupplier = StoreStatsSupplier.create(client, clusterService);
+        ltrStats.addStats(StatName.LTR_STORES_STATS.getName(), new LTRStat<>(true, storeStatsSupplier));
+
+        final PluginHealthStatusSupplier pluginHealthStatusSupplier = PluginHealthStatusSupplier.create(
+                client, clusterService, ltrCircuitBreakerService);
+        ltrStats.addStats(StatName.LTR_PLUGIN_STATUS.getName(), new LTRStat<>(true, pluginHealthStatusSupplier));
     }
 
     private LTRStats getInitialStats() {
@@ -297,7 +313,7 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
 
     protected FeatureStoreLoader getFeatureStoreLoader() {
         return (storeName, clientSupplier) ->
-            new CachedFeatureStore(new IndexFeatureStore(storeName, clientSupplier, parserFactory), caches);
+                new CachedFeatureStore(new IndexFeatureStore(storeName, clientSupplier, parserFactory), caches);
     }
 
     // A simplified version of some token filters needed by the feature stores.
