@@ -131,7 +131,7 @@ public class RestStatsLTRAction extends BaseRestHandler {
             final List<String> requestedStats) {
 
         if (requestedStats.contains(LTRStatsRequest.ALL_STATS_KEY)) {
-            throw new IllegalArgumentException(String.format("Request %s contains both %s and individual stats",
+            throw new IllegalArgumentException(String.format(Locale.ROOT, "Request %s contains both %s and individual stats",
                     request.path(), LTRStatsRequest.ALL_STATS_KEY));
         }
 
