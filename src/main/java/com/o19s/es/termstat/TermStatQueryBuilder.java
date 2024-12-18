@@ -151,8 +151,8 @@ public class TermStatQueryBuilder extends AbstractQueryBuilder<TermStatQueryBuil
     @Override
     protected Query doToQuery(QueryShardContext context) throws IOException {
         Expression compiledExpression = (Expression) Scripting.compile(expr);
-        AggrType aggrType = AggrType.valueOf(aggr.toUpperCase(Locale.getDefault()));
-        AggrType posAggrType = AggrType.valueOf(pos_aggr.toUpperCase(Locale.getDefault()));
+        AggrType aggrType = AggrType.valueOf(aggr.toUpperCase(Locale.ROOT));
+        AggrType posAggrType = AggrType.valueOf(pos_aggr.toUpperCase(Locale.ROOT));
 
         Analyzer analyzer = null;
         Set<Term> termSet = new HashSet<>();

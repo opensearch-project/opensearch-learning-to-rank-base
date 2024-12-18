@@ -76,7 +76,7 @@ public class StoreUtils {
                 clusterService.state().getRoutingTable().index(storeName)
         );
 
-        return indexHealth.getStatus().name().toLowerCase(Locale.ROOT);
+        return indexHealth.getStatus().name().toLowerCase(Locale.getDefault());
     }
 
     /**
