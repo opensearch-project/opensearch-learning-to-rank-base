@@ -19,6 +19,7 @@ package com.o19s.es.ltr;
 import ciir.umass.edu.learning.RankerFactory;
 import org.opensearch.ltr.breaker.LTRCircuitBreakerService;
 import org.opensearch.ltr.settings.LTRSettings;
+import org.opensearch.ltr.rest.RestStatsLTRAction;
 import org.opensearch.ltr.stats.LTRStat;
 import org.opensearch.ltr.stats.LTRStats;
 import org.opensearch.ltr.stats.StatName;
@@ -26,6 +27,8 @@ import org.opensearch.ltr.stats.suppliers.CacheStatsOnNodeSupplier;
 import org.opensearch.ltr.stats.suppliers.PluginHealthStatusSupplier;
 import org.opensearch.ltr.stats.suppliers.StoreStatsSupplier;
 import org.opensearch.ltr.stats.suppliers.CounterSupplier;
+import org.opensearch.ltr.transport.LTRStatsAction;
+import org.opensearch.ltr.transport.TransportLTRStatsAction;
 import com.o19s.es.explore.ExplorerQueryBuilder;
 import com.o19s.es.ltr.action.AddFeaturesToSetAction;
 import com.o19s.es.ltr.action.CachesStatsAction;
@@ -201,6 +204,7 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
         list.add(new RestFeatureStoreCaches());
         list.add(new RestCreateModelFromSet());
         list.add(new RestAddFeatureToSet());
+        list.add(new RestStatsLTRAction(ltrStats));
         return unmodifiableList(list);
     }
 
@@ -212,7 +216,8 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
                 new ActionHandler<>(ClearCachesAction.INSTANCE, TransportClearCachesAction.class),
                 new ActionHandler<>(AddFeaturesToSetAction.INSTANCE, TransportAddFeatureToSetAction.class),
                 new ActionHandler<>(CreateModelFromSetAction.INSTANCE, TransportCreateModelFromSetAction.class),
-                new ActionHandler<>(ListStoresAction.INSTANCE, TransportListStoresAction.class)));
+                new ActionHandler<>(ListStoresAction.INSTANCE, TransportListStoresAction.class),
+                new ActionHandler<>(LTRStatsAction.INSTANCE, TransportLTRStatsAction.class)));
     }
 
     @Override

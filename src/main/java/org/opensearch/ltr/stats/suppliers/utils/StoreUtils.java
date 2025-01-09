@@ -33,6 +33,7 @@ import org.opensearch.search.SearchHits;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -75,7 +76,7 @@ public class StoreUtils {
                 clusterService.state().getRoutingTable().index(storeName)
         );
 
-        return indexHealth.getStatus().name().toLowerCase();
+        return indexHealth.getStatus().name().toLowerCase(Locale.getDefault());
     }
 
     /**
