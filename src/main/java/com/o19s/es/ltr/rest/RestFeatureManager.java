@@ -26,9 +26,11 @@ import static org.opensearch.core.rest.RestStatus.OK;
 import java.io.IOException;
 import java.util.List;
 
+import org.opensearch.action.delete.DeleteRequestBuilder;
 import org.opensearch.action.delete.DeleteResponse;
 import org.opensearch.action.get.GetResponse;
 import org.opensearch.client.node.NodeClient;
+import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.ltr.settings.LTRSettings;
@@ -97,33 +99,34 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
         String routing = request.param("routing");
         return (channel) -> {
             RestStatusToXContentListener<DeleteResponse> restR = new RestStatusToXContentListener<>(channel, (r) -> r.getLocation(routing));
-            client.prepareDelete(indexName, id).setRouting(routing).execute(ActionListener.wrap((deleteResponse) -> {
-                // wrap the response so we can send another request to clear the cache
-                // usually we send only one transport request from the rest layer
-                // it's still unclear which direction we should take (thick or thin REST layer?)
-                ClearCachesAction.ClearCachesNodesRequest clearCache = new ClearCachesAction.ClearCachesNodesRequest();
-                switch (type) {
-                    case StoredFeature.TYPE:
-                        clearCache.clearFeature(indexName, name);
-                        break;
-                    case StoredFeatureSet.TYPE:
-                        clearCache.clearFeatureSet(indexName, name);
-                        break;
-                    case StoredLtrModel.TYPE:
-                        clearCache.clearModel(indexName, name);
-                        break;
+            ClearCachesAction.ClearCachesNodesRequest clearCache = new ClearCachesAction.ClearCachesNodesRequest();
+            switch (type) {
+                case StoredFeature.TYPE:
+                    clearCache.clearFeature(indexName, name);
+                    break;
+                case StoredFeatureSet.TYPE:
+                    clearCache.clearFeatureSet(indexName, name);
+                    break;
+                case StoredLtrModel.TYPE:
+                    clearCache.clearModel(indexName, name);
+                    break;
+            }
+            DeleteRequestBuilder deleteRequest = client.prepareDelete(indexName, id).setRouting(routing);
+            // clearing cache first and deleting next
+            // if cache clearning fails, we do not attempt to delete and return with an error
+            // need to evaluate this strategy
+            client.execute(ClearCachesAction.INSTANCE, clearCache, ActionListener.wrap((r) -> {
+                try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
+                    deleteRequest.execute(ActionListener.wrap((deleteResponse) -> {
+                        restR.onResponse(deleteResponse);
+                        threadContext.restore();
+                    }, (e) -> {
+                        restR.onFailure(e);
+                        threadContext.restore();
+                    }));
+                } catch (Exception e) {
+                    channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
                 }
-                client
-                    .execute(
-                        ClearCachesAction.INSTANCE,
-                        clearCache,
-                        ActionListener
-                            .wrap(
-                                (r) -> restR.onResponse(deleteResponse),
-                                // Is it good to fail the whole request if cache invalidation failed?
-                                restR::onFailure
-                            )
-                    );
             }, restR::onFailure));
         };
     }
@@ -133,12 +136,17 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
         String name = request.param("name");
         String routing = request.param("routing");
         String id = generateId(type, name);
-        return (channel) -> client.prepareGet(indexName, id).setRouting(routing).execute(new RestToXContentListener<GetResponse>(channel) {
-            @Override
-            protected RestStatus getStatus(final GetResponse response) {
-                return response.isExists() ? OK : NOT_FOUND;
-            }
-        });
+        // refresh index before performing get
+        return (channel) -> {
+            client.admin().indices().prepareRefresh(indexName).execute(ActionListener.wrap(refreshResponse -> {
+                client.prepareGet(indexName, id).setRouting(routing).execute(new RestToXContentListener<GetResponse>(channel) {
+                    @Override
+                    protected RestStatus getStatus(final GetResponse response) {
+                        return response.isExists() ? OK : NOT_FOUND;
+                    }
+                });
+            }, e -> channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()))));
+        };
     }
 
     RestChannelConsumer addOrUpdate(NodeClient client, String type, String indexName, RestRequest request) throws IOException {
@@ -181,6 +189,18 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
         builder.request().setRouting(routing);
         builder.request().setStore(indexName);
         builder.request().setValidation(parserState.getValidation());
-        return (channel) -> builder.execute(new RestStatusToXContentListener<>(channel, (r) -> r.getResponse().getLocation(routing)));
+        return (channel) -> {
+            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
+                ActionListener<FeatureStoreAction.FeatureStoreResponse> wrappedListener = ActionListener
+                    .runBefore(
+                        new RestStatusToXContentListener<>(channel, (r) -> r.getResponse().getLocation(routing)),
+                        () -> threadContext.restore()
+                    );
+
+                builder.execute(wrappedListener);
+            } catch (Exception e) {
+                channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
+            }
+        };
     }
 }

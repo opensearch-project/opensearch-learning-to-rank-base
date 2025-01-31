@@ -179,6 +179,8 @@
           index:  test
 
   - do:
+      allowed_warnings:
+        - "this request accesses system indices: [.ltrstore_custom], but in a future major version, direct access to system indices will be prevented by default"
       search:
         index: test
         body: { query: { "sltr": { "params": {"query_string": "rambo"}, "model": "my_model", "store": "custom" } } }
@@ -191,8 +193,8 @@
   - do:
       allowed_warnings:
         - "this request accesses system indices: [.ltrstore_custom], but in a future major version, direct access to system indices will be prevented by default"
-      indices.delete:
-          index: .ltrstore_custom
+      ltr.delete_store:
+        store: custom
 
   - do:
         ltr.cache_stats: {}
@@ -241,6 +243,8 @@
           index:  test
 
   - do:
+      allowed_warnings:
+        - "this request accesses system indices: [.ltrstore_custom], but in a future major version, direct access to system indices will be prevented by default"
       search:
         index: test
         body: { query: { "sltr": { "params": {"query_string": "rambo"}, "model": "my_model", "store": "custom" } } }

@@ -24,6 +24,7 @@ import java.util.List;
 
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.client.node.NodeClient;
+import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.ParseField;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.ParsingException;
@@ -83,15 +84,15 @@ public class RestCreateModelFromSet extends FeatureStoreBaseRestHandler {
         }
         builder.request().setValidation(state.validation);
         builder.routing(routing);
-        return (channel) -> builder
-            .execute(
-                ActionListener
+        return (channel) -> {
+            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
+                ActionListener<CreateModelFromSetAction.CreateModelFromSetResponse> wrappedListener = ActionListener
                     .wrap(
                         response -> new RestStatusToXContentListener<CreateModelFromSetAction.CreateModelFromSetResponse>(
                             channel,
-                            (r) -> r.getResponse().getLocation(routing)
+                            r -> r.getResponse().getLocation(routing)
                         ).onResponse(response),
-                        (e) -> {
+                        e -> {
                             final Exception exc;
                             final RestStatus status;
                             if (ExceptionsHelper.unwrap(e, VersionConflictEngineException.class) != null) {
@@ -112,8 +113,17 @@ public class RestCreateModelFromSet extends FeatureStoreBaseRestHandler {
                                 logger.error("failed to send failure response", inner);
                             }
                         }
-                    )
-            );
+                    );
+
+                ActionListener<CreateModelFromSetAction.CreateModelFromSetResponse> contextRestoringListener = ActionListener
+                    .runBefore(wrappedListener, () -> threadContext.restore());
+
+                builder.execute(contextRestoringListener);
+            } catch (Exception e) {
+                channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
+            }
+        };
+
     }
 
     private static class ParserState {
