@@ -138,7 +138,11 @@ setup:
 
 ---
 "single feature ranklib model":
+  - skip:
+      features: allowed_warnings
   - do:
+      allowed_warnings:
+        - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
       search:
         index: test
         body: { query: { "sltr": { "params": {"query_string": "rambo"}, "model": "single_feature_ranklib_model"  } } }
@@ -148,7 +152,11 @@ setup:
 
 ---
 "single feature linear model":
+  - skip:
+      features: allowed_warnings
   - do:
+      allowed_warnings:
+        - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
       search:
         index: test
         body: { query: { "sltr": { "params": {"query_string": "rambo"}, "model": "single_feature_linear_model"  } } }
@@ -157,7 +165,11 @@ setup:
 
 ---
 "three feature linear model using one active feature":
+  - skip:
+      features: allowed_warnings
   - do:
+      allowed_warnings:
+        - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
       search:
         index: test
         body: { query: { "sltr": { "params": {}, "model": "three_feature_linear_model", "active_features": ["no_param_feature"]}  } }
