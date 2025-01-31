@@ -23,7 +23,10 @@ import java.util.List;
 
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.opensearch.action.support.master.AcknowledgedResponse;
 import org.opensearch.client.node.NodeClient;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.ltr.settings.LTRSettings;
@@ -128,6 +131,15 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
 
     RestChannelConsumer deleteIndex(NodeClient client, String indexName) {
         DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(indexName);
-        return (channel) -> client.admin().indices().delete(deleteIndexRequest, new RestToXContentListener<>(channel));
+        return (channel) -> {
+            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
+                ActionListener<AcknowledgedResponse> wrappedListener = ActionListener
+                    .runBefore(new RestToXContentListener<>(channel), () -> threadContext.restore());
+
+                client.admin().indices().delete(deleteIndexRequest, wrappedListener);
+            } catch (Exception e) {
+                channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
+            }
+        };
     }
 }
