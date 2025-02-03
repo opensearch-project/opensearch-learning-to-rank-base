@@ -105,21 +105,42 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
     }
 
     RestChannelConsumer listStores(NodeClient client) {
-        return (channel) -> new ListStoresAction.ListStoresActionBuilder(client).execute(new RestToXContentListener<>(channel));
+        return (channel) -> {
+            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
+                RestToXContentListener<ListStoresAction.ListStoresActionResponse> listStoresListener = new RestToXContentListener<>(
+                    channel
+                );
+
+                ActionListener<ListStoresAction.ListStoresActionResponse> wrappedListener = ActionListener
+                    .runBefore(listStoresListener, () -> threadContext.restore());
+
+                new ListStoresAction.ListStoresActionBuilder(client).execute(wrappedListener);
+            } catch (Exception e) {
+                channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
+            }
+        };
     }
 
     RestChannelConsumer getStore(NodeClient client, String indexName) {
-        return (channel) -> client
-            .admin()
-            .indices()
-            .prepareExists(indexName)
-            .execute(new RestBuilderListener<IndicesExistsResponse>(channel) {
-                @Override
-                public RestResponse buildResponse(IndicesExistsResponse indicesExistsResponse, XContentBuilder builder) throws Exception {
-                    builder.startObject().field("exists", indicesExistsResponse.isExists()).endObject().close();
-                    return new BytesRestResponse(indicesExistsResponse.isExists() ? RestStatus.OK : RestStatus.NOT_FOUND, builder);
-                }
-            });
+        return (channel) -> {
+            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
+                RestBuilderListener<IndicesExistsResponse> existsListener = new RestBuilderListener<IndicesExistsResponse>(channel) {
+                    @Override
+                    public RestResponse buildResponse(IndicesExistsResponse indicesExistsResponse, XContentBuilder builder)
+                        throws Exception {
+                        builder.startObject().field("exists", indicesExistsResponse.isExists()).endObject().close();
+                        return new BytesRestResponse(indicesExistsResponse.isExists() ? RestStatus.OK : RestStatus.NOT_FOUND, builder);
+                    }
+                };
+
+                ActionListener<IndicesExistsResponse> wrappedListener = ActionListener
+                    .runBefore(existsListener, () -> threadContext.restore());
+
+                client.admin().indices().prepareExists(indexName).execute(wrappedListener);
+            } catch (Exception e) {
+                channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
+            }
+        };
     }
 
     RestChannelConsumer createIndex(NodeClient client, String indexName) {

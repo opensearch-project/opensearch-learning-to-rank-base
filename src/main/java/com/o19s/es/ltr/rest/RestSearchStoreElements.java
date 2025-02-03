@@ -23,9 +23,14 @@ import static org.opensearch.index.query.QueryBuilders.termQuery;
 
 import java.util.List;
 
+import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.node.NodeClient;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.core.action.ActionListener;
+import org.opensearch.core.rest.RestStatus;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.ltr.settings.LTRSettings;
+import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestStatusToXContentListener;
 
@@ -65,12 +70,17 @@ public class RestSearchStoreElements extends FeatureStoreBaseRestHandler {
         if (prefix != null && !prefix.isEmpty()) {
             qb.must(matchQuery("name.prefix", prefix));
         }
-        return (channel) -> client
-            .prepareSearch(indexName)
-            .setQuery(qb)
-            .setSize(size)
-            .setFrom(from)
-            .execute(new RestStatusToXContentListener<>(channel));
+        return (channel) -> {
+            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
+                ActionListener<SearchResponse> searchListener = new RestStatusToXContentListener<>(channel);
+
+                ActionListener<SearchResponse> wrappedListener = ActionListener.runBefore(searchListener, () -> threadContext.restore());
+
+                client.prepareSearch(indexName).setQuery(qb).setSize(size).setFrom(from).execute(wrappedListener);
+            } catch (Exception e) {
+                channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
+            }
+        };
     }
 
 }
