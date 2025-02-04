@@ -68,6 +68,8 @@ setup:
 # Model only uses a single feature... although feature set has multiple
 
   - do:
+      allowed_warnings:
+        - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
       indices.refresh: {}
 
   - do:
@@ -134,6 +136,8 @@ setup:
                     no_param_feature: 3.0
 
   - do:
+      allowed_warnings:
+        - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
       indices.refresh: {}
 
 ---
