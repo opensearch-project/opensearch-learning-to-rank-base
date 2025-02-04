@@ -118,6 +118,7 @@
   - do:
         allowed_warnings:
           - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.list_stores: {}
 
   - match: { stores._default_.version: 2 }

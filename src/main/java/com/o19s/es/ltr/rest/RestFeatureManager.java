@@ -136,16 +136,19 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
         String name = request.param("name");
         String routing = request.param("routing");
         String id = generateId(type, name);
-        // refresh index before performing get
         return (channel) -> {
-            client.admin().indices().prepareRefresh(indexName).execute(ActionListener.wrap(refreshResponse -> {
-                client.prepareGet(indexName, id).setRouting(routing).execute(new RestToXContentListener<GetResponse>(channel) {
+            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
+                ActionListener<GetResponse> wrappedListener = ActionListener.runBefore(new RestToXContentListener<GetResponse>(channel) {
                     @Override
                     protected RestStatus getStatus(final GetResponse response) {
                         return response.isExists() ? OK : NOT_FOUND;
                     }
-                });
-            }, e -> channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()))));
+                }, () -> threadContext.restore());
+
+                client.prepareGet(indexName, id).setRouting(routing).execute(wrappedListener);
+            } catch (Exception e) {
+                channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
+            }
         };
     }
 
