@@ -41,6 +41,7 @@ import org.opensearch.cluster.metadata.MetadataCreateIndexService;
 import org.opensearch.common.CheckedFunction;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.core.ParseField;
@@ -213,7 +214,15 @@ public class IndexFeatureStore implements FeatureStore {
     }
 
     private Supplier<GetResponse> internalGet(String id) {
-        return () -> clientSupplier.get().prepareGet(index, id).get();
+        return () -> {
+            Client client = clientSupplier.get();
+            if (client.threadPool() == null) {
+                return client.prepareGet(index, id).get();
+            }
+            try (ThreadContext.StoredContext ignored = client.threadPool().getThreadContext().stashContext()) {
+                return client.prepareGet(index, id).get();
+            }
+        };
     }
 
     /**

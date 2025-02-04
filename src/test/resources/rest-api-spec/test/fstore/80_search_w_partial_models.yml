@@ -69,7 +69,7 @@ setup:
 
   - do:
       allowed_warnings:
-        - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
+      - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
       indices.refresh: {}
 
   - do:
