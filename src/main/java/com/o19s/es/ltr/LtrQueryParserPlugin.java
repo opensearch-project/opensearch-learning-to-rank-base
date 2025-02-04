@@ -372,7 +372,7 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
     @Override
     public Collection<SystemIndexDescriptor> getSystemIndexDescriptors(Settings settings) {
         List<SystemIndexDescriptor> systemIndexDescriptors = new ArrayList<>();
-        systemIndexDescriptors.add(new SystemIndexDescriptor(".ltrstore*", "ML Commons Agent Index"));
+        systemIndexDescriptors.add(new SystemIndexDescriptor(".ltrstore*", "Indices for LTR stores"));
         return systemIndexDescriptors;
     }
 }
