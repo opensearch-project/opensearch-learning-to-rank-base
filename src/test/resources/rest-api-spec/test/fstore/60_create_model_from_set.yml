@@ -1,9 +1,15 @@
 ---
 "Create model from set on the default store":
+  - skip:
+      features: allowed_warnings
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_store: {}
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_featureset:
            name: my_featureset
            body:
@@ -22,6 +28,8 @@
                         field_test2: "{{query_string}}"
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_model_from_set:
             name: my_featureset
             body:
@@ -38,6 +46,8 @@
   - match: { _version: 1 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         catch: /Element of type \[model\] are not updatable, please create a new one instead./
         ltr.create_model_from_set:
             name: my_featureset
@@ -52,11 +62,17 @@
 
 ---
 "Create model from set on custom store":
+  - skip:
+      features: allowed_warnings
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_store:
            store: mystore
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_featureset:
            store: mystore
            name: my_featureset
@@ -76,6 +92,8 @@
                         field_test2: "{{query_string}}"
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_model_from_set:
             store: mystore
             name: my_featureset
@@ -93,6 +111,8 @@
   - match: { _version: 1 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         catch: /Element of type \[model\] are not updatable, please create a new one instead./
         ltr.create_model_from_set:
             store: mystore

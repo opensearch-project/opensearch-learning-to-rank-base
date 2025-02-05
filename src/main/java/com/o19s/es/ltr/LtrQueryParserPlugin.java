@@ -57,6 +57,7 @@ import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;
 import org.opensearch.index.analysis.PreConfiguredTokenFilter;
 import org.opensearch.index.analysis.PreConfiguredTokenizer;
+import org.opensearch.indices.SystemIndexDescriptor;
 import org.opensearch.ltr.breaker.LTRCircuitBreakerService;
 import org.opensearch.ltr.rest.RestStatsLTRAction;
 import org.opensearch.ltr.settings.LTRSettings;
@@ -75,6 +76,7 @@ import org.opensearch.plugins.AnalysisPlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.ScriptPlugin;
 import org.opensearch.plugins.SearchPlugin;
+import org.opensearch.plugins.SystemIndexPlugin;
 import org.opensearch.repositories.RepositoriesService;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
@@ -127,7 +129,7 @@ import com.o19s.es.termstat.TermStatQueryBuilder;
 
 import ciir.umass.edu.learning.RankerFactory;
 
-public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, ScriptPlugin, ActionPlugin, AnalysisPlugin {
+public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, ScriptPlugin, ActionPlugin, AnalysisPlugin, SystemIndexPlugin {
     public static final String LTR_BASE_URI = "/_plugins/_ltr";
     public static final String LTR_LEGACY_BASE_URI = "/_opendistro/_ltr";
     private final LtrRankerParserFactory parserFactory;
@@ -365,5 +367,12 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
             .singletonList(
                 PreConfiguredTokenizer.singleton("ltr_keyword", () -> new KeywordTokenizer(KeywordTokenizer.DEFAULT_BUFFER_SIZE))
             );
+    }
+
+    @Override
+    public Collection<SystemIndexDescriptor> getSystemIndexDescriptors(Settings settings) {
+        List<SystemIndexDescriptor> systemIndexDescriptors = new ArrayList<>();
+        systemIndexDescriptors.add(new SystemIndexDescriptor(".ltrstore*", "Indices for LTR stores"));
+        return systemIndexDescriptors;
     }
 }

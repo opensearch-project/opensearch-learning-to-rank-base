@@ -1,9 +1,15 @@
 ---
 "CRUD operations test: featureset on default store":
+  - skip:
+      features: allowed_warnings
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_store: {}
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_featureset:
            name: my_featureset
            body:
@@ -20,12 +26,16 @@
   - match: { _version: 1 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.get_featureset:
            name: my_featureset
 
   - match: { _source.name: my_featureset }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         catch: /version_conflict_engine_exception/
         ltr.create_featureset:
            name: my_featureset
@@ -44,6 +54,8 @@
                       field_test2: "{{query_string}}"
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.update_featureset:
            name: my_featureset
            body:
@@ -65,46 +77,64 @@
   - match: { _version: 2 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.get_featureset:
            name: my_featureset
 
   - match: { _source.featureset.features.1.name: "feature2" }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.list_featureset: {}
 
   - match: { hits.total.value: 1 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.list_featureset:
             prefix: my
 
   - match: { hits.total.value: 1 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.list_featureset:
             prefix: hop
 
   - match: { hits.total.value: 0 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.delete_featureset:
            name: my_featureset
 
   - is_true: ''
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         catch: missing
         ltr.get_featureset:
            name: my_featureset
 
 ---
 "CRUD operations test: featureset on custom store":
+  - skip:
+      features: allowed_warnings
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_store:
             store: mystore
 
   - do:
+        allowed_warnings:
+        - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_featureset:
            store: mystore
            name: my_featureset
@@ -122,6 +152,8 @@
   - match: { _version: 1 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.get_featureset:
            store: mystore
            name: my_featureset
@@ -129,6 +161,8 @@
   - match: { _source.name: my_featureset }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         catch: /version_conflict_engine_exception/
         ltr.create_featureset:
            store: mystore
@@ -148,6 +182,8 @@
                       field_test2: "{{query_string}}"
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.update_featureset:
            store: mystore
            name: my_featureset
@@ -170,6 +206,8 @@
   - match: { _version: 2 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.get_featureset:
            store: mystore
            name: my_featureset
@@ -177,12 +215,16 @@
   - match: { _source.featureset.features.1.name: "feature2" }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.list_featureset:
            store: mystore
 
   - match: { hits.total.value: 1 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.list_featureset:
            store: mystore
            prefix: my
@@ -190,6 +232,8 @@
   - match: { hits.total.value: 1 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.list_featureset:
            store: mystore
            prefix: hop
@@ -197,6 +241,8 @@
   - match: { hits.total.value: 0 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.delete_featureset:
            store: mystore
            name: my_featureset
@@ -204,6 +250,8 @@
   - is_true: ''
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         catch: missing
         ltr.get_featureset:
            store: mystore

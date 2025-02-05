@@ -1,6 +1,10 @@
 ---
 "Validate feature":
+  - skip:
+      features: allowed_warnings
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_store: {}
   - do:
         indices.create:
@@ -25,7 +29,11 @@
 
 ---
 "Validate featureset":
+  - skip:
+      features: allowed_warnings
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_store: {}
   - do:
         indices.create:
@@ -51,7 +59,11 @@
 
 ---
 "Validate model":
+  - skip:
+      features: allowed_warnings
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_store: {}
   - do:
         indices.create:
@@ -89,13 +101,19 @@
 
 ---
 "Validate on add features to set":
+  - skip:
+      features: allowed_warnings
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_store: {}
   - do:
         indices.create:
           index: test_index
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_feature:
            name: my_feature1
            body:
@@ -108,6 +126,8 @@
                   field_test1: "{{query_string}}"
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_feature:
            name: my_feature2
            body:
@@ -132,13 +152,19 @@
 
 ---
 "Validate on create model from set":
+  - skip:
+      features: allowed_warnings
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_store: {}
   - do:
         indices.create:
           index: test_index
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_featureset:
            name: my_featureset
            body:

@@ -1,5 +1,7 @@
 ---
 setup:
+  - skip:
+      features: allowed_warnings
   - do:
       indices.create:
           index:  test
@@ -17,9 +19,13 @@ setup:
         body:   { "field1": "v1 aoeu", "field2": " ua u v2", "field3": "foo bar text", "user_rating": 0.0  }
 
   - do:
+          allowed_warnings:
+            - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
           ltr.create_store: {}
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_featureset:
            name: my_featureset
            body:
@@ -38,6 +44,8 @@ setup:
                         field2: "{{query_string}}"
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.add_features_to_set:
            name: my_featureset
            body:
@@ -47,6 +55,8 @@ setup:
                   template:  {"function_score": { "functions": [ {"field_value_factor": { "field": "user_rating" } }], "query": {"match_all": {}}}}
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.add_features_to_set:
            name: my_featureset
            body:
@@ -58,9 +68,13 @@ setup:
 # Model only uses a single feature... although feature set has multiple
 
   - do:
+      allowed_warnings:
+        - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
       indices.refresh: {}
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_model_from_set:
             name: my_featureset
             body:
@@ -93,6 +107,8 @@ setup:
 
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_model_from_set:
             name: my_featureset
             body:
@@ -105,6 +121,8 @@ setup:
 
 # Model that uses three features.
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_model_from_set:
             name: my_featureset
             body:
@@ -118,11 +136,17 @@ setup:
                     no_param_feature: 3.0
 
   - do:
+      allowed_warnings:
+        - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
       indices.refresh: {}
 
 ---
 "single feature ranklib model":
+  - skip:
+      features: allowed_warnings
   - do:
+      allowed_warnings:
+        - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
       search:
         index: test
         body: { query: { "sltr": { "params": {"query_string": "rambo"}, "model": "single_feature_ranklib_model"  } } }
@@ -132,7 +156,11 @@ setup:
 
 ---
 "single feature linear model":
+  - skip:
+      features: allowed_warnings
   - do:
+      allowed_warnings:
+        - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
       search:
         index: test
         body: { query: { "sltr": { "params": {"query_string": "rambo"}, "model": "single_feature_linear_model"  } } }
@@ -141,7 +169,11 @@ setup:
 
 ---
 "three feature linear model using one active feature":
+  - skip:
+      features: allowed_warnings
   - do:
+      allowed_warnings:
+        - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
       search:
         index: test
         body: { query: { "sltr": { "params": {}, "model": "three_feature_linear_model", "active_features": ["no_param_feature"]}  } }

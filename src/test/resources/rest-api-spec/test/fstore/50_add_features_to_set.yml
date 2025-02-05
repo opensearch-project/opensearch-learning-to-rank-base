@@ -1,9 +1,15 @@
 ---
 "Append/merge features to set on the default store with a query":
+  - skip:
+      features: allowed_warnings
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_store: {}
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_feature:
            name: my_feature1
            body:
@@ -16,6 +22,8 @@
                   field_test1: "{{query_string}}"
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_feature:
            name: my_feature2
            body:
@@ -28,6 +36,8 @@
                   field_test2: "{{query_string}}"
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_feature:
            name: another_feature
            body:
@@ -40,6 +50,8 @@
                   field_test_other: "{{query_string}}"
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.add_features_to_set:
             name: my_generated_set
             query: my_feature*
@@ -50,17 +62,23 @@
   - match: { _version: 1 }
 
   - do:
+         allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
          ltr.get_featureset:
              name: my_generated_set
 
   - length: { _source.featureset.features: 2 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.add_features_to_set:
             name: my_generated_set
             query: another_feature
 
   - do:
+         allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
          ltr.get_featureset:
              name: my_generated_set
 
@@ -70,17 +88,23 @@
   - length: { _source.featureset.features: 3 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         catch: /Feature \[another_feature\] defined twice in this set/
         ltr.add_features_to_set:
             name:  my_generated_set
             query: another_feature
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.add_features_to_set:
             name: my_generated_set
             merge: true
             query: another_feature
   - do:
+         allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
          ltr.get_featureset:
              name: my_generated_set
 
@@ -91,11 +115,17 @@
 
 ---
 "Append features to set on custom store with a query":
+  - skip:
+      features: allowed_warnings
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_store:
            store: mystore
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_feature:
            store: mystore
            name: another_feature
@@ -109,9 +139,13 @@
                   field_test_other: "{{query_string}}"
 
   - do:
-       indices.refresh:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
+        indices.refresh:
           index: .ltrstore_mystore
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.add_features_to_set:
            store: mystore
            name: my_generated_set
@@ -122,6 +156,8 @@
   - match: { _version: 1 }
 
   - do:
+         allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
          ltr.get_featureset:
              store: mystore
              name: my_generated_set
@@ -129,10 +165,16 @@
   - length: { _source.featureset.features: 1 }
 ---
 "Append/merge features to set on the default store with a list":
+  - skip:
+      features: allowed_warnings
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_store: {}
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.add_features_to_set:
             name: my_generated_set
             body:
@@ -155,12 +197,16 @@
   - match: { _version: 1 }
 
   - do:
+         allowed_warnings:
+           - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
          ltr.get_featureset:
              name: my_generated_set
 
   - length: { _source.featureset.features: 2 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.add_features_to_set:
             name: my_generated_set
             body:
@@ -173,6 +219,8 @@
                       field_test_other: "{{query_string}}"
 
   - do:
+         allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
          ltr.get_featureset:
              name: my_generated_set
 
@@ -182,6 +230,8 @@
   - length: { _source.featureset.features: 3 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         catch: /Feature \[another_feature\] defined twice in this set/
         ltr.add_features_to_set:
             name: my_generated_set
@@ -195,6 +245,8 @@
                       field_test_other: "{{query_string}}"
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.add_features_to_set:
             name: my_generated_set
             merge: true
@@ -214,6 +266,8 @@
                       field_test_other: "{{query_string}}"
 
   - do:
+         allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
          ltr.get_featureset:
              name: my_generated_set
 
@@ -224,11 +278,17 @@
 
 ---
 "Append features to set on custom store":
+  - skip:
+      features: allowed_warnings
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_store:
            store: mystore
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.add_features_to_set:
            store: mystore
            name: my_generated_set
@@ -246,6 +306,8 @@
   - match: { _version: 1 }
 
   - do:
+         allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
          ltr.get_featureset:
              store: mystore
              name: my_generated_set

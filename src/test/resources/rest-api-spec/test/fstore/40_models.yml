@@ -1,9 +1,15 @@
 ---
 "CRUD operations test: model on default store":
+  - skip:
+        features: allowed_warnings
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_store: {}
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_model:
            name: my_model
            body:
@@ -32,6 +38,8 @@
   - match: { _version: 1 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.get_model:
            name: my_model
 
@@ -39,6 +47,8 @@
   - match: { _source.model.model.definition.feature1: 1.2 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         catch: /Element of type \[model\] are not updatable, please create a new one instead/
         ltr.update_model:
            name: my_model
@@ -64,40 +74,56 @@
                     feature2: 0.2
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.list_model: {}
 
   - match: { hits.total.value: 1 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.list_model:
             prefix: my
 
   - match: { hits.total.value: 1 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.list_model:
             prefix: hop
 
   - match: { hits.total.value: 0 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.delete_model:
            name: my_model
 
   - is_true: ''
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
         catch: missing
         ltr.get_model:
            name: my_model
 
 ---
 "CRUD operations test: model on custom store":
+  - skip:
+        features: allowed_warnings
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_store:
             store: mystore
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_model:
            store: mystore
            name: my_model
@@ -132,6 +158,8 @@
   - match: { _version: 1 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.get_model:
            store: mystore
            name: my_model
@@ -142,6 +170,8 @@
   - match: { _source.model.model.feature_normalizers.feature1.standard.mean: 0.5 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         catch: /Element of type \[model\] are not updatable, please create a new one instead./
         ltr.update_model:
            store: mystore
@@ -168,12 +198,16 @@
                     feature2: 0.2
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.list_model:
            store: mystore
 
   - match: { hits.total.value: 1 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.list_model:
            store: mystore
            prefix: my
@@ -181,6 +215,8 @@
   - match: { hits.total.value: 1 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.list_model:
            store: mystore
            prefix: hop
@@ -188,6 +224,8 @@
   - match: { hits.total.value: 0 }
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         ltr.delete_model:
            store: mystore
            name: my_model
@@ -195,6 +233,8 @@
   - is_true: ''
 
   - do:
+        allowed_warnings:
+          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
         catch: missing
         ltr.get_model:
            store: mystore
