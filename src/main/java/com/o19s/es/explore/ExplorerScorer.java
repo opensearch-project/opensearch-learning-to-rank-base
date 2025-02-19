@@ -26,7 +26,7 @@ public class ExplorerScorer extends Scorer {
     private final String type;
 
     protected ExplorerScorer(Weight weight, String type, Scorer subScorer) {
-        super(weight);
+        super();
         this.type = type;
         this.subScorer = subScorer;
     }
@@ -38,10 +38,10 @@ public class ExplorerScorer extends Scorer {
         // Grab freq from subscorer, or the children if available
         if (subScorer.getChildren().size() > 0) {
             for (ChildScorable child : subScorer.getChildren()) {
-                assert child.child instanceof PostingsExplorerQuery.PostingsExplorerScorer;
-                if (child.child.docID() == docID()) {
-                    ((PostingsExplorerQuery.PostingsExplorerScorer) child.child).setType(type);
-                    tf_stats.add(child.child.score());
+                assert child.child() instanceof PostingsExplorerQuery.PostingsExplorerScorer;
+                if (((PostingsExplorerQuery.PostingsExplorerScorer) child.child()).docID() == docID()) {
+                    ((PostingsExplorerQuery.PostingsExplorerScorer) child.child()).setType(type);
+                    tf_stats.add(child.child().score());
                 }
             }
         } else {

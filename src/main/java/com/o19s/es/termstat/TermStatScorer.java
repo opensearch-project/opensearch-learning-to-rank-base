@@ -59,7 +59,7 @@ public class TermStatScorer extends Scorer {
         AggrType posAggr,
         Map<Term, TermStates> termContexts
     ) {
-        super(weight);
+        super();
         this.context = context;
         this.compiledExpression = compiledExpression;
         this.searcher = searcher;

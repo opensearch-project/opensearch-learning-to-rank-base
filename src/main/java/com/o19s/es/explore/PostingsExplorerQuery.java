@@ -36,7 +36,9 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.Weight;
+import org.apache.lucene.util.IOSupplier;
 import org.opensearch.ltr.settings.LTRSettings;
 
 import com.o19s.es.ltr.utils.CheckedBiFunction;
@@ -132,17 +134,36 @@ public class PostingsExplorerQuery extends Query {
             return Explanation.noMatch("no matching term");
         }
 
-        @Override
-        public Scorer scorer(LeafReaderContext context) throws IOException {
+        public Scorer getScorer(LeafReaderContext context) throws IOException {
             assert this.termStates != null && this.termStates.wasBuiltFor(ReaderUtil.getTopLevelContext(context));
-            TermState state = this.termStates.get(context);
-            if (state == null) {
+            IOSupplier<TermState> termStateSupplier = this.termStates.get(context);
+            if (termStateSupplier == null || termStateSupplier.get() == null) {
                 return null;
             } else {
+                TermState state = termStateSupplier.get();
                 TermsEnum terms = context.reader().terms(this.term.field()).iterator();
                 terms.seekExact(this.term.bytes(), state);
                 return this.type.apply(this, terms);
             }
+        }
+
+        @Override
+        public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
+            Scorer scorer = getScorer(context);
+            if (scorer == null)
+                return null;
+            DocIdSetIterator iterator = scorer != null ? scorer.iterator() : DocIdSetIterator.empty();
+            return new ScorerSupplier() {
+                @Override
+                public Scorer get(long leadCost) throws IOException {
+                    return scorer;
+                }
+
+                @Override
+                public long cost() {
+                    return iterator.cost();
+                }
+            };
         }
 
         @Override
@@ -156,7 +177,7 @@ public class PostingsExplorerQuery extends Query {
         protected String typeConditional;
 
         PostingsExplorerScorer(Weight weight, PostingsEnum postingsEnum) {
-            super(weight);
+            super();
             this.postingsEnum = postingsEnum;
         }
 

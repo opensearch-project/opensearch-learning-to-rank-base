@@ -34,8 +34,6 @@ import org.apache.lucene.util.BytesRef;
 import org.opensearch.ResourceNotFoundException;
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
 import org.opensearch.action.get.GetResponse;
-import org.opensearch.client.Client;
-import org.opensearch.client.Requests;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.MetadataCreateIndexService;
 import org.opensearch.common.CheckedFunction;
@@ -51,6 +49,8 @@ import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.core.xcontent.ObjectParser;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.core.xcontent.XContentParser;
+import org.opensearch.transport.client.Client;
+import org.opensearch.transport.client.Requests;
 
 import com.o19s.es.ltr.feature.Feature;
 import com.o19s.es.ltr.feature.FeatureSet;

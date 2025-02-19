@@ -115,9 +115,11 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
             );
 
         SearchResponse sr = sb.get();
-        assertEquals(1, sr.getHits().getTotalHits().value);
-        assertThat(sr.getHits().getAt(0).getScore(), Matchers.greaterThanOrEqualTo(29.0f));
-        assertThat(sr.getHits().getAt(0).getScore(), Matchers.lessThanOrEqualTo(30.0f));
+        assertEquals(1, sr.getHits().getTotalHits().value());
+        // As of Lucene 10, BM25 no longer multiplies scores by (k1+1), so scores drop by ~2.2x See:
+        // https://issues.apache.org/jira/browse/LUCENE-8563
+        assertThat(sr.getHits().getAt(0).getScore(), Matchers.greaterThanOrEqualTo(13.0f));
+        assertThat(sr.getHits().getAt(0).getScore(), Matchers.lessThanOrEqualTo(14.0f));
     }
 
     public void testFullUsecase() throws Exception {
@@ -215,7 +217,7 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
             );
 
         SearchResponse sr = sb.get();
-        assertEquals(1, sr.getHits().getTotalHits().value);
+        assertEquals(1, sr.getHits().getTotalHits().value());
 
         if (negativeScore) {
             assertThat(sr.getHits().getAt(0).getScore(), Matchers.lessThanOrEqualTo(-10.0f));
@@ -239,7 +241,7 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
             );
 
         sr = sb.get();
-        assertEquals(1, sr.getHits().getTotalHits().value);
+        assertEquals(1, sr.getHits().getTotalHits().value());
 
         if (negativeScore) {
             assertThat(sr.getHits().getAt(0).getScore(), Matchers.lessThanOrEqualTo(-10.0f));
@@ -280,7 +282,7 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
             );
 
         sr = sb.get();
-        assertEquals(1, sr.getHits().getTotalHits().value);
+        assertEquals(1, sr.getHits().getTotalHits().value());
         assertThat(sr.getHits().getAt(0).getScore(), Matchers.greaterThan(0.0f));
         assertThat(sr.getHits().getAt(0).getScore(), Matchers.lessThanOrEqualTo(1.0f));
 
@@ -302,9 +304,10 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
                 ).setScoreMode(QueryRescoreMode.Total).setQueryWeight(0).setRescoreQueryWeight(1)
             );
         sr = sb.get();
-        assertEquals(1, sr.getHits().getTotalHits().value);
-        assertThat(sr.getHits().getAt(0).getScore(), Matchers.greaterThan(28.0f));
-        assertThat(sr.getHits().getAt(0).getScore(), Matchers.lessThan(30.0f));
+        assertEquals(1, sr.getHits().getTotalHits().value());
+        // See: https://issues.apache.org/jira/browse/LUCENE-8563
+        assertThat(sr.getHits().getAt(0).getScore(), Matchers.greaterThan(12.0f));
+        assertThat(sr.getHits().getAt(0).getScore(), Matchers.lessThan(14.0f));
 
         // we use feature 5 with query time negative double multiplier passed to feature5
         params.put("query", "hello");
@@ -324,9 +327,10 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
                 ).setScoreMode(QueryRescoreMode.Total).setQueryWeight(0).setRescoreQueryWeight(1)
             );
         sr = sb.get();
-        assertEquals(1, sr.getHits().getTotalHits().value);
-        assertThat(sr.getHits().getAt(0).getScore(), Matchers.lessThan(-28.0f));
-        assertThat(sr.getHits().getAt(0).getScore(), Matchers.greaterThan(-30.0f));
+        assertEquals(1, sr.getHits().getTotalHits().value());
+        // See: https://issues.apache.org/jira/browse/LUCENE-8563
+        assertThat(sr.getHits().getAt(0).getScore(), Matchers.lessThan(-12.0f));
+        assertThat(sr.getHits().getAt(0).getScore(), Matchers.greaterThan(-14.0f));
 
         // we use feature1 and feature6(ScriptFeature)
         params.put("query", "hello");
@@ -346,8 +350,9 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
                 ).setScoreMode(QueryRescoreMode.Total).setQueryWeight(0).setRescoreQueryWeight(1)
             );
         sr = sb.get();
-        assertEquals(1, sr.getHits().getTotalHits().value);
-        assertThat(sr.getHits().getAt(0).getScore(), Matchers.greaterThan(0.2876f + 2.876f));
+        assertEquals(1, sr.getHits().getTotalHits().value());
+        // See: https://issues.apache.org/jira/browse/LUCENE-8563
+        assertThat(sr.getHits().getAt(0).getScore(), Matchers.greaterThan(1.3f));
 
         StoredLtrModel model = getElement(StoredLtrModel.class, StoredLtrModel.TYPE, "my_model");
         CachesStatsNodesResponse stats = client()

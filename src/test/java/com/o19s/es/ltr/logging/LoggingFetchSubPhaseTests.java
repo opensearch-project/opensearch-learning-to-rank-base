@@ -187,7 +187,7 @@ public class LoggingFetchSubPhaseTests extends LuceneTestCase {
             @Override
             public void collect(int doc) throws IOException {
                 if (hits.size() < minHits || (random().nextBoolean() && hits.size() < maxHits)) {
-                    Document d = context.reader().document(doc);
+                    Document d = context.reader().storedFields().document(doc);
                     String id = d.get("id");
                     SearchHit hit = new SearchHit(doc, id, random().nextBoolean() ? new HashMap<>() : null, null);
                     processor.process(new FetchSubPhase.HitContext(hit, context, doc, new SourceLookup()));

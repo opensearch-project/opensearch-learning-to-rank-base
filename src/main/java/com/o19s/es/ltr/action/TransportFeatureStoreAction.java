@@ -31,7 +31,6 @@ import org.opensearch.action.search.ShardSearchFailure;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
 import org.opensearch.action.support.WriteRequest;
-import org.opensearch.client.Client;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.core.action.ActionListener;
@@ -40,6 +39,7 @@ import org.opensearch.ltr.exception.LimitExceededException;
 import org.opensearch.ltr.stats.LTRStats;
 import org.opensearch.tasks.Task;
 import org.opensearch.transport.TransportService;
+import org.opensearch.transport.client.Client;
 
 import com.o19s.es.ltr.action.ClearCachesAction.ClearCachesNodesRequest;
 import com.o19s.es.ltr.action.FeatureStoreAction.FeatureStoreRequest;

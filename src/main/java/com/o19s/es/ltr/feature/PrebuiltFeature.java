@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 
-import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
@@ -89,7 +88,7 @@ public class PrebuiltFeature extends Query implements Feature {
     }
 
     @Override
-    public Query rewrite(IndexReader reader) throws IOException {
+    public Query rewrite(IndexSearcher reader) throws IOException {
         return query.rewrite(reader);
     }
 

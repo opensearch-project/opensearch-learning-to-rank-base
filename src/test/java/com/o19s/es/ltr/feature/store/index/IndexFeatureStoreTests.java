@@ -39,13 +39,13 @@ import org.hamcrest.MatcherAssert;
 import org.opensearch.ResourceNotFoundException;
 import org.opensearch.action.get.GetRequestBuilder;
 import org.opensearch.action.get.GetResponse;
-import org.opensearch.client.Client;
-import org.opensearch.client.Requests;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.core.common.bytes.BytesReference;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.core.xcontent.XContentParser;
+import org.opensearch.transport.client.Client;
+import org.opensearch.transport.client.Requests;
 
 import com.o19s.es.ltr.LtrTestUtils;
 import com.o19s.es.ltr.feature.store.StorableElement;

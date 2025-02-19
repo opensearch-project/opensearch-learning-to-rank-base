@@ -43,6 +43,7 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.Weight;
 import org.opensearch.common.lucene.search.function.LeafScoreFunction;
 import org.opensearch.common.lucene.search.function.ScriptScoreFunction;
@@ -359,12 +360,11 @@ public class ScriptFeature implements Feature {
             return function.getLeafScoreFunction(context).explainScore(doc, Explanation.noMatch("none"));
         }
 
-        @Override
-        public Scorer scorer(LeafReaderContext context) throws IOException {
+        public Scorer getScorer(LeafReaderContext context) throws IOException {
             LeafScoreFunction leafScoreFunction = function.getLeafScoreFunction(context);
             DocIdSetIterator iterator = DocIdSetIterator.all(context.reader().maxDoc());
             TermStatSupplier termStatSupplier = new TermStatSupplier();
-            return new Scorer(this) {
+            return new Scorer() {
                 @Override
                 public int docID() {
                     return iterator.docID();
@@ -397,6 +397,22 @@ public class ScriptFeature implements Feature {
                 public float getMaxScore(int upTo) throws IOException {
                     // TODO??
                     return Float.POSITIVE_INFINITY;
+                }
+            };
+        }
+
+        @Override
+        public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
+            Scorer scorer = getScorer(context);
+            return new ScorerSupplier() {
+                @Override
+                public Scorer get(long leadCost) throws IOException {
+                    return scorer;
+                }
+
+                @Override
+                public long cost() {
+                    return context.reader().maxDoc();
                 }
             };
         }

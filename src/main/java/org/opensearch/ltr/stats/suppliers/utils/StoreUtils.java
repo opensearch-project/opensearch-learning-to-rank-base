@@ -24,7 +24,6 @@ import java.util.Optional;
 
 import org.opensearch.action.admin.cluster.state.ClusterStateRequest;
 import org.opensearch.action.search.SearchType;
-import org.opensearch.client.Client;
 import org.opensearch.cluster.health.ClusterIndexHealth;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.service.ClusterService;
@@ -33,6 +32,7 @@ import org.opensearch.index.IndexNotFoundException;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.search.SearchHit;
 import org.opensearch.search.SearchHits;
+import org.opensearch.transport.client.Client;
 
 import com.o19s.es.ltr.feature.store.StoredFeatureSet;
 import com.o19s.es.ltr.feature.store.StoredLtrModel;
@@ -117,7 +117,7 @@ public class StoreUtils {
     }
 
     public long getModelCount(String storeName) {
-        return searchStore(storeName, StoredLtrModel.TYPE).getTotalHits().value;
+        return searchStore(storeName, StoredLtrModel.TYPE).getTotalHits().value();
     }
 
     private SearchHits searchStore(String storeName, String docType) {

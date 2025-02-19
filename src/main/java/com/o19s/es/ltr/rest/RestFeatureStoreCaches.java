@@ -22,7 +22,6 @@ import static org.opensearch.core.rest.RestStatus.OK;
 
 import java.util.List;
 
-import org.opensearch.client.node.NodeClient;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.ltr.settings.LTRSettings;
 import org.opensearch.rest.BytesRestResponse;
@@ -30,6 +29,7 @@ import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.RestResponse;
 import org.opensearch.rest.action.RestActions.NodesResponseRestListener;
 import org.opensearch.rest.action.RestBuilderListener;
+import org.opensearch.transport.client.node.NodeClient;
 
 import com.o19s.es.ltr.action.CachesStatsAction;
 import com.o19s.es.ltr.action.ClearCachesAction;

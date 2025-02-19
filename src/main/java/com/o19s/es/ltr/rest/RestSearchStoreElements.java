@@ -24,7 +24,6 @@ import static org.opensearch.index.query.QueryBuilders.termQuery;
 import java.util.List;
 
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.client.node.NodeClient;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.rest.RestStatus;
@@ -33,6 +32,7 @@ import org.opensearch.ltr.settings.LTRSettings;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestStatusToXContentListener;
+import org.opensearch.transport.client.node.NodeClient;
 
 public class RestSearchStoreElements extends FeatureStoreBaseRestHandler {
     private final String type;

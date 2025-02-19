@@ -229,10 +229,10 @@ public class TransportAddFeatureToSetAction extends HandledTransportAction<AddFe
 
         private void onSearchResponse(SearchResponse sr) {
             try {
-                if (sr.getHits().getTotalHits().value > StoredFeatureSet.MAX_FEATURES) {
+                if (sr.getHits().getTotalHits().value() > StoredFeatureSet.MAX_FEATURES) {
                     throw new IllegalArgumentException("The feature query [" + featureNamesQuery + "] returns too many features");
                 }
-                if (sr.getHits().getTotalHits().value == 0) {
+                if (sr.getHits().getTotalHits().value() == 0) {
                     throw new IllegalArgumentException("The feature query [" + featureNamesQuery + "] returned no features");
                 }
                 final List<StoredFeature> features = new ArrayList<>(sr.getHits().getHits().length);

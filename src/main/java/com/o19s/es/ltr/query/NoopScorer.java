@@ -34,13 +34,13 @@ public class NoopScorer extends Scorer {
      * @param maxDocs maximum number of documents to score
      */
     public NoopScorer(Weight weight, int maxDocs) {
-        super(weight);
+        super();
         _noopIter = DocIdSetIterator.all(maxDocs);
 
     }
 
     public NoopScorer(Weight weight, DocIdSetIterator iterator) {
-        super(weight);
+        super();
         _noopIter = iterator;
     }
 

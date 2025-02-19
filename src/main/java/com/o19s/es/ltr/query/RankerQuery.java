@@ -27,7 +27,6 @@ import java.util.RandomAccess;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
@@ -42,6 +41,7 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.Weight;
 import org.opensearch.ltr.settings.LTRSettings;
 import org.opensearch.ltr.stats.LTRStats;
@@ -172,7 +172,7 @@ public class RankerQuery extends Query {
     }
 
     @Override
-    public Query rewrite(IndexReader reader) throws IOException {
+    public Query rewrite(IndexSearcher reader) throws IOException {
         List<Query> rewrittenQueries = new ArrayList<>(queries.size());
         boolean rewritten = false;
         for (Query query : queries) {
@@ -250,8 +250,18 @@ public class RankerQuery extends Query {
             // If scores are not needed simply return a constant score on all docs
             return new ConstantScoreWeight(this, boost) {
                 @Override
-                public Scorer scorer(LeafReaderContext context) throws IOException {
-                    return new ConstantScoreScorer(this, score(), scoreMode, DocIdSetIterator.all(context.reader().maxDoc()));
+                public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
+                    return new ScorerSupplier() {
+                        @Override
+                        public Scorer get(long leadCost) throws IOException {
+                            return new ConstantScoreScorer(score(), scoreMode, DocIdSetIterator.all(context.reader().maxDoc()));
+                        }
+
+                        @Override
+                        public long cost() {
+                            return context.reader().maxDoc();
+                        }
+                    };
                 }
 
                 @Override
@@ -333,8 +343,7 @@ public class RankerQuery extends Query {
             return Explanation.match(modelScore, " LtrModel: " + ranker.name() + " using features:", subs);
         }
 
-        @Override
-        public RankerScorer scorer(LeafReaderContext context) throws IOException {
+        public RankerScorer getScorer(LeafReaderContext context) throws IOException {
             List<Scorer> scorers = new ArrayList<>(weights.size());
             DisiPriorityQueue disiPriorityQueue = new DisiPriorityQueue(weights.size());
             for (Weight weight : weights) {
@@ -343,7 +352,7 @@ public class RankerQuery extends Query {
                     scorer = new NoopScorer(this, DocIdSetIterator.empty());
                 }
                 scorers.add(scorer);
-                disiPriorityQueue.add(new DisiWrapper(scorer));
+                disiPriorityQueue.add(new DisiWrapper(scorer, false));
             }
 
             DisjunctionDISI rankerIterator = new DisjunctionDISI(
@@ -353,6 +362,21 @@ public class RankerQuery extends Query {
                 featureScoreCache
             );
             return new RankerScorer(scorers, rankerIterator, ranker, context.docBase, featureScoreCache);
+        }
+
+        @Override
+        public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
+            return new ScorerSupplier() {
+                @Override
+                public Scorer get(long leadCost) throws IOException {
+                    return getScorer(context);
+                }
+
+                @Override
+                public long cost() {
+                    return context.reader().maxDoc();
+                }
+            };
         }
 
         class RankerScorer extends Scorer {
@@ -374,7 +398,7 @@ public class RankerQuery extends Query {
                 int docBase,
                 Map<Integer, float[]> featureScoreCache
             ) {
-                super(RankerWeight.this);
+                super();
                 this.scorers = scorers;
                 this.iterator = iterator;
                 this.ranker = ranker;

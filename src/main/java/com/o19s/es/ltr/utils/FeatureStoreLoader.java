@@ -18,7 +18,7 @@ package com.o19s.es.ltr.utils;
 
 import java.util.function.Supplier;
 
-import org.opensearch.client.Client;
+import org.opensearch.transport.client.Client;
 
 import com.o19s.es.ltr.feature.store.FeatureStore;
 

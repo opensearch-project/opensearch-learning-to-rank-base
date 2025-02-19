@@ -26,7 +26,6 @@ import org.opensearch.action.ActionRequestBuilder;
 import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.ActionType;
 import org.opensearch.action.index.IndexResponse;
-import org.opensearch.client.OpenSearchClient;
 import org.opensearch.common.xcontent.StatusToXContentObject;
 import org.opensearch.core.action.ActionResponse;
 import org.opensearch.core.common.io.stream.StreamInput;
@@ -34,6 +33,7 @@ import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.common.io.stream.Writeable.Reader;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.transport.client.OpenSearchClient;
 
 import com.o19s.es.ltr.action.FeatureStoreAction.FeatureStoreResponse;
 import com.o19s.es.ltr.feature.FeatureValidation;

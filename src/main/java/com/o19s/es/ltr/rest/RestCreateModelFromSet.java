@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.List;
 
 import org.opensearch.ExceptionsHelper;
-import org.opensearch.client.node.NodeClient;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.ParseField;
 import org.opensearch.core.action.ActionListener;
@@ -36,6 +35,7 @@ import org.opensearch.ltr.settings.LTRSettings;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestStatusToXContentListener;
+import org.opensearch.transport.client.node.NodeClient;
 
 import com.o19s.es.ltr.action.CreateModelFromSetAction;
 import com.o19s.es.ltr.action.CreateModelFromSetAction.CreateModelFromSetRequestBuilder;

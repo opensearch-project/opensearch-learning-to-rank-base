@@ -37,6 +37,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.TermStatistics;
 import org.apache.lucene.search.similarities.ClassicSimilarity;
+import org.apache.lucene.util.IOSupplier;
 
 import com.o19s.es.explore.StatisticsHelper;
 import com.o19s.es.explore.StatisticsHelper.AggrType;
@@ -84,12 +85,13 @@ public class TermStatSupplier extends AbstractMap<String, ArrayList<Float>> {
 
             assert termStates != null && termStates.wasBuiltFor(ReaderUtil.getTopLevelContext(context));
 
-            TermState state = termStates.get(context);
+            IOSupplier<TermState> termStateSupplier = termStates.get(context);
 
-            if (state == null || termStates.docFreq() == 0) {
+            if (termStateSupplier == null || termStateSupplier.get() == null || termStates.docFreq() == 0) {
                 insertZeroes(); // Zero out stats for terms we don't know about in the index
                 continue;
             }
+            TermState state = termStateSupplier.get();
 
             TermStatistics indexStats = searcher.termStatistics(term, termStates.docFreq(), termStates.totalTermFreq());
 

@@ -23,8 +23,7 @@ import java.util.List;
 
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsResponse;
-import org.opensearch.action.support.master.AcknowledgedResponse;
-import org.opensearch.client.node.NodeClient;
+import org.opensearch.action.support.clustermanager.AcknowledgedResponse;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.rest.RestStatus;
@@ -36,6 +35,7 @@ import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.RestResponse;
 import org.opensearch.rest.action.RestBuilderListener;
 import org.opensearch.rest.action.RestToXContentListener;
+import org.opensearch.transport.client.node.NodeClient;
 
 import com.o19s.es.ltr.action.ListStoresAction;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;

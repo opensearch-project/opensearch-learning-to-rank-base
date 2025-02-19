@@ -110,7 +110,6 @@ public class CachedFeatureStoreTests extends LuceneTestCase {
         }
     }
 
-    @BadApple(bugUrl = "https://github.com/o19s/opensearch-learning-to-rank/issues/75")
     public void testExpirationOnWrite() throws IOException, InterruptedException {
         Caches caches = new Caches(TimeValue.timeValueMillis(100), TimeValue.timeValueHours(1), new ByteSizeValue(1000000));
         CachedFeatureStore store = new CachedFeatureStore(memStore, caches);
@@ -128,7 +127,6 @@ public class CachedFeatureStoreTests extends LuceneTestCase {
         assertEquals(0, caches.getPerStoreStats(memStore.getStoreName()).totalCount());
     }
 
-    @BadApple(bugUrl = "https://github.com/o19s/opensearch-learning-to-rank/issues/75")
     public void testExpirationOnGet() throws IOException, InterruptedException {
         Caches caches = new Caches(TimeValue.timeValueHours(1), TimeValue.timeValueMillis(100), new ByteSizeValue(1000000));
         CachedFeatureStore store = new CachedFeatureStore(memStore, caches);

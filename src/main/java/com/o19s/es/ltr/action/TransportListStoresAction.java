@@ -35,8 +35,7 @@ import org.opensearch.action.search.MultiSearchRequestBuilder;
 import org.opensearch.action.search.MultiSearchResponse;
 import org.opensearch.action.search.SearchRequestBuilder;
 import org.opensearch.action.support.ActionFilters;
-import org.opensearch.action.support.master.TransportMasterNodeReadAction;
-import org.opensearch.client.Client;
+import org.opensearch.action.support.clustermanager.TransportClusterManagerNodeReadAction;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.block.ClusterBlockException;
 import org.opensearch.cluster.metadata.IndexMetadata;
@@ -53,12 +52,13 @@ import org.opensearch.search.aggregations.bucket.MultiBucketsAggregation;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
+import org.opensearch.transport.client.Client;
 
 import com.o19s.es.ltr.action.ListStoresAction.ListStoresActionRequest;
 import com.o19s.es.ltr.action.ListStoresAction.ListStoresActionResponse;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
 
-public class TransportListStoresAction extends TransportMasterNodeReadAction<ListStoresActionRequest, ListStoresActionResponse> {
+public class TransportListStoresAction extends TransportClusterManagerNodeReadAction<ListStoresActionRequest, ListStoresActionResponse> {
     private final Client client;
 
     @Inject
@@ -94,8 +94,11 @@ public class TransportListStoresAction extends TransportMasterNodeReadAction<Lis
     }
 
     @Override
-    protected void masterOperation(ListStoresActionRequest request, ClusterState state, ActionListener<ListStoresActionResponse> listener)
-        throws Exception {
+    protected void clusterManagerOperation(
+        ListStoresActionRequest request,
+        ClusterState state,
+        ActionListener<ListStoresActionResponse> listener
+    ) throws Exception {
         String[] names = indexNameExpressionResolver
             .concreteIndexNames(
                 state,

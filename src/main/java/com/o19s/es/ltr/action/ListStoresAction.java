@@ -25,8 +25,7 @@ import java.util.stream.Collectors;
 import org.opensearch.action.ActionRequestBuilder;
 import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.ActionType;
-import org.opensearch.action.support.master.MasterNodeReadRequest;
-import org.opensearch.client.OpenSearchClient;
+import org.opensearch.action.support.clustermanager.ClusterManagerNodeReadRequest;
 import org.opensearch.core.action.ActionResponse;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
@@ -35,6 +34,7 @@ import org.opensearch.core.common.io.stream.Writeable.Reader;
 import org.opensearch.core.xcontent.ToXContent;
 import org.opensearch.core.xcontent.ToXContentObject;
 import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.transport.client.OpenSearchClient;
 
 import com.o19s.es.ltr.action.ListStoresAction.ListStoresActionResponse;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
@@ -52,7 +52,7 @@ public class ListStoresAction extends ActionType<ListStoresActionResponse> {
         return ListStoresActionResponse::new;
     }
 
-    public static class ListStoresActionRequest extends MasterNodeReadRequest<ListStoresActionRequest> {
+    public static class ListStoresActionRequest extends ClusterManagerNodeReadRequest<ListStoresActionRequest> {
         @Override
         public ActionRequestValidationException validate() {
             return null;

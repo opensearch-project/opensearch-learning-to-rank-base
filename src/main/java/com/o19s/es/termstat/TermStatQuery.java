@@ -23,7 +23,6 @@ import java.util.Objects;
 import java.util.Set;
 
 import org.apache.lucene.expressions.Expression;
-import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermStates;
@@ -34,6 +33,7 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.Weight;
 import org.opensearch.ltr.settings.LTRSettings;
 
@@ -83,7 +83,7 @@ public class TermStatQuery extends Query {
     }
 
     @Override
-    public Query rewrite(IndexReader reader) throws IOException {
+    public Query rewrite(IndexSearcher reader) throws IOException {
         return this;
     }
 
@@ -158,9 +158,23 @@ public class TermStatQuery extends Query {
             return Explanation.noMatch("no matching term");
         }
 
-        @Override
-        public Scorer scorer(LeafReaderContext context) throws IOException {
+        public Scorer getScorer(LeafReaderContext context) throws IOException {
             return new TermStatScorer(this, searcher, context, expression, terms, scoreMode, aggr, posAggr, termContexts);
+        }
+
+        @Override
+        public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
+            return new ScorerSupplier() {
+                @Override
+                public Scorer get(long leadCost) throws IOException {
+                    return getScorer(context);
+                }
+
+                @Override
+                public long cost() {
+                    return context.reader().maxDoc();
+                }
+            };
         }
 
         @Override

@@ -25,13 +25,13 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.opensearch.client.node.NodeClient;
 import org.opensearch.ltr.stats.LTRStats;
 import org.opensearch.ltr.transport.LTRStatsAction;
 import org.opensearch.ltr.transport.LTRStatsRequest;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestActions;
+import org.opensearch.transport.client.node.NodeClient;
 
 /**
  * Provide an API to get information on the plugin usage and

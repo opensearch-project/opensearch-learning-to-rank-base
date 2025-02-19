@@ -38,6 +38,7 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.Weight;
 import org.opensearch.ltr.settings.LTRSettings;
 
@@ -113,8 +114,18 @@ public class DerivedExpressionQuery extends Query implements LtrRewritableQuery 
                     }
 
                     @Override
-                    public Scorer scorer(LeafReaderContext context) throws IOException {
-                        return new ConstantScoreScorer(this, score(), scoreMode, DocIdSetIterator.all(context.reader().maxDoc()));
+                    public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
+                        return new ScorerSupplier() {
+                            @Override
+                            public Scorer get(long leadCost) throws IOException {
+                                return new ConstantScoreScorer(score(), scoreMode, DocIdSetIterator.all(context.reader().maxDoc()));
+                            }
+
+                            @Override
+                            public long cost() {
+                                return context.reader().maxDoc();
+                            }
+                        };
                     }
                 };
             }
@@ -162,8 +173,7 @@ public class DerivedExpressionQuery extends Query implements LtrRewritableQuery 
             // No-op
         }
 
-        @Override
-        public Scorer scorer(LeafReaderContext context) throws IOException {
+        public Scorer getScorer(LeafReaderContext context) throws IOException {
             Bindings bindings = new Bindings() {
                 @Override
                 public DoubleValuesSource getDoubleValuesSource(String name) {
@@ -180,6 +190,21 @@ public class DerivedExpressionQuery extends Query implements LtrRewritableQuery 
             DoubleValues values = src.getValues(context, null);
 
             return new DValScorer(this, iterator, values);
+        }
+
+        @Override
+        public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
+            return new ScorerSupplier() {
+                @Override
+                public Scorer get(long leadCost) throws IOException {
+                    return getScorer(context);
+                }
+
+                @Override
+                public long cost() {
+                    return context.reader().maxDoc();
+                }
+            };
         }
 
         @Override
@@ -208,7 +233,7 @@ public class DerivedExpressionQuery extends Query implements LtrRewritableQuery 
         private final DoubleValues values;
 
         DValScorer(Weight weight, DocIdSetIterator iterator, DoubleValues values) {
-            super(weight);
+            super();
             this.iterator = iterator;
             this.values = values;
         }

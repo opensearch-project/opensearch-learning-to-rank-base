@@ -38,7 +38,6 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.misc.SweetSpotSimilarity;
-import org.apache.lucene.queries.BlendedTermQuery;
 import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
@@ -80,6 +79,7 @@ import org.opensearch.ltr.stats.LTRStat;
 import org.opensearch.ltr.stats.LTRStats;
 import org.opensearch.ltr.stats.StatName;
 import org.opensearch.ltr.stats.suppliers.CounterSupplier;
+import org.opensearch.lucene.queries.BlendedTermQuery;
 
 import com.o19s.es.ltr.feature.FeatureSet;
 import com.o19s.es.ltr.feature.PrebuiltFeature;
@@ -226,7 +226,7 @@ public class LtrQueryTests extends LuceneTestCase {
             @Override
             public void collect(int doc) throws IOException {
                 scorer.score();
-                Document d = context.reader().document(doc);
+                Document d = context.reader().storedFields().document(doc);
                 featuresPerDoc.put(d.get("id"), new HashMap<>(collectedScores));
             }
         });
@@ -353,7 +353,7 @@ public class LtrQueryTests extends LuceneTestCase {
 
     private void assertScoresMatch(List<PrebuiltFeature> features, float[] scores, RankerQuery ltrQuery, ScoreDoc scoreDoc)
         throws IOException {
-        Document d = searcherUnderTest.doc(scoreDoc.doc);
+        Document d = searcherUnderTest.storedFields().document(scoreDoc.doc);
         String idVal = d.get("id");
         int docId = Integer.decode(idVal);
         float modelScore = scores[docId];

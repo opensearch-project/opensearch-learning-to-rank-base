@@ -27,7 +27,6 @@ import org.opensearch.action.FailedNodeException;
 import org.opensearch.action.support.nodes.BaseNodeResponse;
 import org.opensearch.action.support.nodes.BaseNodesRequest;
 import org.opensearch.action.support.nodes.BaseNodesResponse;
-import org.opensearch.client.OpenSearchClient;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.core.common.io.stream.StreamInput;
@@ -35,6 +34,7 @@ import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.common.io.stream.Writeable;
 import org.opensearch.core.xcontent.ToXContent;
 import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.transport.client.OpenSearchClient;
 
 import com.o19s.es.ltr.action.CachesStatsAction.CachesStatsNodesResponse;
 import com.o19s.es.ltr.feature.store.index.Caches;

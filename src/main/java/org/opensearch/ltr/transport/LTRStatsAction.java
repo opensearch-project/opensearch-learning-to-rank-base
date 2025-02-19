@@ -17,7 +17,7 @@ package org.opensearch.ltr.transport;
 
 import org.opensearch.action.ActionRequestBuilder;
 import org.opensearch.action.ActionType;
-import org.opensearch.client.OpenSearchClient;
+import org.opensearch.transport.client.OpenSearchClient;
 
 public class LTRStatsAction extends ActionType<LTRStatsNodesResponse> {
     public static final String NAME = "cluster:admin/ltr/stats";

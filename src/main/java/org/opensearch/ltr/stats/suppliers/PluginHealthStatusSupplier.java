@@ -18,10 +18,10 @@ package org.opensearch.ltr.stats.suppliers;
 import java.util.List;
 import java.util.function.Supplier;
 
-import org.opensearch.client.Client;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.ltr.breaker.LTRCircuitBreakerService;
 import org.opensearch.ltr.stats.suppliers.utils.StoreUtils;
+import org.opensearch.transport.client.Client;
 
 /**
  * Supplier for an overall plugin health status, which is based on the
