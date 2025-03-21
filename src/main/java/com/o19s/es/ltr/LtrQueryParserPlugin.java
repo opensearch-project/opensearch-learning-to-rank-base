@@ -115,6 +115,7 @@ import com.o19s.es.ltr.query.ValidatingLtrQueryBuilder;
 import com.o19s.es.ltr.ranker.parser.LinearRankerParser;
 import com.o19s.es.ltr.ranker.parser.LtrRankerParserFactory;
 import com.o19s.es.ltr.ranker.parser.XGBoostJsonParser;
+import com.o19s.es.ltr.ranker.parser.XGBoostRawJsonParser;
 import com.o19s.es.ltr.ranker.ranklib.RankLibScriptEngine;
 import com.o19s.es.ltr.ranker.ranklib.RanklibModelParser;
 import com.o19s.es.ltr.rest.RestAddFeatureToSet;
@@ -144,6 +145,7 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
             .register(RanklibModelParser.TYPE, () -> new RanklibModelParser(ranklib.get()))
             .register(LinearRankerParser.TYPE, LinearRankerParser::new)
             .register(XGBoostJsonParser.TYPE, XGBoostJsonParser::new)
+            .register(XGBoostRawJsonParser.TYPE, XGBoostRawJsonParser::new)
             .build();
         ltrStats = getInitialStats();
     }
