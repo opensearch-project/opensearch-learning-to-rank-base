@@ -124,6 +124,22 @@ public class NaiveAdditiveDecisionTree extends DenseLtrRanker implements Account
             return n.eval(scores);
         }
 
+        public Node getLeft() {
+            return this.left;
+        }
+
+        public Node getRight() {
+            return this.right;
+        }
+
+        public int getFeature() {
+            return this.feature;
+        }
+
+        public float getThreshold() {
+            return this.threshold;
+        }
+
         /**
          * Return the memory usage of this object in bytes. Negative values are illegal.
          */
