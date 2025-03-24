@@ -720,7 +720,6 @@ public class XGBoostRawJsonParserTests extends LuceneTestCase {
             + "    \"version\":[2,1,0]"
             + "}";
 
-        // Note that the order of features in the FeatureSet is different from the model
         FeatureSet set = new StoredFeatureSet("set", List.of(randomFeature("feat2"), randomFeature("feat1")));
         NaiveAdditiveDecisionTree tree = parser.parse(set, model);
         FeatureVector featureVector = tree.newFeatureVector(null);
@@ -728,7 +727,6 @@ public class XGBoostRawJsonParserTests extends LuceneTestCase {
         featureVector.setFeatureScore(1, 2); // feat1
         assertEquals(0.0, tree.score(featureVector), Math.ulp(0.1F));
 
-        // Add assertion to ensure the test fails when there's no reordering
         FeatureSet setNoReorder = new StoredFeatureSet("set", List.of(randomFeature("feat1"), randomFeature("feat2")));
         NaiveAdditiveDecisionTree treeNoReorder = parser.parse(setNoReorder, model);
         FeatureVector featureVectorNoReorder = treeNoReorder.newFeatureVector(null);
