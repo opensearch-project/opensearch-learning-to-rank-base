@@ -84,7 +84,8 @@ public class XGBoostRawJsonParser implements LtrRankerParser {
         NaiveAdditiveDecisionTree.Node node,
         Map<Integer, Integer> modelFeaturesReordering
     ) {
-        if (node instanceof NaiveAdditiveDecisionTree.Split splitNode) {
+        if (node instanceof NaiveAdditiveDecisionTree.Split) {
+            NaiveAdditiveDecisionTree.Split splitNode = (NaiveAdditiveDecisionTree.Split) node;
             return new NaiveAdditiveDecisionTree.Split(
                 reorderTreeFeatures(splitNode.getLeft(), modelFeaturesReordering),
                 reorderTreeFeatures(splitNode.getRight(), modelFeaturesReordering),
@@ -343,10 +344,19 @@ public class XGBoostRawJsonParser implements LtrRankerParser {
 
         public void setName(String name) {
             switch (name) {
-                case "binary:logitraw", "rank:ndcg", "rank:map", "rank:pairwise", "reg:linear" -> this.normalizer = Normalizers
-                    .get(Normalizers.NOOP_NORMALIZER_NAME);
-                case "binary:logistic", "reg:logistic" -> this.normalizer = Normalizers.get(Normalizers.SIGMOID_NORMALIZER_NAME);
-                default -> throw new IllegalArgumentException("Objective [" + name + "] is not a valid XGBoost objective");
+                case "binary:logitraw":
+                case "rank:ndcg":
+                case "rank:map":
+                case "rank:pairwise":
+                case "reg:linear":
+                    this.normalizer = Normalizers.get(Normalizers.NOOP_NORMALIZER_NAME);
+                    break;
+                case "binary:logistic":
+                case "reg:logistic":
+                    this.normalizer = Normalizers.get(Normalizers.SIGMOID_NORMALIZER_NAME);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Objective [" + name + "] is not a valid XGBoost objective");
             }
         }
 
