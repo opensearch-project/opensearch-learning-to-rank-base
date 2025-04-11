@@ -137,6 +137,15 @@ dependencies {
   runtimeOnly 'org.locationtech.spatial4j:spatial4j:0.7'
   runtimeOnly 'org.locationtech.jts:jts-core:1.15.0'
   runtimeOnly 'org.apache.logging.log4j:log4j-core:2.21.0'
+
+  
+  agent "org.opensearch:opensearch-agent-bootstrap:${opensearch_version}"
+  agent "org.opensearch:opensearch-agent:${opensearch_version}"
+  agent "net.bytebuddy:byte-buddy:${versions.bytebuddy}"
+}
+
+configurations {
+  agent
 }
 
 configurations.all {
@@ -246,6 +255,16 @@ tasks.withType(Test).configureEach { task ->
   tasks.named(taskName).configure {
     enabled = false
   }
+}
+
+task prepareAgent(type: Copy) {
+  from(configurations.agent)
+  into "$buildDir/agent"
+}
+
+tasks.withType(Test) {
+    dependsOn prepareAgent
+    jvmArgs += ["-javaagent:" + project.layout.buildDirectory.file("agent/opensearch-agent-${opensearch_version}.jar").get()]
 }
 
 tasks.named('dependencyLicenses') {
