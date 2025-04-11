@@ -118,6 +118,10 @@ repositories {
   maven { url "https://plugins.gradle.org/m2/" }
 }
 
+configurations {
+  agent
+}
+
 dependencies {
   implementation "org.apache.lucene:lucene-expressions:${luceneVersion}"
   implementation "org.antlr:antlr4-runtime:${antlrVersion}"
@@ -142,10 +146,6 @@ dependencies {
   agent "org.opensearch:opensearch-agent-bootstrap:${opensearch_version}"
   agent "org.opensearch:opensearch-agent:${opensearch_version}"
   agent "net.bytebuddy:byte-buddy:${versions.bytebuddy}"
-}
-
-configurations {
-  agent
 }
 
 configurations.all {
