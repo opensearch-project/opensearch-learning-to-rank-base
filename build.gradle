@@ -44,6 +44,7 @@ apply plugin: 'opensearch.opensearchplugin'
 apply plugin: 'opensearch.java-rest-test'
 apply plugin: 'opensearch.rest-resources'
 apply plugin: 'opensearch.pluginzip'
+apply plugin: 'opensearch.java-agent'
 
 idea {
     module {
