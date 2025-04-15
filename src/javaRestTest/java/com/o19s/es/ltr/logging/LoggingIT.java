@@ -246,7 +246,7 @@ public class LoggingIT extends BaseIntegrationTest {
         assertExcWithMessage(
             () -> client().prepareSearch("test_index").setSource(sourceBuilder4).get(),
             IllegalArgumentException.class,
-            "Expected a [sltr] query but found " + "a [MatchAllDocsQuery] at index [0]"
+            "Expected a [sltr] query but found " + "a [ApproximateScoreQuery] at index [0]"
         );
     }
 
