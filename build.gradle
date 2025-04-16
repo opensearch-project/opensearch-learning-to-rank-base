@@ -267,12 +267,16 @@ spotless {
 }
 
 run {
-  doFirst {
-    // There seems to be an issue when running multi node run or integ tasks with unicast_hosts
-    // not being written, the waitForAllConditions ensures it's written
-    getClusters().forEach { cluster ->
-      cluster.waitForAllConditions()
-    }
-  }
   useCluster testClusters.integTest
+}
+
+// updateVersion: Task to auto update version to the next development iteration
+task updateVersion {
+  onlyIf { System.getProperty('newVersion') }
+  doLast {
+    ext.newVersion = System.getProperty('newVersion')
+    println "Setting version to ${newVersion}."
+    // String tokenization to support -SNAPSHOT
+    ant.replaceregexp(file:'build.gradle', match: '"opensearch.version", "\\d.*"', replace: '"opensearch.version", "' + newVersion.tokenize('-')[0] + '-SNAPSHOT"', flags:'g', byline:true)
+  }
 }
