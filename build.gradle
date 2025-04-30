@@ -127,9 +127,6 @@ dependencies {
   implementation "org.ow2.asm:asm-tree:${ow2Version}"
   implementation 'com.o19s:RankyMcRankFace:0.1.1'
   implementation "com.github.spullara.mustache.java:compiler:0.9.3"
-  implementation "org.apache.httpcomponents.client5:httpclient5:5.3.1"
-  implementation "org.apache.httpcomponents.core5:httpcore5:5.3"
-  implementation "org.apache.httpcomponents.core5:httpcore5-h2:5.3"
   implementation "org.conscrypt:conscrypt-openjdk-uber:2.5.2"
   implementation 'org.slf4j:slf4j-api:1.7.36'
   implementation 'org.slf4j:slf4j-simple:1.7.36'
@@ -141,10 +138,6 @@ dependencies {
 }
 
 configurations.all {
-  resolutionStrategy.force "org.apache.httpcomponents.client5:httpclient5:5.3.1"
-  resolutionStrategy.force "org.apache.httpcomponents.core5:httpcore5:5.3"
-  resolutionStrategy.force "org.apache.httpcomponents.core5:httpcore5-h2:5.3"
-  resolutionStrategy.force 'org.apache.httpcomponents:httpclient:4.5.14'
   resolutionStrategy.force "com.google.guava:guava:32.1.3-jre"
   resolutionStrategy.force 'org.eclipse.platform:org.eclipse.core.runtime:3.29.0'
 }
