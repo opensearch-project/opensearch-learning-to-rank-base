@@ -64,9 +64,13 @@ jobs:
       - name: Build and Run Tests
         run: |
           chown -R 1000:1000 `pwd`
-          su `id -un 1000` -c 'whoami && java -version && 
+          su `id -un 1000` -c 'whoami && java -version &&
                               ./gradlew -Dtests.security.manager=false clean test -x spotlessJava'
 
+      - name: Upload Coverage Report
+        uses: codecov/codecov-action@v4
+        with:
+            token: ${{ secrets.CODECOV_TOKEN }}
 
   Build-ltr-windows:
     strategy:
