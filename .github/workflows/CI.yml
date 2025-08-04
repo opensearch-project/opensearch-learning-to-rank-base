@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        java: [21, 23]
+        java: [21, 24]
     steps:
       - name: Checkout LTR
         uses: actions/checkout@v4
@@ -36,7 +36,7 @@ jobs:
     needs: [Get-CI-Image-Tag, spotless]
     strategy:
       matrix:
-        java: [21, 23]
+        java: [21, 24]
 
     name: Build and Test LTR Plugin on Linux
     if: github.repository == 'opensearch-project/opensearch-learning-to-rank-base'
@@ -68,7 +68,7 @@ jobs:
                               ./gradlew -Dtests.security.manager=false clean test -x spotlessJava'
 
       - name: Upload Coverage Report
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
             token: ${{ secrets.CODECOV_TOKEN }}
 
