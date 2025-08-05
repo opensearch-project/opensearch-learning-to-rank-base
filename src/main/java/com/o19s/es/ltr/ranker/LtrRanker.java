@@ -73,5 +73,10 @@ public interface LtrRanker {
          */
         float getFeatureScore(int featureId);
 
+        /**
+         * Retrieve the default score
+         * @return the score computed for the given feature
+         */
+        float getDefaultScore();
     }
 }
