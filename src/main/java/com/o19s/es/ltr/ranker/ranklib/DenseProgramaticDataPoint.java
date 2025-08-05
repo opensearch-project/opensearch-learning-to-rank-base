@@ -75,6 +75,6 @@ public class DenseProgramaticDataPoint extends DataPoint implements LtrRanker.Fe
     }
 
     public float getDefaultScore() {
-        return  0.0F;
+        return 0.0F;
     }
 }

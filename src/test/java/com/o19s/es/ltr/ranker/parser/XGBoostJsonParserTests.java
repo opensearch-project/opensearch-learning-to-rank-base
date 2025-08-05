@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.o19s.es.ltr.ranker.SparseFeatureVector;
 import org.apache.lucene.tests.util.LuceneTestCase;
 import org.hamcrest.CoreMatchers;
 import org.opensearch.core.common.ParsingException;
@@ -38,6 +37,7 @@ import com.o19s.es.ltr.feature.FeatureSet;
 import com.o19s.es.ltr.feature.store.StoredFeature;
 import com.o19s.es.ltr.feature.store.StoredFeatureSet;
 import com.o19s.es.ltr.ranker.LtrRanker.FeatureVector;
+import com.o19s.es.ltr.ranker.SparseFeatureVector;
 import com.o19s.es.ltr.ranker.dectree.NaiveAdditiveDecisionTree;
 import com.o19s.es.ltr.ranker.linear.LinearRankerTests;
 

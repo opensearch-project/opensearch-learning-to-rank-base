@@ -47,8 +47,8 @@ import org.apache.lucene.tests.util.TestUtil;
 import com.o19s.es.ltr.feature.FeatureSet;
 import com.o19s.es.ltr.feature.PrebuiltFeature;
 import com.o19s.es.ltr.feature.PrebuiltFeatureSet;
-import com.o19s.es.ltr.ranker.SparseFeatureVector;
 import com.o19s.es.ltr.ranker.LtrRanker;
+import com.o19s.es.ltr.ranker.SparseFeatureVector;
 import com.o19s.es.ltr.ranker.linear.LinearRankerTests;
 import com.o19s.es.ltr.ranker.normalizer.Normalizer;
 import com.o19s.es.ltr.ranker.normalizer.Normalizers;
@@ -363,7 +363,7 @@ public class NaiveAdditiveDecisionTreeTests extends LuceneTestCase {
     public static void fillRandomWeights(float[] weights) {
         for (int i = 0; i < weights.length; i++) {
             if (random().nextBoolean())
-                weights[i] = (float) nextInt(random(),1, 100000) / (float) nextInt(random(), 1, 100000);
+                weights[i] = (float) nextInt(random(), 1, 100000) / (float) nextInt(random(), 1, 100000);
         }
     }
 }
