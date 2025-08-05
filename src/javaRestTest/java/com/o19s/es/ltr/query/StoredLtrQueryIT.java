@@ -17,19 +17,20 @@
 
 package com.o19s.es.ltr.query;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import static org.hamcrest.CoreMatchers.containsString;
+
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 
-import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
 import org.opensearch.action.search.SearchRequestBuilder;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.support.WriteRequest;
+import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.index.query.WrapperQueryBuilder;
+import org.opensearch.search.SearchHit;
+import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.search.rescore.QueryRescoreMode;
 import org.opensearch.search.rescore.QueryRescorerBuilder;
 
@@ -42,8 +43,10 @@ import com.o19s.es.ltr.action.ClearCachesAction;
 import com.o19s.es.ltr.action.CreateModelFromSetAction.CreateModelFromSetRequestBuilder;
 import com.o19s.es.ltr.feature.store.ScriptFeature;
 import com.o19s.es.ltr.feature.store.StoredFeature;
+import com.o19s.es.ltr.feature.store.StoredFeatureSet;
 import com.o19s.es.ltr.feature.store.StoredLtrModel;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
+import com.o19s.es.ltr.logging.LoggingSearchExtBuilder;
 
 /**
  * Created by doug on 12/29/16.
@@ -387,7 +390,7 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
 
         assertThat(
             expectThrows(ExecutionException.class, () -> builder.execute().get()).getMessage(),
-            CoreMatchers.containsString("refers to unknown feature")
+            containsString("refers to unknown feature")
         );
     }
 
@@ -398,6 +401,77 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
             .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
             .setSource("field1", "hello world", "field2", "bonjour world")
             .get();
+    }
+
+    private static final String SIMPLE_MODEL_XGB = "[{"
+        + "\"nodeid\": 0,"
+        + "\"split\":\"text_feature1\","
+        + "\"depth\":0,"
+        + "\"split_condition\":100.0,"
+        + "\"yes\":1,"
+        + "\"no\":2,"
+        + "\"missing\":2,"
+        + "\"children\": ["
+        + "   {\"nodeid\": 1, \"depth\": 1, \"leaf\": 0.5},"
+        + "   {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
+        + "]}]";
+
+    public void testScriptFeatureUseCaseMissingFeatureNaiveAdditiveDecisionTree() throws Exception {
+        List<StoredFeature> features = new ArrayList<>(1);
+        features
+            .add(
+                new StoredFeature(
+                    "text_feature1",
+                    Collections.singletonList("query"),
+                    "mustache",
+                    QueryBuilders.matchQuery("field1", "{{query}}").toString()
+                )
+            );
+
+        StoredFeatureSet set = new StoredFeatureSet("my_set", features);
+        addElement(set);
+        StoredLtrModel model = new StoredLtrModel(
+            "my_model",
+            set,
+            new StoredLtrModel.LtrModelDefinition("model/xgboost+json", SIMPLE_MODEL_XGB, true)
+        );
+        addElement(model);
+
+        buildIndex();
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("query", "bonjour");
+        StoredLtrQueryBuilder sbuilder = new StoredLtrQueryBuilder(LtrTestUtils.nullLoader())
+            .featureSetName("my_set")
+            .modelName("my_model")
+            .params(params)
+            .queryName("test")
+            .boost(1);
+
+        QueryBuilder query = QueryBuilders.boolQuery().must(new WrapperQueryBuilder(sbuilder.toString()));
+        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder()
+            .query(query)
+            .explain(true)
+            .fetchSource(true)
+            .size(10)
+            .ext(Collections.singletonList(new LoggingSearchExtBuilder().addQueryLogging("log", "test", false)));
+
+        SearchResponse resp = client().prepareSearch("test_index").setSource(sourceBuilder).get();
+        SearchHit hit = resp.getHits().getAt(0);
+        assertTrue(hit.getFields().containsKey("_ltrlog"));
+        Map<String, List<Map<String, Object>>> logs = hit.getFields().get("_ltrlog").getValue();
+        assertTrue(logs.containsKey("log"));
+        List<Map<String, Object>> log = logs.get("log");
+
+        // verify that text_feature1 has a missing value, and that the reported score results from the model taking the
+        // corresponding branch, along with the explanation
+        String explanation = hit.getExplanation().getDetails()[0].getDescription();
+        assertThat(explanation, containsString("default value of NaN used"));
+
+        assertEquals("text_feature1", log.get(0).get("name"));
+        assertEquals(null, log.get(0).get("value"));
+
+        assertEquals(0.2F, hit.getScore(), Math.ulp(0.2F));
     }
 
 }

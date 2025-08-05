@@ -17,14 +17,7 @@
 package com.o19s.es.ltr.query;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.RandomAccess;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Stream;
 
 import org.apache.lucene.index.LeafReaderContext;
@@ -333,7 +326,14 @@ public class RankerQuery extends Query {
                 }
                 featureString += ":";
                 if (!explain.isMatch()) {
-                    subs.add(Explanation.noMatch(featureString + " [no match, default value 0.0 used]"));
+                    subs
+                        .add(
+                            Explanation
+                                .noMatch(
+                                    featureString + String
+                                        .format(Locale.ROOT, " [no match, default value of %.2f used]", d.getDefaultScore())
+                                )
+                        );
                 } else {
                     subs.add(Explanation.match(explain.getValue(), featureString, explain));
                     d.setFeatureScore(ordinal, explain.getValue().floatValue());
