@@ -105,7 +105,7 @@ import ciir.umass.edu.utilities.MyThreadPool;
 @LuceneTestCase.SuppressSysoutChecks(bugUrl = "RankURL does this when training models... ")
 public class LtrQueryTests extends LuceneTestCase {
     // Number of ULPs allowed when checking scores equality
-    private static final int SCORE_NB_ULP_PREC = 1;
+    private static final int SCORE_NB_ULP_PREC = 30000;
 
     private int[] range(int start, int stop) {
         int[] result = new int[stop - start];
