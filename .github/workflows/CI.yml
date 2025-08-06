@@ -68,14 +68,14 @@ jobs:
                               ./gradlew -Dtests.security.manager=false clean test -x spotlessJava'
 
       - name: Upload Coverage Report
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v3
         with:
             token: ${{ secrets.CODECOV_TOKEN }}
 
   Build-ltr-windows:
     strategy:
       matrix:
-        java: [21 , 23]
+        java: [21 , 24]
     name: Build and Test LTR Plugin on Windows
     if: github.repository == 'opensearch-project/opensearch-learning-to-rank-base'
     needs: [spotless]
@@ -91,4 +91,4 @@ jobs:
       - name: Build and Run Tests
         shell: bash
         run: |
-          ./gradlew.bat build -x spotlessJava
+          ./gradlew.bat -Dtests.security.manager=false build -x spotlessJava

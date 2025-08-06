@@ -124,12 +124,12 @@ public class LoggingFetchSubPhase implements FetchSubPhase {
         QueryRescorer.QueryRescoreContext qrescore = (QueryRescorer.QueryRescoreContext) context;
         return toLogger(
             logSpec,
-            inspectQuery(qrescore.query())
+            inspectQuery(qrescore.parsedQuery().query())
                 .orElseThrow(
                     () -> new IllegalArgumentException(
                         "Expected a [sltr] query but found a "
                             + "["
-                            + qrescore.query().getClass().getSimpleName()
+                            + qrescore.parsedQuery().query().getClass().getSimpleName()
                             + "] "
                             + "at index ["
                             + logSpec.getRescoreIndex()
