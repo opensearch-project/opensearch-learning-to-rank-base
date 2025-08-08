@@ -22,12 +22,13 @@ import org.opensearch.action.support.nodes.BaseNodeResponse;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
+import org.opensearch.core.xcontent.ToXContent;
 import org.opensearch.core.xcontent.ToXContentFragment;
 import org.opensearch.core.xcontent.XContentBuilder;
 
 public class LTRStatsNodeResponse extends BaseNodeResponse implements ToXContentFragment {
 
-    private final Map<String, Object> statsMap;
+    private Map<String, Object> statsMap;
 
     LTRStatsNodeResponse(final StreamInput in) throws IOException {
         super(in);
@@ -53,7 +54,7 @@ public class LTRStatsNodeResponse extends BaseNodeResponse implements ToXContent
         out.writeMap(statsMap, StreamOutput::writeString, StreamOutput::writeGenericValue);
     }
 
-    public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
+    public XContentBuilder toXContent(final XContentBuilder builder, final ToXContent.Params params) throws IOException {
         for (Map.Entry<String, Object> stat : statsMap.entrySet()) {
             builder.field(stat.getKey(), stat.getValue());
         }

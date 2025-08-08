@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.opensearch.Version;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.core.ParseField;
@@ -34,6 +35,7 @@ import org.opensearch.core.xcontent.ObjectParser;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.core.xcontent.XContentParser;
 
+import com.o19s.es.ltr.Constants;
 import com.o19s.es.ltr.feature.FeatureSet;
 import com.o19s.es.ltr.ranker.LtrRanker;
 import com.o19s.es.ltr.ranker.normalizer.FeatureNormalizingRanker;
@@ -89,17 +91,24 @@ public class StoredLtrModel implements StorableElement {
         rankingModelType = input.readString();
         rankingModel = input.readString();
         modelAsString = input.readBoolean();
-        this.parsedFtrNorms = new StoredFeatureNormalizers(input);
+        if (input.getVersion().onOrAfter(Constants.LEGACY_V_7_7_0)) {
+            this.parsedFtrNorms = new StoredFeatureNormalizers(input);
+        } else {
+            this.parsedFtrNorms = new StoredFeatureNormalizers();
+        }
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        Version streamOutputVersion = out.getVersion();
         out.writeString(name);
         featureSet.writeTo(out);
         out.writeString(rankingModelType);
         out.writeString(rankingModel);
         out.writeBoolean(modelAsString);
-        parsedFtrNorms.writeTo(out);
+        if (streamOutputVersion.onOrAfter(Constants.LEGACY_V_7_7_0)) {
+            parsedFtrNorms.writeTo(out);
+        }
     }
 
     public static StoredLtrModel parse(XContentParser parser) {
@@ -278,7 +287,11 @@ public class StoredLtrModel implements StorableElement {
             type = in.readString();
             definition = in.readString();
             modelAsString = in.readBoolean();
-            this.featureNormalizers = new StoredFeatureNormalizers(in);
+            if (in.getVersion().onOrAfter(Constants.LEGACY_V_7_7_0)) {
+                this.featureNormalizers = new StoredFeatureNormalizers(in);
+            } else {
+                this.featureNormalizers = new StoredFeatureNormalizers();
+            }
         }
 
         @Override
@@ -286,7 +299,9 @@ public class StoredLtrModel implements StorableElement {
             out.writeString(type);
             out.writeString(definition);
             out.writeBoolean(modelAsString);
-            this.featureNormalizers.writeTo(out);
+            if (out.getVersion().onOrAfter(Constants.LEGACY_V_7_7_0)) {
+                this.featureNormalizers.writeTo(out);
+            }
         }
 
         private void setType(String type) {
