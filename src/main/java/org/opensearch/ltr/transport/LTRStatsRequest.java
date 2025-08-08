@@ -88,10 +88,6 @@ public class LTRStatsRequest extends BaseNodesRequest<LTRStatsRequest> {
         return statsToBeRetrieved;
     }
 
-    public void readFrom(StreamInput in) throws IOException {
-        statsToBeRetrieved = in.readSet(StreamInput::readString);
-    }
-
     @Override
     public void writeTo(final StreamOutput out) throws IOException {
         super.writeTo(out);
