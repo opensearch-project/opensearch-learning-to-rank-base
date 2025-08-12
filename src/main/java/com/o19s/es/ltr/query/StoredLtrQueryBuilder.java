@@ -37,6 +37,7 @@ import org.opensearch.index.query.QueryShardContext;
 import org.opensearch.ltr.stats.LTRStats;
 import org.opensearch.ltr.stats.StatName;
 
+import com.o19s.es.ltr.Constants;
 import com.o19s.es.ltr.LtrQueryContext;
 import com.o19s.es.ltr.feature.FeatureSet;
 import com.o19s.es.ltr.feature.store.CompiledLtrModel;
@@ -74,12 +75,12 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
      */
     private final transient FeatureStoreLoader storeLoader;
     private String modelName;
-    private Boolean featureScoreCacheFlag;
     private String featureSetName;
     private String storeName;
     private Map<String, Object> params;
     private List<String> activeFeatures;
     private LTRStats ltrStats;
+    private Boolean featureScoreCacheFlag;
 
     public StoredLtrQueryBuilder(FeatureStoreLoader storeLoader) {
         this.storeLoader = storeLoader;
@@ -89,11 +90,15 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
         super(input);
         this.storeLoader = Objects.requireNonNull(storeLoader);
         modelName = input.readOptionalString();
-        featureScoreCacheFlag = input.readOptionalBoolean();
+        if (input.getVersion().onOrAfter(Constants.VERSION_2_19_0)) {
+            featureScoreCacheFlag = input.readOptionalBoolean();
+        }
         featureSetName = input.readOptionalString();
         params = input.readMap();
-        String[] activeFeat = input.readOptionalStringArray();
-        activeFeatures = activeFeat == null ? null : Arrays.asList(activeFeat);
+        if (input.getVersion().onOrAfter(Constants.LEGACY_V_7_0_0)) {
+            String[] activeFeat = input.readOptionalStringArray();
+            activeFeatures = activeFeat == null ? null : Arrays.asList(activeFeat);
+        }
         storeName = input.readOptionalString();
         this.ltrStats = ltrStats;
     }
@@ -120,10 +125,14 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
     @Override
     protected void doWriteTo(StreamOutput out) throws IOException {
         out.writeOptionalString(modelName);
-        out.writeOptionalBoolean(featureScoreCacheFlag);
+        if (out.getVersion().onOrAfter(Constants.VERSION_2_19_0)) {
+            out.writeOptionalBoolean(featureScoreCacheFlag);
+        }
         out.writeOptionalString(featureSetName);
         out.writeMap(params);
-        out.writeOptionalStringArray(activeFeatures != null ? activeFeatures.toArray(new String[0]) : null);
+        if (out.getVersion().onOrAfter(Constants.LEGACY_V_7_0_0)) {
+            out.writeOptionalStringArray(activeFeatures != null ? activeFeatures.toArray(new String[0]) : null);
+        }
         out.writeOptionalString(storeName);
     }
 
