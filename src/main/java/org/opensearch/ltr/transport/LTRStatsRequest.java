@@ -30,7 +30,7 @@ public class LTRStatsRequest extends BaseNodesRequest<LTRStatsRequest> {
      */
     public static final String ALL_STATS_KEY = "_all";
 
-    private final Set<String> statsToBeRetrieved;
+    private Set<String> statsToBeRetrieved;
 
     public LTRStatsRequest(final StreamInput in) throws IOException {
         super(in);
@@ -45,6 +45,13 @@ public class LTRStatsRequest extends BaseNodesRequest<LTRStatsRequest> {
     public LTRStatsRequest(final String... nodeIds) {
         super(nodeIds);
         statsToBeRetrieved = new HashSet<>();
+    }
+
+    /**
+     * No-args constructor for version compatibility
+     */
+    public LTRStatsRequest() {
+        super((String[]) null);
     }
 
     /**
