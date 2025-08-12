@@ -90,6 +90,9 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
         super(input);
         this.storeLoader = Objects.requireNonNull(storeLoader);
         modelName = input.readOptionalString();
+        if (input.getVersion().onOrAfter(Constants.VERSION_2_19_0)) {
+            featureScoreCacheFlag = input.readOptionalBoolean();
+        }
         featureSetName = input.readOptionalString();
         params = input.readMap();
         if (input.getVersion().onOrAfter(Constants.LEGACY_V_7_0_0)) {
@@ -97,9 +100,6 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
             activeFeatures = activeFeat == null ? null : Arrays.asList(activeFeat);
         }
         storeName = input.readOptionalString();
-        if (input.getVersion().onOrAfter(Constants.VERSION_2_19_0)) {
-            featureScoreCacheFlag = input.readOptionalBoolean();
-        }
         this.ltrStats = ltrStats;
     }
 
@@ -125,15 +125,15 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
     @Override
     protected void doWriteTo(StreamOutput out) throws IOException {
         out.writeOptionalString(modelName);
+        if (out.getVersion().onOrAfter(Constants.VERSION_2_19_0)) {
+            out.writeOptionalBoolean(featureScoreCacheFlag);
+        }
         out.writeOptionalString(featureSetName);
         out.writeMap(params);
         if (out.getVersion().onOrAfter(Constants.LEGACY_V_7_0_0)) {
             out.writeOptionalStringArray(activeFeatures != null ? activeFeatures.toArray(new String[0]) : null);
         }
         out.writeOptionalString(storeName);
-        if (out.getVersion().onOrAfter(Constants.VERSION_2_19_0)) {
-            out.writeOptionalBoolean(featureScoreCacheFlag);
-        }
     }
 
     @Override
