@@ -45,6 +45,7 @@ apply plugin: 'opensearch.java-rest-test'
 apply plugin: 'opensearch.rest-resources'
 apply plugin: 'opensearch.pluginzip'
 apply plugin: 'opensearch.java-agent'
+apply plugin: 'com.diffplug.spotless'
 
 idea {
     module {
@@ -199,7 +200,10 @@ testClusters.register("integTest") {
   plugin(project.tasks.bundlePlugin.archiveFile)
 }
 
-tasks.named("check").configure { dependsOn(integTest) }
+tasks.named("check").configure {
+  dependsOn(integTest)
+  dependsOn(spotlessCheck)
+}
 
 integTest {
   dependsOn "bundlePlugin"
