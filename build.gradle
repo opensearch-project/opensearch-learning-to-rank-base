@@ -1,4 +1,3 @@
-import java.nio.file.Files
 import org.opensearch.gradle.test.RestIntegTestTask
 
 buildscript {
@@ -35,7 +34,7 @@ plugins {
   id 'java'
   id 'idea'
   id 'maven-publish'
-  id 'com.diffplug.spotless' version '6.23.0'
+  id 'com.diffplug.spotless' version '6.25.0' apply false
 }
 
 group = 'org.opensearch'
@@ -46,6 +45,7 @@ apply plugin: 'opensearch.java-rest-test'
 apply plugin: 'opensearch.rest-resources'
 apply plugin: 'opensearch.pluginzip'
 apply plugin: 'opensearch.java-agent'
+apply plugin: 'com.diffplug.spotless'
 
 idea {
     module {
@@ -139,7 +139,7 @@ dependencies {
   runtimeOnly 'org.apache.logging.log4j:log4j-core:2.21.0'
 }
 
-configurations.all {
+configurations.configureEach {
   resolutionStrategy.force "com.google.guava:guava:32.1.3-jre"
   resolutionStrategy.force 'org.eclipse.platform:org.eclipse.core.runtime:3.29.0'
 }
@@ -188,19 +188,22 @@ validateNebulaPom.enabled = false
 loggerUsageCheck.enabled = false
 
 // Custom task for running integration tests
-task integTest(type: RestIntegTestTask) {
-  description = "Run integration tests from src/javaRestTest"
-  // Specify the classpath for integration tests
-  testClassesDirs = sourceSets.javaRestTest.output.classesDirs
-  classpath = sourceSets.javaRestTest.runtimeClasspath
+tasks.register('integTest', RestIntegTestTask) {
+    description = "Run integration tests from src/javaRestTest"
+    // Specify the classpath for integration tests
+    testClassesDirs = sourceSets.javaRestTest.output.classesDirs
+    classpath = sourceSets.javaRestTest.runtimeClasspath
 }
 
-testClusters.integTest {
+testClusters.register("integTest") {
   // adds LTR as a plugin to the OS build
   plugin(project.tasks.bundlePlugin.archiveFile)
 }
 
-tasks.named("check").configure { dependsOn(integTest) }
+tasks.named("check").configure {
+  dependsOn(integTest)
+  dependsOn(spotlessCheck)
+}
 
 integTest {
   dependsOn "bundlePlugin"
@@ -216,15 +219,15 @@ integTest {
   }
 }
 
-task integTestRemote(type: RestIntegTestTask) {
-  description = "Run integration tests from src/javaRestTest"
-  testClassesDirs = sourceSets.javaRestTest.output.classesDirs
-  classpath = sourceSets.javaRestTest.runtimeClasspath
+tasks.register('integTestRemote', RestIntegTestTask) {
+    description = "Run integration tests from src/javaRestTest"
+    testClassesDirs = sourceSets.javaRestTest.output.classesDirs
+    classpath = sourceSets.javaRestTest.runtimeClasspath
 
-  systemProperty 'tests.security.manager', 'false'
-  systemProperty "https", System.getProperty("https")
-  systemProperty "user", System.getProperty("user")
-  systemProperty "password", System.getProperty("password")
+    systemProperty 'tests.security.manager', 'false'
+    systemProperty "https", System.getProperty("https")
+    systemProperty "user", System.getProperty("user")
+    systemProperty "password", System.getProperty("password")
 }
 
 tasks.withType(Test).configureEach { task ->
@@ -252,26 +255,29 @@ thirdPartyAudit {
   ignoreViolations('org.conscrypt.Platform')
 }
 
-spotless {
-  java {
-    removeUnusedImports()
-    importOrder 'java', 'javax', 'org', 'com'
-
-    eclipse().withP2Mirrors(Map.of("https://download.eclipse.org/", "https://mirror.umd.edu/eclipse/")).configFile rootProject.file('.eclipseformat.xml')
+plugins.withId('com.diffplug.spotless') {
+  // Configure Spotless only if/when the plugin is applied (e.g., by parent project)
+  spotless {
+    java {
+      removeUnusedImports()
+      importOrder 'java', 'javax', 'org', 'com'
+      eclipse().withP2Mirrors(Map.of("https://download.eclipse.org/", "https://mirror.umd.edu/eclipse/")).configFile rootProject.file('.eclipseformat.xml')
+    }
   }
 }
 
-run {
-  useCluster testClusters.integTest
+tasks.named("run").configure {
+    // Configure RunTask with the registered integTest cluster
+    getClusters().add(testClusters.named("integTest").get())
 }
 
 // updateVersion: Task to auto update version to the next development iteration
-task updateVersion {
-  onlyIf { System.getProperty('newVersion') }
-  doLast {
-    ext.newVersion = System.getProperty('newVersion')
-    println "Setting version to ${newVersion}."
-    // String tokenization to support -SNAPSHOT
-    ant.replaceregexp(file:'build.gradle', match: '"opensearch.version", "\\d.*"', replace: '"opensearch.version", "' + newVersion.tokenize('-')[0] + '-SNAPSHOT"', flags:'g', byline:true)
-  }
+tasks.register('updateVersion') {
+    onlyIf { System.getProperty('newVersion') }
+    doLast {
+        ext.newVersion = System.getProperty('newVersion')
+        println "Setting version to ${newVersion}."
+        // String tokenization to support -SNAPSHOT
+        ant.replaceregexp(file: 'build.gradle', match: '"opensearch.version", "\\d.*"', replace: '"opensearch.version", "' + newVersion.tokenize('-')[0] + '-SNAPSHOT"', flags: 'g', byline: true)
+    }
 }
