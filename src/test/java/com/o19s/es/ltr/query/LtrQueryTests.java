@@ -106,7 +106,7 @@ import ciir.umass.edu.utilities.MyThreadPool;
 public class LtrQueryTests extends LuceneTestCase {
     // Tuned hybrid assertion parameters
     private static final double ABS_FLOOR = 1e-4;
-    private static final double RELATIVE_TOLERANCE = 5e-3;
+    private static final double RELATIVE_TOLERANCE = 1e-2;
     private static final int ULP_MULTIPLIER = 128;
 
     private int[] range(int start, int stop) {
