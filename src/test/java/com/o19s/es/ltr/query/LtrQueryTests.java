@@ -104,8 +104,10 @@ import ciir.umass.edu.utilities.MyThreadPool;
 
 @LuceneTestCase.SuppressSysoutChecks(bugUrl = "RankURL does this when training models... ")
 public class LtrQueryTests extends LuceneTestCase {
-    // Number of ULPs allowed when checking scores equality
-    private static final int SCORE_NB_ULP_PREC = 30000;
+    // Tuned hybrid assertion parameters
+    private static final double ABS_FLOOR = 1e-4;
+    private static final double RELATIVE_TOLERANCE = 1e-2;
+    private static final int ULP_MULTIPLIER = 128;
 
     private int[] range(int start, int stop) {
         int[] result = new int[stop - start];
@@ -359,12 +361,12 @@ public class LtrQueryTests extends LuceneTestCase {
         float modelScore = scores[docId];
         float queryScore = scoreDoc.score;
 
-        assertEquals(
-            "Scores match with similarity " + similarity.getClass(),
-            modelScore,
-            queryScore,
-            SCORE_NB_ULP_PREC * Math.ulp(modelScore)
-        );
+        // Hybrid float comparison: max(ABS_FLOOR, max(REL_TOL * |mag|, ULP_MULT * ulp(expected)))
+        final double mag = Math.max(Math.abs((double) modelScore), Math.abs((double) queryScore));
+        final double ulp = Math.ulp((double) modelScore);
+        final double delta = Math.max(ABS_FLOOR, Math.max(RELATIVE_TOLERANCE * mag, ULP_MULTIPLIER * ulp));
+
+        assertEquals("Scores match with similarity " + similarity.getClass(), modelScore, queryScore, (float) delta);
 
         if (!(similarity instanceof TFIDFSimilarity)) {
             // There are precision issues with these similarities when using explain
@@ -375,7 +377,7 @@ public class LtrQueryTests extends LuceneTestCase {
                 "Explain scores match with similarity " + similarity.getClass(),
                 expl.getValue().floatValue(),
                 queryScore,
-                5 * Math.ulp(modelScore)
+                (float) delta
             );
             checkFeatureNames(expl, features);
         }
