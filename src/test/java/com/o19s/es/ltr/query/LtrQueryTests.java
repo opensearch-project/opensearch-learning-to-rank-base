@@ -366,12 +366,7 @@ public class LtrQueryTests extends LuceneTestCase {
         final double ulp = Math.ulp((double) modelScore);
         final double delta = Math.max(ABS_FLOOR, Math.max(RELATIVE_TOLERANCE * mag, ULP_MULTIPLIER * ulp));
 
-        assertEquals(
-            "Scores match with similarity " + similarity.getClass(),
-            modelScore,
-            queryScore,
-            (float) delta
-        );
+        assertEquals("Scores match with similarity " + similarity.getClass(), modelScore, queryScore, (float) delta);
 
         if (!(similarity instanceof TFIDFSimilarity)) {
             // There are precision issues with these similarities when using explain
