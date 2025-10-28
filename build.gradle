@@ -3,7 +3,7 @@ import org.opensearch.gradle.test.RestIntegTestTask
 
 buildscript {
   ext {
-    opensearch_version = System.getProperty("opensearch.version", "2.19.2-SNAPSHOT")
+    opensearch_version = System.getProperty("opensearch.version", "2.19.4-SNAPSHOT")
     is_snapshot = "true" == System.getProperty("build.snapshot", "true")
     build_version_qualifier = System.getProperty("build.version_qualifier", "")
 
@@ -269,4 +269,15 @@ run {
   }
 
   useCluster testClusters.integTest
+}
+
+// updateVersion: Task to auto update version to the next development iteration
+task updateVersion {
+  onlyIf { System.getProperty('newVersion') }
+  doLast {
+    ext.newVersion = System.getProperty('newVersion')
+    println "Setting version to ${newVersion}."
+    // String tokenization to support -SNAPSHOT
+    ant.replaceregexp(file:'build.gradle', match: '"opensearch.version", "\\d.*"', replace: '"opensearch.version", "' + newVersion.tokenize('-')[0] + '-SNAPSHOT"', flags:'g', byline:true)
+  }
 }
