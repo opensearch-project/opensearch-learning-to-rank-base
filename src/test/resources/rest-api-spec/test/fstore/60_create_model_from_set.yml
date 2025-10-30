@@ -1,128 +1,107 @@
 ---
 "Create model from set on the default store":
-  - skip:
-      features: allowed_warnings
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_store: {}
+      ltr.create_store: {}
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_featureset:
-           name: my_featureset
-           body:
-            featureset:
-              name: my_featureset
-              features:
-                  - name: feature1
-                    params: query_string
-                    template:
-                      match:
-                        field_test1: "{{query_string}}"
-                  - name: feature2
-                    params: query_string
-                    template:
-                      match:
-                        field_test2: "{{query_string}}"
-
-  - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_model_from_set:
+      ltr.create_featureset:
+         name: my_featureset
+         body:
+          featureset:
             name: my_featureset
-            body:
+            features:
+                - name: feature1
+                  params: query_string
+                  template:
+                    match:
+                      field_test1: "{{query_string}}"
+                - name: feature2
+                  params: query_string
+                  template:
+                    match:
+                      field_test2: "{{query_string}}"
+
+  - do:
+      ltr.create_model_from_set:
+          name: my_featureset
+          body:
+            model:
+              name: my_model
               model:
-                name: my_model
-                model:
-                  type: model/linear
-                  definition:
-                    feature1: 1.3
-                    feature2: 0.3
+                type: model/linear
+                definition:
+                  feature1: 1.3
+                  feature2: 0.3
 
   - match: { _index:   .ltrstore }
   - match: { _id:      model-my_model }
   - match: { _version: 1 }
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        catch: /Element of type \[model\] are not updatable, please create a new one instead./
-        ltr.create_model_from_set:
-            name: my_featureset
-            body:
+      catch: /Element of type \[model\] are not updatable, please create a new one instead./
+      ltr.create_model_from_set:
+          name: my_featureset
+          body:
+            model:
+              name: my_model
               model:
-                name: my_model
-                model:
-                  type: model/linear
-                  definition:
-                    feature1: 1.3
-                    feature2: 0.3
+                type: model/linear
+                definition:
+                  feature1: 1.3
+                  feature2: 0.3
 
 ---
 "Create model from set on custom store":
-  - skip:
-      features: allowed_warnings
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_store:
-           store: mystore
+      ltr.create_store:
+         store: mystore
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_featureset:
-           store: mystore
-           name: my_featureset
-           body:
-            featureset:
-              name: my_featureset
-              features:
-                  - name: feature1
-                    params: query_string
-                    template:
-                      match:
-                        field_test1: "{{query_string}}"
-                  - name: feature2
-                    params: query_string
-                    template:
-                      match:
-                        field_test2: "{{query_string}}"
-
-  - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_model_from_set:
-            store: mystore
+      ltr.create_featureset:
+         store: mystore
+         name: my_featureset
+         body:
+          featureset:
             name: my_featureset
-            body:
+            features:
+                - name: feature1
+                  params: query_string
+                  template:
+                    match:
+                      field_test1: "{{query_string}}"
+                - name: feature2
+                  params: query_string
+                  template:
+                    match:
+                      field_test2: "{{query_string}}"
+
+  - do:
+      ltr.create_model_from_set:
+          store: mystore
+          name: my_featureset
+          body:
+            model:
+              name: my_model
               model:
-                name: my_model
-                model:
-                  type: model/linear
-                  definition:
-                    feature1: 1.3
-                    feature2: 0.3
+                type: model/linear
+                definition:
+                  feature1: 1.3
+                  feature2: 0.3
 
   - match: { _index:   .ltrstore_mystore }
   - match: { _id:      model-my_model }
   - match: { _version: 1 }
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
-        catch: /Element of type \[model\] are not updatable, please create a new one instead./
-        ltr.create_model_from_set:
-            store: mystore
-            name: my_featureset
-            body:
+      catch: /Element of type \[model\] are not updatable, please create a new one instead./
+      ltr.create_model_from_set:
+          store: mystore
+          name: my_featureset
+          body:
+            model:
+              name: my_model
               model:
-                name: my_model
-                model:
-                  type: model/linear
-                  definition:
-                    feature1: 1.3
-                    feature2: 0.3
-
+                type: model/linear
+                definition:
+                  feature1: 1.3
+                  feature2: 0.3

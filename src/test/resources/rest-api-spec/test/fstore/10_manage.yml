@@ -1,125 +1,77 @@
+teardown:
+    - do:
+          indices.delete:
+              index: test_index
+              ignore_unavailable: true
+              expand_wildcards: all
+
 ---
 "Create and delete the default store":
-  - skip:
-      features: allowed_warnings
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_store: {}
+      ltr.create_store: {}
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        indices.exists:
-            index: .ltrstore
+      ltr.list_stores: {}
 
-  - is_true: ''
+  - match: { stores._default_.index: .ltrstore }
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.delete_store: {}
+      ltr.delete_store: {}
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        indices.exists:
-            index: .ltrstore
+      ltr.list_stores: {}
 
-  - is_false: ''
+  - match: { stores: {} }
 
 ---
 "Create and delete a custom store":
-  - skip:
-      features: allowed_warnings
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_store:
-            store: mystore
+      ltr.create_store:
+        store: mystore
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
-        indices.exists:
-            index: .ltrstore_mystore
-
-  - is_true: ''
-
-  - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.get_store:
-            store: mystore
+      ltr.get_store:
+        store: mystore
 
   - match: { exists: true }
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.delete_store:
-            store: mystore
+      ltr.delete_store:
+        store: mystore
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
-        indices.exists:
-            index: .ltrstore_mystore
-
-  - is_false: ''
-
-  - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
-        catch: missing
-        ltr.get_store:
-            store: mystore
+      catch: missing
+      ltr.get_store:
+        store: mystore
 
   - match: { exists: false }
 
 ---
 "Get cache stats":
-  - skip:
-      features: allowed_warnings
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_store: {}
-
-  - is_true: ''
+      ltr.create_store: {}
 
   - do:
-        allowed_warnings:
-           - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.cache_stats: {}
+      ltr.cache_stats: {}
 
   - match: { all.total.ram: 0 }
 
 ---
 "List stores":
-  - skip:
-      features: allowed_warnings
   - do:
-        ltr.list_stores: {}
+      ltr.list_stores: {}
 
   - match: { stores: {} }
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_store: {}
+      ltr.create_store: {}
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_store:
-            store: mystore
+      ltr.create_store:
+        store: mystore
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_mystore], but in a future major version, direct access to system indices will be prevented by default"
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.list_stores: {}
+      ltr.list_stores: {}
 
   - match: { stores._default_.version: 2 }
   - match: { stores._default_.index: .ltrstore }
@@ -129,59 +81,52 @@
 ---
 "Create invalid custom stores":
   - do:
-        catch: /A featurestore name cannot be based on the words \[feature\], \[featureset\] and \[model\]/
-        ltr.create_store:
-            store: feature
+      catch: /A featurestore name cannot be based on the words \[feature\], \[featureset\] and \[model\]/
+      ltr.create_store:
+        store: feature
 
   - do:
-        catch: /Invalid feature store name/
-        ltr.create_store:
-            store: mystore#15
+      catch: /Invalid feature store name/
+      ltr.create_store:
+        store: mystore#15
 
 ---
 "Deleting the store should invalidate the cache":
-  - skip:
-      features: allowed_warnings
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_custom], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_store:
-          store: custom
+      ltr.create_store:
+        store: custom
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_custom], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_model:
-           store: custom
-           name: my_model
-           body:
+      ltr.create_model:
+        store: custom
+        name: my_model
+        body:
+          model:
+            feature_set:
+              name: my_set
+              features:
+                - name: feature1
+                  params: query_string
+                  template:
+                    match:
+                      field_test: "{{query_string}}"
+                - name: feature2
+                  params: query_string
+                  template:
+                    match:
+                      field_test2: "{{query_string}}"
             model:
-              feature_set:
-                name: my_set
-                features:
-                  - name: feature1
-                    params: query_string
-                    template:
-                      match:
-                        field_test: "{{query_string}}"
-                  - name: feature2
-                    params: query_string
-                    template:
-                      match:
-                        field_test2: "{{query_string}}"
-              model:
-                type: model/linear
-                definition:
-                    feature1: 1.2
-                    feature2: 0.2
+              type: model/linear
+              definition:
+                feature1: 1.2
+                feature2: 0.2
 
   - do:
       indices.create:
-          index:  test
+        index: test
+        ignore: [400]
 
   - do:
-      allowed_warnings:
-        - "this request accesses system indices: [.ltrstore_custom], but in a future major version, direct access to system indices will be prevented by default"
       search:
         index: test
         body: { query: { "sltr": { "params": {"query_string": "rambo"}, "model": "my_model", "store": "custom" } } }
@@ -192,60 +137,51 @@
   - gt: { all.total.ram: 0 }
 
   - do:
-      allowed_warnings:
-        - "this request accesses system indices: [.ltrstore_custom], but in a future major version, direct access to system indices will be prevented by default"
       ltr.delete_store:
         store: custom
 
   - do:
-        ltr.cache_stats: {}
+      ltr.cache_stats: {}
 
-  - match : { all.total.ram: 0 }
+  - match: { all.total.ram: 0 }
 
 ---
 "Deleting the model should invalidate the cache":
-  - skip:
-        features: allowed_warnings
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_custom], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_store:
-          store: custom
+      ltr.create_store:
+        store: custom
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore_custom], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_model:
-           store: custom
-           name: my_model
-           body:
+      ltr.create_model:
+        store: custom
+        name: my_model
+        body:
+          model:
+            feature_set:
+              name: my_set
+              features:
+                - name: feature1
+                  params: query_string
+                  template:
+                    match:
+                      field_test: "{{query_string}}"
+                - name: feature2
+                  params: query_string
+                  template:
+                    match:
+                      field_test2: "{{query_string}}"
             model:
-              feature_set:
-                name: my_set
-                features:
-                  - name: feature1
-                    params: query_string
-                    template:
-                      match:
-                        field_test: "{{query_string}}"
-                  - name: feature2
-                    params: query_string
-                    template:
-                      match:
-                        field_test2: "{{query_string}}"
-              model:
-                type: model/linear
-                definition:
-                    feature1: 1.2
-                    feature2: 0.2
+              type: model/linear
+              definition:
+                feature1: 1.2
+                feature2: 0.2
 
   - do:
       indices.create:
-          index:  test
+        index: test
+        ignore: [400]
 
   - do:
-      allowed_warnings:
-        - "this request accesses system indices: [.ltrstore_custom], but in a future major version, direct access to system indices will be prevented by default"
       search:
         index: test
         body: { query: { "sltr": { "params": {"query_string": "rambo"}, "model": "my_model", "store": "custom" } } }
@@ -256,13 +192,11 @@
   - gt: { all.total.ram: 0 }
 
   - do:
-      allowed_warnings:
-        - "this request accesses system indices: [.ltrstore_custom], but in a future major version, direct access to system indices will be prevented by default"
       ltr.delete_model:
-         store: custom
-         name: my_model
+        store: custom
+        name: my_model
 
   - do:
-        ltr.cache_stats: {}
+      ltr.cache_stats: {}
 
-  - match : { all.total.ram: 0 }
+  - match: { all.total.ram: 0 }

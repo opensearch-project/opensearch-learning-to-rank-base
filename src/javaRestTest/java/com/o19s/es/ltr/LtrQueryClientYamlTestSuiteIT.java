@@ -19,8 +19,6 @@ import static org.opensearch.client.RestClientBuilder.DEFAULT_MAX_CONN_PER_ROUTE
 import static org.opensearch.client.RestClientBuilder.DEFAULT_MAX_CONN_TOTAL;
 import static org.opensearch.commons.ConfigConstants.OPENSEARCH_SECURITY_SSL_HTTP_ENABLED;
 import static org.opensearch.commons.ConfigConstants.OPENSEARCH_SECURITY_SSL_HTTP_KEYSTORE_FILEPATH;
-import static org.opensearch.commons.ConfigConstants.OPENSEARCH_SECURITY_SSL_HTTP_KEYSTORE_KEYPASSWORD;
-import static org.opensearch.commons.ConfigConstants.OPENSEARCH_SECURITY_SSL_HTTP_KEYSTORE_PASSWORD;
 import static org.opensearch.commons.ConfigConstants.OPENSEARCH_SECURITY_SSL_HTTP_PEMCERT_FILEPATH;
 
 import java.io.IOException;
@@ -28,7 +26,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import org.apache.hc.client5.http.auth.AuthScope;
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
@@ -45,7 +42,6 @@ import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.util.Timeout;
 import org.junit.After;
 import org.opensearch.client.Request;
-import org.opensearch.client.Response;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestClientBuilder;
 import org.opensearch.common.io.PathUtils;
@@ -53,10 +49,6 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.commons.rest.SecureRestClientBuilder;
-import org.opensearch.core.xcontent.DeprecationHandler;
-import org.opensearch.core.xcontent.MediaType;
-import org.opensearch.core.xcontent.NamedXContentRegistry;
-import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.test.rest.yaml.ClientYamlTestCandidate;
 import org.opensearch.test.rest.yaml.OpenSearchClientYamlSuiteTestCase;
 
@@ -80,7 +72,7 @@ public class LtrQueryClientYamlTestSuiteIT extends OpenSearchClientYamlSuiteTest
         boolean isHttps = Optional.ofNullable(System.getProperty("https")).map("true"::equalsIgnoreCase).orElse(false);
         if (isHttps) {
             // currently only external cluster is supported for security enabled testing
-            if (!Optional.ofNullable(System.getProperty("tests.rest.cluster")).isPresent()) {
+            if (Optional.ofNullable(System.getProperty("tests.rest.cluster")).isEmpty()) {
                 throw new RuntimeException("cluster url should be provided for security enabled testing");
             }
         }
@@ -103,8 +95,8 @@ public class LtrQueryClientYamlTestSuiteIT extends OpenSearchClientYamlSuiteTest
             .put(OPENSEARCH_SECURITY_SSL_HTTP_ENABLED, isHttps())
             .put(OPENSEARCH_SECURITY_SSL_HTTP_PEMCERT_FILEPATH, "sample.pem")
             .put(OPENSEARCH_SECURITY_SSL_HTTP_KEYSTORE_FILEPATH, "test-kirk.jks")
-            .put(OPENSEARCH_SECURITY_SSL_HTTP_KEYSTORE_PASSWORD, "changeit")
-            .put(OPENSEARCH_SECURITY_SSL_HTTP_KEYSTORE_KEYPASSWORD, "changeit")
+            .put("plugins.security.ssl.http.keystore_password", "changeit")
+            .put("plugins.security.ssl.http.keystore_keypassword", "changeit")
             .build();
     }
 
@@ -115,9 +107,9 @@ public class LtrQueryClientYamlTestSuiteIT extends OpenSearchClientYamlSuiteTest
         if (isHttps()) {
             String keystore = settings.get(OPENSEARCH_SECURITY_SSL_HTTP_KEYSTORE_FILEPATH);
             if (Objects.nonNull(keystore)) {
-                URI uri = null;
+                URI uri;
                 try {
-                    uri = this.getClass().getClassLoader().getResource("security/sample.pem").toURI();
+                    uri = Objects.requireNonNull(this.getClass().getClassLoader().getResource("security/sample.pem")).toURI();
                 } catch (URISyntaxException e) {
                     throw new RuntimeException(e);
                 }
@@ -137,38 +129,16 @@ public class LtrQueryClientYamlTestSuiteIT extends OpenSearchClientYamlSuiteTest
 
     }
 
-    @SuppressWarnings("unchecked")
     @After
-    protected void wipeAllODFEIndices() throws IOException {
-        Response response = adminClient().performRequest(new Request("GET", "/_cat/indices?format=json&expand_wildcards=all"));
-        MediaType xContentType = MediaType.fromMediaType(response.getEntity().getContentType());
-        try (
-            XContentParser parser = xContentType
-                .xContent()
-                .createParser(
-                    NamedXContentRegistry.EMPTY,
-                    DeprecationHandler.THROW_UNSUPPORTED_OPERATION,
-                    response.getEntity().getContent()
-                )
-        ) {
-            XContentParser.Token token = parser.nextToken();
-            List<Map<String, Object>> parserList = null;
-            if (token == XContentParser.Token.START_ARRAY) {
-                parserList = parser.listOrderedMap().stream().map(obj -> (Map<String, Object>) obj).collect(Collectors.toList());
-            } else {
-                parserList = Collections.singletonList(parser.mapOrdered());
-            }
-
-            for (Map<String, Object> index : parserList) {
-                String indexName = (String) index.get("index");
-                if (indexName != null && !".opendistro_security".equals(indexName)) {
-                    adminClient().performRequest(new Request("DELETE", "/" + indexName));
-                }
-            }
-        }
+    protected void wipeLtrIndices() throws IOException {
+        Request delete = new Request("DELETE", "/.ltrstore*");
+        delete.addParameter("ignore_unavailable", "true");
+        delete.addParameter("allow_no_indices", "true");
+        delete.addParameter("expand_wildcards", "all");
+        adminClient().performRequest(delete);
     }
 
-    protected static void configureHttpsClient(RestClientBuilder builder, Settings settings) throws IOException {
+    protected static void configureHttpsClient(RestClientBuilder builder, Settings settings) {
         Map<String, String> headers = ThreadContext.buildDefaultHeaders(settings);
         Header[] defaultHeaders = new Header[headers.size()];
         int i = 0;

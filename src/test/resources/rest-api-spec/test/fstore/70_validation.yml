@@ -1,200 +1,181 @@
+teardown:
+    - do:
+          indices.delete:
+              index: test_index
+              ignore_unavailable: true
+              expand_wildcards: all
+
 ---
 "Validate feature":
-  - skip:
-      features: allowed_warnings
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_store: {}
+      ltr.create_store: {}
   - do:
-        indices.create:
-          index: test_index
+      indices.create:
+        index: test_index
 
   - do:
-        catch: /Cannot store element, validation failed/
-        ltr.create_feature:
-           name: my_feature
-           body:
-            feature:
-              name: my_feature
-              params:
-                 - query_string
-              template:
-                broken_query:
-                  field_test: "{{query_string}}"
-            validation:
-              index: test_index
-              params:
-                query_string: test query
+      catch: /Cannot store element, validation failed/
+      ltr.create_feature:
+        name: my_feature
+        body:
+          feature:
+            name: my_feature
+            params:
+              - query_string
+            template:
+              broken_query:
+                field_test: "{{query_string}}"
+          validation:
+            index: test_index
+            params:
+              query_string: test query
 
 ---
 "Validate featureset":
-  - skip:
-      features: allowed_warnings
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_store: {}
+      ltr.create_store: {}
   - do:
-        indices.create:
-          index: test_index
+      indices.create:
+        index: test_index
 
   - do:
-        catch: /Cannot store element, validation failed/
-        ltr.create_featureset:
-           name: my_featureset
-           body:
-            featureset:
-              name: my_featureset
-              features:
-                  - name: feature1
-                    params: query_string
-                    template:
-                      broken_query:
-                      field_test: "{{query_string}}"
-            validation:
-              index: test_index
-              params:
-                query_string: test query
+      catch: /Cannot store element, validation failed/
+      ltr.create_featureset:
+        name: my_featureset
+        body:
+          featureset:
+            name: my_featureset
+            features:
+              - name: feature1
+                params: query_string
+                template:
+                  broken_query:
+                  field_test: "{{query_string}}"
+          validation:
+            index: test_index
+            params:
+              query_string: test query
 
 ---
 "Validate model":
-  - skip:
-      features: allowed_warnings
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_store: {}
+      ltr.create_store: {}
   - do:
-        indices.create:
-          index: test_index
+      indices.create:
+        index: test_index
 
   - do:
-        catch: /Cannot store element, validation failed/
-        ltr.create_model:
-           name: my_model
-           body:
+      catch: /Cannot store element, validation failed/
+      ltr.create_model:
+        name: my_model
+        body:
+          model:
+            name: my_model
+            feature_set:
+              name: my_set
+              features:
+                - name: feature1
+                  params: query_string
+                  template:
+                    match:
+                      field_test: "{{query_string}}"
+                - name: feature2
+                  params: query_string
+                  template:
+                    broken_query:
+                      field_test2: "{{query_string}}"
             model:
-              name: my_model
-              feature_set:
-                name: my_set
-                features:
-                  - name: feature1
-                    params: query_string
-                    template:
-                      match:
-                        field_test: "{{query_string}}"
-                  - name: feature2
-                    params: query_string
-                    template:
-                      broken_query:
-                        field_test2: "{{query_string}}"
-              model:
-                type: model/linear
-                definition:
-                    feature1: 1.2
-                    feature2: 0.2
-            validation:
-              index: test_index
-              params:
-                query_string: test query
+              type: model/linear
+              definition:
+                feature1: 1.2
+                feature2: 0.2
+          validation:
+            index: test_index
+            params:
+              query_string: test query
 
 ---
 "Validate on add features to set":
-  - skip:
-      features: allowed_warnings
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_store: {}
+      ltr.create_store: {}
   - do:
-        indices.create:
-          index: test_index
+      indices.create:
+        index: test_index
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_feature:
-           name: my_feature1
-           body:
-            feature:
-              name: my_feature1
-              params:
-                 - query_string
-              template:
-                match:
-                  field_test1: "{{query_string}}"
+      ltr.create_feature:
+        name: my_feature1
+        body:
+          feature:
+            name: my_feature1
+            params:
+              - query_string
+            template:
+              match:
+                field_test1: "{{query_string}}"
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_feature:
-           name: my_feature2
-           body:
-            feature:
-              name: my_feature2
-              params:
-                 - query_string
-              template:
-                broken_query:
-                  field_test2: "{{query_string}}"
+      ltr.create_feature:
+        name: my_feature2
+        body:
+          feature:
+            name: my_feature2
+            params:
+              - query_string
+            template:
+              broken_query:
+                field_test2: "{{query_string}}"
 
   - do:
-        catch: /Cannot store element, validation failed/
-        ltr.add_features_to_set:
-            name: my_generated_set
-            query: my_feature*
-            body:
-              validation:
-                index: test_index
-                params:
-                  query_string: test query
+      catch: /Cannot store element, validation failed/
+      ltr.add_features_to_set:
+        name: my_generated_set
+        query: my_feature*
+        body:
+          validation:
+            index: test_index
+            params:
+              query_string: test query
 
 ---
 "Validate on create model from set":
-  - skip:
-      features: allowed_warnings
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_store: {}
+      ltr.create_store: {}
   - do:
-        indices.create:
-          index: test_index
+      indices.create:
+        index: test_index
 
   - do:
-        allowed_warnings:
-          - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
-        ltr.create_featureset:
-           name: my_featureset
-           body:
-            featureset:
-              name: my_featureset
-              features:
-                  - name: feature1
-                    params: query_string
-                    template:
-                      match:
-                        field_test1: "{{query_string}}"
-                  - name: feature2
-                    params: query_string
-                    template:
-                      broken_query:
-                        field_test2: "{{query_string}}"
-
-  - do:
-        catch: /Cannot store element, validation failed/
-        ltr.create_model_from_set:
+      ltr.create_featureset:
+        name: my_featureset
+        body:
+          featureset:
             name: my_featureset
-            body:
-              model:
-                name: my_model
-                model:
-                  type: model/linear
-                  definition:
-                    feature1: 1.3
-                    feature2: 0.3
-              validation:
-                index: test_index
-                params:
-                  query_string: test query
+            features:
+              - name: feature1
+                params: query_string
+                template:
+                  match:
+                    field_test1: "{{query_string}}"
+              - name: feature2
+                params: query_string
+                template:
+                  broken_query:
+                    field_test2: "{{query_string}}"
+
+  - do:
+      catch: /Cannot store element, validation failed/
+      ltr.create_model_from_set:
+        name: my_featureset
+        body:
+          model:
+            name: my_model
+            model:
+              type: model/linear
+              definition:
+                feature1: 1.3
+                feature2: 0.3
+          validation:
+            index: test_index
+            params:
+              query_string: test query
