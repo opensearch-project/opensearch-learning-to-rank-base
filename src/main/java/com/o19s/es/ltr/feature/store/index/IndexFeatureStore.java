@@ -220,8 +220,6 @@ public class IndexFeatureStore implements FeatureStore {
                 return client.prepareGet(index, id).get();
             }
             try (ThreadContext.StoredContext ignored = client.threadPool().getThreadContext().stashContext()) {
-                ThreadContext threadContext = client.threadPool().getThreadContext();
-                threadContext.putHeader("x-opensearch-product-origin", "opensearch-ltr");
                 return client.prepareGet(index, id).get();
             }
         };
@@ -306,9 +304,8 @@ public class IndexFeatureStore implements FeatureStore {
     private static String readResourceFile(String indexName, String resource) {
         try (InputStream is = IndexFeatureStore.class.getResourceAsStream(resource)) {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            assert is != null;
             is.transferTo(out);
-            return out.toString(StandardCharsets.UTF_8);
+            return out.toString(StandardCharsets.UTF_8.name());
         } catch (Exception e) {
             LOGGER
                 .error(

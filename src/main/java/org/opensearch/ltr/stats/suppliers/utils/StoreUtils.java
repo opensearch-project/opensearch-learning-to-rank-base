@@ -15,9 +15,12 @@
 
 package org.opensearch.ltr.stats.suppliers.utils;
 
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 
 import org.opensearch.action.admin.cluster.state.ClusterStateRequest;
 import org.opensearch.action.search.SearchType;
@@ -64,7 +67,7 @@ public class StoreUtils {
                 clusterService.state(),
                 new ClusterStateRequest().indices(IndexFeatureStore.DEFAULT_STORE, IndexFeatureStore.STORE_PREFIX + "*")
             );
-        return Stream.of(names).filter(IndexFeatureStore::isIndexStore).collect(Collectors.toList());
+        return Arrays.asList(names);
     }
 
     public String getLtrStoreHealthStatus(String storeName) {
@@ -118,15 +121,11 @@ public class StoreUtils {
     }
 
     private SearchHits searchStore(String storeName, String docType) {
-        try (ThreadContext.StoredContext ignored = client.threadPool().getThreadContext().stashContext()) {
-            ThreadContext threadContext = client.threadPool().getThreadContext();
-            threadContext.putHeader("x-opensearch-product-origin", "opensearch-ltr");
-            return client
-                .prepareSearch(storeName)
-                .setSearchType(SearchType.DFS_QUERY_THEN_FETCH)
-                .setQuery(QueryBuilders.termQuery("type", docType))
-                .get()
-                .getHits();
-        }
+        return client
+            .prepareSearch(storeName)
+            .setSearchType(SearchType.DFS_QUERY_THEN_FETCH)
+            .setQuery(QueryBuilders.termQuery("type", docType))
+            .get()
+            .getHits();
     }
 }
