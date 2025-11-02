@@ -2,7 +2,7 @@ import org.opensearch.gradle.test.RestIntegTestTask
 
 buildscript {
   ext {
-    opensearch_version = System.getProperty("opensearch.version", "3.3.0-SNAPSHOT")
+    opensearch_version = System.getProperty("opensearch.version", "3.4.0-SNAPSHOT")
     is_snapshot = "true" == System.getProperty("build.snapshot", "true")
     build_version_qualifier = System.getProperty("build.version_qualifier", "")
 
@@ -19,8 +19,7 @@ buildscript {
 
   repositories {
     mavenLocal()
-    maven { url "https://central.sonatype.com/repository/maven-snapshots/" }
-    maven { url "https://aws.oss.sonatype.org/content/repositories/snapshots" }
+    maven { url "https://ci.opensearch.org/ci/dbc/snapshots/maven/" }
     mavenCentral()
     maven { url "https://plugins.gradle.org/m2/" }
   }
@@ -103,10 +102,11 @@ publishing {
     }
     maven {
       name = "Snapshots"
-      url = "https://central.sonatype.com/repository/maven-snapshots/"
-      credentials {
-        username System.getenv("SONATYPE_USERNAME")
-        password System.getenv("SONATYPE_PASSWORD")
+      url = System.getenv("MAVEN_SNAPSHOTS_S3_REPO")
+      credentials(AwsCredentials) {
+        accessKey = System.getenv("AWS_ACCESS_KEY_ID")
+        secretKey = System.getenv("AWS_SECRET_ACCESS_KEY")
+        sessionToken = System.getenv("AWS_SESSION_TOKEN")
       }
     }
   }
@@ -116,8 +116,7 @@ publishing {
 // OpenSearch dependency is included due to the build-tools, test-framework as well
 repositories {
   mavenLocal()
-  maven { url "https://central.sonatype.com/repository/maven-snapshots/" }
-  maven { url "https://aws.oss.sonatype.org/content/repositories/snapshots" }
+  maven { url "https://ci.opensearch.org/ci/dbc/snapshots/maven/" }
   mavenCentral()
   maven { url "https://plugins.gradle.org/m2/" }
 }
