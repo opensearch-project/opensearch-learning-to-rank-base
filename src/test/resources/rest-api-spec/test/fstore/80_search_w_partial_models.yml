@@ -67,29 +67,30 @@ setup:
         body:
           model:
             name: single_feature_ranklib_model
-            type: model/ranklib
-            definition: |
-              ## LambdaMART
-              ## No. of trees = 1
-              ## No. of leaves = 1
-              ## No. of threshold candidates = 256
-              ## Learning rate = 0.1
-              ## Stop early = 100
+            model:
+              type: model/ranklib
+              definition: |
+                ## LambdaMART
+                ## No. of trees = 1
+                ## No. of leaves = 1
+                ## No. of threshold candidates = 256
+                ## Learning rate = 0.1
+                ## Stop early = 100
 
-              <ensemble>
-                <tree id="1" weight="0.1">
-                  <split>
-                    <feature> 1 </feature>
-                    <threshold> 1.0 </threshold>
-                    <split pos="left">
-                      <output> 2.0 </output>
+                <ensemble>
+                  <tree id="1" weight="0.1">
+                    <split>
+                      <feature> 1 </feature>
+                      <threshold> 1.0 </threshold>
+                      <split pos="left">
+                        <output> 2.0 </output>
+                      </split>
+                      <split pos="right">
+                        <output> 4.0 </output>
+                      </split>
                     </split>
-                    <split pos="right">
-                      <output> 4.0 </output>
-                    </split>
-                  </split>
-                </tree>
-              </ensemble>
+                  </tree>
+                </ensemble>
 
   - do:
       ltr.create_model_from_set:
@@ -97,9 +98,10 @@ setup:
         body:
           model:
             name: single_feature_linear_model
-            type: model/linear
-            definition:
-              feature1: 1.3
+            model:
+              type: model/linear
+              definition:
+                feature1: 1.3
 
 # Model that uses three features.
   - do:
@@ -108,11 +110,12 @@ setup:
         body:
           model:
             name: three_feature_linear_model
-            type: model/linear
-            definition:
-              feature1: 1.3
-              feature2: 2.3
-              no_param_feature: 3.0
+            model:
+              type: model/linear
+              definition:
+                feature1: 1.3
+                feature2: 2.3
+                no_param_feature: 3.0
 
 ---
 teardown:
