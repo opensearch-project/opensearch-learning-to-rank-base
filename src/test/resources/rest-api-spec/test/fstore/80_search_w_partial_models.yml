@@ -122,7 +122,7 @@ setup:
 teardown:
     - do:
           indices.delete:
-              index: test_index
+              index: test
               ignore_unavailable: true
               expand_wildcards: all
 
