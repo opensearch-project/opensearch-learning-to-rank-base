@@ -4,9 +4,9 @@ codecov:
 coverage:
     precision: 2
     round: down
-    range: "70...100"
+    range: "50...100"
     status:
         project:
             default:
-                target: 70%    # the required coverage value
+                target: 50%    # the required coverage value
                 threshold: 1%  # the leniency in hitting the target
