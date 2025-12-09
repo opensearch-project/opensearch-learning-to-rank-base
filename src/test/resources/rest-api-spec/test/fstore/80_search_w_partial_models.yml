@@ -18,7 +18,8 @@ setup:
         body: { "field1": "v1 aoeu", "field2": " ua u v2", "field3": "foo bar text", "user_rating": 0.0 }
 
   - do:
-      indices.refresh: { test }
+      indices.refresh:
+        index: test
 
   - do:
       ltr.create_store: {}
