@@ -146,7 +146,11 @@ teardown:
 
 ---
 "three feature linear model using one active feature":
+  - skip:
+      features: allowed_warnings
   - do:
+      allowed_warnings:
+        - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
       search:
         index: test
         body: { query: { "sltr": { "params": {}, "model": "three_feature_linear_model", "active_features": ["no_param_feature"] } } }
