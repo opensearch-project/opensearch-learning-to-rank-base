@@ -15,4 +15,3 @@ Compatible with OpenSearch and OpenSearch Dashboards version 3.4.0
 ### Infrastructure
 * Reduce the required coverage until we can improve it ([#258](https://github.com/opensearch-project/opensearch-learning-to-rank-base/pull/258))
 * Upgrade Gradle to 9.2.0 ([#263](https://github.com/opensearch-project/opensearch-learning-to-rank-base/pull/263))
-  Footer
