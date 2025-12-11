@@ -56,8 +56,10 @@ public class LoggingFetchSubPhase implements FetchSubPhase {
         BooleanQuery.Builder builder = new BooleanQuery.Builder();
         List<HitLogConsumer> loggers = new ArrayList<>();
         Map<String, Query> namedQueries = context.parsedQuery().namedFilters();
+        boolean hasNamedQueryLogSpecs = ext.logSpecsStream().anyMatch((l) -> l.getNamedQuery() != null);
 
         if (namedQueries.size() > 0) {
+            // Named queries exist: process both named query and rescore logging
             ext.logSpecsStream().filter((l) -> l.getNamedQuery() != null).forEach((l) -> {
                 Tuple<RankerQuery, HitLogConsumer> query = extractQuery(l, namedQueries);
                 builder.add(new BooleanClause(query.v1(), BooleanClause.Occur.MUST));
@@ -69,6 +71,21 @@ public class LoggingFetchSubPhase implements FetchSubPhase {
                 builder.add(new BooleanClause(query.v1(), BooleanClause.Occur.MUST));
                 loggers.add(query.v2());
             });
+        } else if (!hasNamedQueryLogSpecs) {
+            // Rescore-only: user only requested rescore logging, not named query logging.
+            List<RescoreContext> rescoreContexts = context.rescore();
+            if (rescoreContexts != null && rescoreContexts.size() > 0) {
+                ext.logSpecsStream().filter((l) -> l.getRescoreIndex() != null).forEach((l) -> {
+                    Tuple<RankerQuery, HitLogConsumer> query = extractRescore(l, rescoreContexts);
+                    builder.add(new BooleanClause(query.v1(), BooleanClause.Occur.MUST));
+                    loggers.add(query.v2());
+                });
+            }
+        }
+        // else: inner hits context (named query specs exist but no named queries visible) - skip logging
+
+        if (loggers.isEmpty()) {
+            return null;
         }
 
         Weight w = context.searcher().rewrite(builder.build()).createWeight(context.searcher(), ScoreMode.COMPLETE, 1.0F);
