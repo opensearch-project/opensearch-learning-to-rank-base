@@ -46,3 +46,9 @@ eclipse-build
 !/.settings/org.eclipse.jdt.ui.prefs
 
 bin/*
+
+// vscode
+.vscode/
+
+// JetBrains shelf
+.shelf/

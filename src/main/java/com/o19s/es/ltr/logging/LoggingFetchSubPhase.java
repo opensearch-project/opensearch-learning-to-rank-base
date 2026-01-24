@@ -28,6 +28,7 @@ import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
+import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
@@ -55,6 +56,7 @@ public class LoggingFetchSubPhase implements FetchSubPhase {
 
         BooleanQuery.Builder builder = new BooleanQuery.Builder();
         List<HitLogConsumer> loggers = new ArrayList<>();
+        List<RankerQuery> rankerQueries = new ArrayList<>();
         Map<String, Query> namedQueries = context.parsedQuery().namedFilters();
         boolean hasNamedQueryLogSpecs = ext.logSpecsStream().anyMatch((l) -> l.getNamedQuery() != null);
 
@@ -64,12 +66,14 @@ public class LoggingFetchSubPhase implements FetchSubPhase {
                 Tuple<RankerQuery, HitLogConsumer> query = extractQuery(l, namedQueries);
                 builder.add(new BooleanClause(query.v1(), BooleanClause.Occur.MUST));
                 loggers.add(query.v2());
+                rankerQueries.add(query.v1());
             });
 
             ext.logSpecsStream().filter((l) -> l.getRescoreIndex() != null).forEach((l) -> {
                 Tuple<RankerQuery, HitLogConsumer> query = extractRescore(l, context.rescore());
                 builder.add(new BooleanClause(query.v1(), BooleanClause.Occur.MUST));
                 loggers.add(query.v2());
+                rankerQueries.add(query.v1());
             });
         } else if (!hasNamedQueryLogSpecs) {
             // Rescore-only: user only requested rescore logging, not named query logging.
@@ -88,9 +92,48 @@ public class LoggingFetchSubPhase implements FetchSubPhase {
             return null;
         }
 
-        Weight w = context.searcher().rewrite(builder.build()).createWeight(context.searcher(), ScoreMode.COMPLETE, 1.0F);
+        // Option C: If query-phase feature caches are present for all RankerQueries,
+        // render logs directly from caches without rebuilding Weights or rescoring.
+        List<Map<Integer, float[]>> featureCaches = new ArrayList<>();
+        boolean useCachedRender = !rankerQueries.isEmpty();
+        for (RankerQuery rq : rankerQueries) {
+            Map<Integer, float[]> fc = rq.getFeatureScoreCache();
+            if (fc == null || fc.isEmpty()) {
+                useCachedRender = false;
+            }
+            featureCaches.add(fc);
+        }
+        if (useCachedRender) {
+            return new CachedLoggingFetchSubPhaseProcessor(loggers, featureCaches);
+        }
 
-        return new LoggingFetchSubPhaseProcessor(w, loggers);
+        IndexSearcher searcher = context.searcher();
+        Query combined = builder.build();
+        Query rewritten = searcher.rewrite(combined);
+
+        // Bridge DFS-aware Weights from the query phase into fetch via ThreadLocal:
+        // merge per-request caches from all RankerQueries involved in logging and set them
+        // so that RankerQuery#createWeightInternal reuses DFS-built Weights rather than creating new ones.
+        Map<Query, Weight> mergedCache = new HashMap<>();
+        for (RankerQuery rq : rankerQueries) {
+            Map<Query, Weight> c = rq.getPerRequestWeightCache();
+            if (c != null && !c.isEmpty()) {
+                mergedCache.putAll(c);
+            }
+        }
+        boolean setCache = false;
+        if (!mergedCache.isEmpty()) {
+            RankerQuery.setPerRequestWeightCache(mergedCache);
+            setCache = true;
+        }
+        try {
+            Weight w = rewritten.createWeight(searcher, ScoreMode.COMPLETE, 1.0F);
+            return new LoggingFetchSubPhaseProcessor(w, loggers);
+        } finally {
+            if (setCache) {
+                RankerQuery.clearPerRequestWeightCache();
+            }
+        }
     }
 
     private Tuple<RankerQuery, HitLogConsumer> extractQuery(LoggingSearchExtBuilder.LogSpec logSpec, Map<String, Query> namedQueries) {
@@ -196,6 +239,51 @@ public class LoggingFetchSubPhase implements FetchSubPhase {
         }
     }
 
+    /**
+     * Option C: Cached render-only processor. Uses feature vectors computed during query-phase to render logs in fetch.
+     * No Weights or Scorers are created, preserving DFS/global stats consistency and avoiding rescoring.
+     */
+    static class CachedLoggingFetchSubPhaseProcessor implements FetchSubPhaseProcessor {
+        private final List<HitLogConsumer> loggers;
+        private final List<Map<Integer, float[]>> featureCaches;
+        private int docBase;
+
+        CachedLoggingFetchSubPhaseProcessor(List<HitLogConsumer> loggers, List<Map<Integer, float[]>> featureCaches) {
+            this.loggers = loggers;
+            this.featureCaches = featureCaches;
+        }
+
+        @Override
+        public void setNextReader(LeafReaderContext readerContext) {
+            this.docBase = readerContext.docBase;
+        }
+
+        @Override
+        public void process(HitContext hitContext) throws IOException {
+            int absDocId = docBase + hitContext.docId();
+
+            // All caches were verified non-empty in getProcessor(). Render logs from caches.
+            for (int i = 0; i < loggers.size(); i++) {
+                HitLogConsumer consumer = loggers.get(i);
+                Map<Integer, float[]> cache = featureCaches.get(i);
+                float[] vec = (cache != null) ? cache.get(absDocId) : null;
+                if (vec == null) {
+                    // If a doc is unexpectedly missing from cache, skip silently (best-effort).
+                    // We intentionally do NOT fallback to rescoring here to avoid DFS mismatch.
+                    continue;
+                }
+                consumer.nextDoc(hitContext.hit());
+                int limit = Math.min(vec.length, consumer.featureCount());
+                for (int ord = 0; ord < limit; ord++) {
+                    float v = vec[ord];
+                    if (!Float.isNaN(v)) {
+                        consumer.accept(ord, v);
+                    }
+                }
+            }
+        }
+    }
+
     static class HitLogConsumer implements LogLtrRanker.LogConsumer {
         private static final String FIELD_NAME = "_ltrlog";
         private static final String EXTRA_LOGGING_NAME = "extra_logging";
@@ -261,6 +349,10 @@ public class LoggingFetchSubPhase implements FetchSubPhase {
                 currentLog.add(logEntry);
             }
             return extraLogging;
+        }
+
+        int featureCount() {
+            return set.size();
         }
 
         void nextDoc(SearchHit hit) {

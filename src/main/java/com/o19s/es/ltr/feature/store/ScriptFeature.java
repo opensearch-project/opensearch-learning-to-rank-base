@@ -44,6 +44,7 @@ import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.ScorerSupplier;
+import org.apache.lucene.search.TermStatistics;
 import org.apache.lucene.search.Weight;
 import org.opensearch.common.lucene.search.function.LeafScoreFunction;
 import org.opensearch.common.lucene.search.function.ScriptScoreFunction;
@@ -333,6 +334,8 @@ public class ScriptFeature implements Feature {
         private final ScriptScoreFunction function;
         private final Set<Term> terms;
         private final HashMap<Term, TermStates> termContexts;
+        private final Map<Term, TermStatistics> termStatisticsMap;
+        private final Map<String, Long> fieldDocCounts;
 
         LtrScriptWeight(Query query, ScriptScoreFunction function, Set<Term> terms, IndexSearcher searcher, ScoreMode scoreMode)
             throws IOException {
@@ -342,15 +345,21 @@ public class ScriptFeature implements Feature {
             this.searcher = searcher;
             this.scoreMode = scoreMode;
             this.termContexts = new HashMap<>();
+            this.termStatisticsMap = new HashMap<>();
+            this.fieldDocCounts = new HashMap<>();
 
             if (scoreMode.needsScores()) {
                 for (Term t : terms) {
                     TermStates ctx = TermStates.build(searcher, t, true);
-                    if (ctx != null && ctx.docFreq() > 0) {
-                        searcher.collectionStatistics(t.field());
-                        searcher.termStatistics(t, ctx.docFreq(), ctx.totalTermFreq());
-                    }
                     termContexts.put(t, ctx);
+                    if (ctx != null && ctx.docFreq() > 0) {
+                        // Capture DFS-aggregated stats (when available) during weight construction
+                        TermStatistics ts = searcher.termStatistics(t, ctx.docFreq(), ctx.totalTermFreq());
+                        if (ts != null) {
+                            termStatisticsMap.put(t, ts);
+                        }
+                        fieldDocCounts.putIfAbsent(t.field(), searcher.collectionStatistics(t.field()).docCount());
+                    }
                 }
             }
         }
@@ -375,7 +384,8 @@ public class ScriptFeature implements Feature {
                     CURRENT_TERM_STATS.set(termStatSupplier);
                     // Do the terms magic if the user asked for it
                     if (terms.size() > 0) {
-                        termStatSupplier.bump(searcher, context, docID(), terms, scoreMode, termContexts);
+                        termStatSupplier
+                            .bumpPrecomputed(context, docID(), terms, scoreMode, termContexts, termStatisticsMap, fieldDocCounts);
                     }
 
                     float score = (float) leafScoreFunction.score(iterator.docID(), 0F);
