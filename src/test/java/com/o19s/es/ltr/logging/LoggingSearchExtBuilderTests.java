@@ -65,7 +65,7 @@ public class LoggingSearchExtBuilderTests extends OpenSearchTestCase {
         assertTestExt(ext);
     }
 
-    public void testToXCtontent() throws IOException {
+    public void testToXContent() throws IOException {
         LoggingSearchExtBuilder ext1 = buildTestExt();
         XContentBuilder builder = XContentFactory.jsonBuilder();
         builder.startObject();
