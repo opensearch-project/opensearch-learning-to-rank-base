@@ -65,12 +65,14 @@ public class LoggingSearchExtBuilderTests extends OpenSearchTestCase {
         assertTestExt(ext);
     }
 
-    public void testToXCtontent() throws IOException {
+    public void testToXContent() throws IOException {
         LoggingSearchExtBuilder ext1 = buildTestExt();
         XContentBuilder builder = XContentFactory.jsonBuilder();
+        builder.startObject();
         ext1.toXContent(builder, ToXContent.EMPTY_PARAMS);
+        builder.endObject();
         builder.close();
-        assertEquals(getTestExtAsString(), builder.toString());
+        assertEquals("{\"ltr_log\":" + getTestExtAsString() + "}", builder.toString());
     }
 
     public void testSer() throws IOException {
@@ -79,6 +81,39 @@ public class LoggingSearchExtBuilderTests extends OpenSearchTestCase {
         out.close();
         LoggingSearchExtBuilder ext = new LoggingSearchExtBuilder(out.bytes().streamInput());
         assertTestExt(ext);
+    }
+
+    /**
+     * Simulates the SearchSourceBuilder round-trip: serialize the ext section
+     * with toXContent (as SearchSourceBuilder.innerToXContent does), then parse
+     * it back and verify the result matches the original.
+     * This is the code path that failed before the fix when a search pipeline
+     * triggered re-serialization of the search request.
+     */
+    public void testToXContentRoundTrip() throws IOException {
+        LoggingSearchExtBuilder original = buildTestExt();
+
+        // Serialize: simulate SearchSourceBuilder writing the "ext" object
+        XContentBuilder builder = XContentFactory.jsonBuilder();
+        builder.startObject();
+        builder.startObject("ext");
+        original.toXContent(builder, ToXContent.EMPTY_PARAMS);
+        builder.endObject();
+        builder.endObject();
+        builder.close();
+
+        // Parse: simulate SearchSourceBuilder parsing the "ext" section
+        XContentParser parser = createParser(JsonXContent.jsonXContent, builder.toString());
+        parser.nextToken(); // START_OBJECT (root)
+        parser.nextToken(); // FIELD_NAME "ext"
+        parser.nextToken(); // START_OBJECT (ext)
+        parser.nextToken(); // FIELD_NAME "ltr_log"
+        assertEquals(LoggingSearchExtBuilder.NAME, parser.currentName());
+        parser.nextToken(); // START_OBJECT (ltr_log value)
+
+        LoggingSearchExtBuilder parsed = parse(parser);
+        assertTestExt(parsed);
+        assertEquals(original, parsed);
     }
 
     public void testFailOnNoLogSpecs() throws IOException {
