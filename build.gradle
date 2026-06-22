@@ -21,6 +21,7 @@ buildscript {
   repositories {
     mavenLocal()
     maven { url "https://ci.opensearch.org/ci/dbc/snapshots/maven/" }
+    maven { url "https://ci.opensearch.org/maven2/" }
     mavenCentral()
     maven { url "https://plugins.gradle.org/m2/" }
   }
@@ -115,6 +116,7 @@ publishing {
 repositories {
   mavenLocal()
   maven { url "https://ci.opensearch.org/ci/dbc/snapshots/maven/" }
+  maven { url "https://ci.opensearch.org/maven2/" }
   mavenCentral()
   maven { url "https://plugins.gradle.org/m2/" }
 }
@@ -125,7 +127,7 @@ dependencies {
   implementation "org.ow2.asm:asm:${ow2Version}"
   implementation "org.ow2.asm:asm-commons:${ow2Version}"
   implementation "org.ow2.asm:asm-tree:${ow2Version}"
-  implementation 'com.o19s:RankyMcRankFace:0.1.1'
+  implementation 'com.o19s:RankyMcRankFace:0.3.0'
   implementation "com.github.spullara.mustache.java:compiler:0.9.3"
   implementation "org.conscrypt:conscrypt-openjdk-uber:2.5.2"
   implementation 'org.slf4j:slf4j-api:1.7.36'
