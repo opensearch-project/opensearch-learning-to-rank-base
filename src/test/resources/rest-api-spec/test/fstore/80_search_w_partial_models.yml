@@ -19,16 +19,19 @@ setup:
         body:   { "field1": "v1 aoeu", "field2": " ua u v2", "field3": "foo bar text", "user_rating": 0.0  }
 
   - do:
-      indices.refresh: { test }
+      indices.refresh:
+        index: test
 
   - do:
           allowed_warnings:
             - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
+            - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
           ltr.create_store: {}
 
   - do:
         allowed_warnings:
           - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
+          - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_featureset:
            name: my_featureset
            body:
@@ -49,6 +52,7 @@ setup:
   - do:
         allowed_warnings:
           - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
+          - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
         ltr.add_features_to_set:
            name: my_featureset
            body:
@@ -60,6 +64,7 @@ setup:
   - do:
         allowed_warnings:
           - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
+          - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
         ltr.add_features_to_set:
            name: my_featureset
            body:
@@ -73,6 +78,7 @@ setup:
   - do:
         allowed_warnings:
           - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
+          - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_model_from_set:
             name: my_featureset
             body:
@@ -107,6 +113,7 @@ setup:
   - do:
         allowed_warnings:
           - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
+          - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_model_from_set:
             name: my_featureset
             body:
@@ -121,6 +128,7 @@ setup:
   - do:
         allowed_warnings:
           - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
+          - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
         ltr.create_model_from_set:
             name: my_featureset
             body:
@@ -140,6 +148,7 @@ setup:
   - do:
       allowed_warnings:
         - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
+        - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
       search:
         index: test
         body: { query: { "sltr": { "params": {"query_string": "rambo"}, "model": "single_feature_ranklib_model"  } } }
@@ -154,6 +163,7 @@ setup:
   - do:
       allowed_warnings:
         - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
+        - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
       search:
         index: test
         body: { query: { "sltr": { "params": {"query_string": "rambo"}, "model": "single_feature_linear_model"  } } }
@@ -167,6 +177,7 @@ setup:
   - do:
       allowed_warnings:
         - "this request accesses system indices: [.ltrstore], but in a future major version, direct access to system indices will be prevented by default"
+        - "this request accesses system indices: [.plugins-ml-config], but in a future major version, direct access to system indices will be prevented by default"
       search:
         index: test
         body: { query: { "sltr": { "params": {}, "model": "three_feature_linear_model", "active_features": ["no_param_feature"]}  } }

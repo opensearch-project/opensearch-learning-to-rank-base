@@ -3,8 +3,8 @@ import org.opensearch.gradle.test.RestIntegTestTask
 
 buildscript {
   ext {
-    opensearch_version = System.getProperty("opensearch.version", "3.1.0-SNAPSHOT")
-    is_snapshot = "true" == System.getProperty("build.snapshot", "true")
+    opensearch_version = System.getProperty("opensearch.version", "3.1.0")
+    is_snapshot = "true" == System.getProperty("build.snapshot", "false")
     build_version_qualifier = System.getProperty("build.version_qualifier", "")
 
     version_tokens = opensearch_version.tokenize('-')
@@ -125,7 +125,7 @@ dependencies {
   implementation "org.ow2.asm:asm:${ow2Version}"
   implementation "org.ow2.asm:asm-commons:${ow2Version}"
   implementation "org.ow2.asm:asm-tree:${ow2Version}"
-  implementation 'com.o19s:RankyMcRankFace:0.1.1'
+  implementation 'com.o19s:RankyMcRankFace:0.3.0'
   implementation "com.github.spullara.mustache.java:compiler:0.9.3"
   implementation "org.conscrypt:conscrypt-openjdk-uber:2.5.2"
   implementation 'org.slf4j:slf4j-api:1.7.36'
@@ -140,6 +140,9 @@ dependencies {
 configurations.all {
   resolutionStrategy.force "com.google.guava:guava:32.1.3-jre"
   resolutionStrategy.force 'org.eclipse.platform:org.eclipse.core.runtime:3.29.0'
+  resolutionStrategy.force 'org.apache.logging.log4j:log4j-core:2.25.4'
+  resolutionStrategy.force 'org.apache.logging.log4j:log4j-api:2.25.4'
+  resolutionStrategy.force 'org.apache.logging.log4j:log4j-jul:2.25.4'
 }
 
 // see https://github.com/opensearch-project/OpenSearch/blob/0ba0e7cc26060f964fcbf6ee45bae53b3a9941d0/buildSrc/src/main/java/org/opensearch/gradle/precommit/DependencyLicensesTask.java
@@ -255,7 +258,7 @@ spotless {
     removeUnusedImports()
     importOrder 'java', 'javax', 'org', 'com'
 
-    eclipse().withP2Mirrors(Map.of("https://download.eclipse.org/", "https://mirror.umd.edu/eclipse/")).configFile rootProject.file('.eclipseformat.xml')
+    eclipse().configFile rootProject.file('.eclipseformat.xml')
   }
 }
 
