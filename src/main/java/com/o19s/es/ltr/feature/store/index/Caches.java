@@ -27,6 +27,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.common.CheckedFunction;
@@ -46,15 +48,29 @@ import com.o19s.es.ltr.feature.store.CompiledLtrModel;
  * Store various caches used by the plugin
  */
 public class Caches {
+    private static final Logger logger = LogManager.getLogger(Caches.class);
+
     public static final Setting<ByteSizeValue> LTR_CACHE_MEM_SETTING;
     public static final Setting<TimeValue> LTR_CACHE_EXPIRE_AFTER_WRITE = Setting
-        .timeSetting("ltr.caches.expire_after_write", TimeValue.timeValueHours(1), TimeValue.timeValueNanos(0), Setting.Property.NodeScope);
+        .timeSetting(
+            "ltr.caches.expire_after_write",
+            TimeValue.timeValueHours(1),
+            TimeValue.timeValueNanos(0),
+            Setting.Property.NodeScope,
+            Setting.Property.Dynamic
+        );
     public static final Setting<TimeValue> LTR_CACHE_EXPIRE_AFTER_READ = Setting
-        .timeSetting("ltr.caches.expire_after_read", TimeValue.timeValueHours(1), TimeValue.timeValueNanos(0), Setting.Property.NodeScope);
+        .timeSetting(
+            "ltr.caches.expire_after_read",
+            TimeValue.timeValueHours(1),
+            TimeValue.timeValueNanos(0),
+            Setting.Property.NodeScope,
+            Setting.Property.Dynamic
+        );
 
-    private final Cache<CacheKey, Feature> featureCache;
-    private final Cache<CacheKey, FeatureSet> featureSetCache;
-    private final Cache<CacheKey, CompiledLtrModel> modelCache;
+    private volatile Cache<CacheKey, Feature> featureCache;
+    private volatile Cache<CacheKey, FeatureSet> featureSetCache;
+    private volatile Cache<CacheKey, CompiledLtrModel> modelCache;
 
     static {
         LTR_CACHE_MEM_SETTING = Setting
@@ -62,26 +78,62 @@ public class Caches {
                 "ltr.caches.max_mem",
                 (s) -> new ByteSizeValue(Math.min(RamUsageEstimator.ONE_MB * 10, JvmInfo.jvmInfo().getMem().getHeapMax().getBytes() / 10))
                     .toString(),
-                Setting.Property.NodeScope
+                Setting.Property.NodeScope,
+                Setting.Property.Dynamic
             );
     }
     private final Map<String, PerStoreStats> perStoreStats = new ConcurrentHashMap<>();
-    private final long maxWeight;
+    private volatile TimeValue expireAfterWrite;
+    private volatile TimeValue expireAfterAccess;
+    private volatile ByteSizeValue maxWeight;
 
     public Caches(TimeValue expAfterWrite, TimeValue expAfterAccess, ByteSizeValue maxWeight) {
-        this.featureCache = configCache(CacheBuilder.<CacheKey, Feature>builder(), expAfterWrite, expAfterAccess, maxWeight)
+        this.expireAfterWrite = expAfterWrite;
+        this.expireAfterAccess = expAfterAccess;
+        this.maxWeight = maxWeight;
+        initCaches();
+    }
+
+    private void initCaches() {
+        this.featureCache = configCache(CacheBuilder.<CacheKey, Feature>builder(), expireAfterWrite, expireAfterAccess, maxWeight)
             .weigher(Caches::weigther)
             .removalListener((l) -> this.onRemove(l.getKey(), l.getValue()))
             .build();
-        this.featureSetCache = configCache(CacheBuilder.<CacheKey, FeatureSet>builder(), expAfterWrite, expAfterAccess, maxWeight)
+        this.featureSetCache = configCache(CacheBuilder.<CacheKey, FeatureSet>builder(), expireAfterWrite, expireAfterAccess, maxWeight)
             .weigher(Caches::weigther)
             .removalListener((l) -> this.onRemove(l.getKey(), l.getValue()))
             .build();
-        this.modelCache = configCache(CacheBuilder.<CacheKey, CompiledLtrModel>builder(), expAfterWrite, expAfterAccess, maxWeight)
+        this.modelCache = configCache(CacheBuilder.<CacheKey, CompiledLtrModel>builder(), expireAfterWrite, expireAfterAccess, maxWeight)
             .weigher((s, w) -> w.ramBytesUsed())
             .removalListener((l) -> this.onRemove(l.getKey(), l.getValue()))
             .build();
-        this.maxWeight = maxWeight.getBytes();
+    }
+
+    public synchronized void setMaxMem(ByteSizeValue maxMem) {
+        this.maxWeight = maxMem;
+        rebuild();
+    }
+
+    public synchronized void setExpireAfterWrite(TimeValue expireAfterWrite) {
+        this.expireAfterWrite = expireAfterWrite;
+        rebuild();
+    }
+
+    public synchronized void setExpireAfterAccess(TimeValue expireAfterAccess) {
+        this.expireAfterAccess = expireAfterAccess;
+        rebuild();
+    }
+
+    private void rebuild() {
+        logger
+            .info(
+                "Rebuilding LTR caches with max_mem=[{}], expire_after_write=[{}], expire_after_read=[{}]",
+                maxWeight,
+                expireAfterWrite,
+                expireAfterAccess
+            );
+        perStoreStats.clear();
+        initCaches();
     }
 
     public static long weigther(CacheKey key, Object data) {
@@ -116,11 +168,7 @@ public class Caches {
     }
 
     private void onRemove(CacheKey k, Object acc) {
-        perStoreStats.compute(k.getStoreName(), (k2, v) -> {
-            assert v != null;
-            // return null should remove the entry
-            return v.remove(acc) > 0 ? v : null;
-        });
+        perStoreStats.computeIfPresent(k.getStoreName(), (k2, v) -> v.remove(acc) > 0 ? v : null);
     }
 
     Feature loadFeature(CacheKey key, CheckedFunction<String, Feature, IOException> loader) throws IOException {
@@ -205,7 +253,7 @@ public class Caches {
     }
 
     public long getMaxWeight() {
-        return maxWeight;
+        return maxWeight.getBytes();
     }
 
     public static class CacheKey {
