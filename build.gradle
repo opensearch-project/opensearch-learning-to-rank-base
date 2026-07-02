@@ -19,12 +19,12 @@ buildscript {
 
   repositories {
     mavenLocal()
+    maven { url "https://ci.opensearch.org/maven2/" }
+    mavenCentral()
     maven {
       url "https://ci.opensearch.org/ci/dbc/snapshots/maven/"
       content { includeGroupByRegex "org\\.opensearch.*" }
     }
-    maven { url "https://ci.opensearch.org/maven2/" }
-    mavenCentral()
     maven { url "https://plugins.gradle.org/m2/" }
   }
 
@@ -120,12 +120,12 @@ publishing {
 // OpenSearch dependency is included due to the build-tools, test-framework as well
 repositories {
   mavenLocal()
+  maven { url "https://ci.opensearch.org/maven2/" }
+  mavenCentral()
   maven {
     url "https://ci.opensearch.org/ci/dbc/snapshots/maven/"
     content { includeGroupByRegex "org\\.opensearch.*" }
   }
-  maven { url "https://ci.opensearch.org/maven2/" }
-  mavenCentral()
   maven { url "https://plugins.gradle.org/m2/" }
 }
 
