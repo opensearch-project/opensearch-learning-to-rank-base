@@ -76,6 +76,77 @@ public class XGBoostJsonParserTests extends LuceneTestCase {
         assertEquals(0.2F, tree.score(v), Math.ulp(0.2F));
     }
 
+    public void testMissingFeatureRoutedToYesChild() throws IOException {
+        // "missing" points at the "yes" child (leaf 0.5), which differs from the "no" child.
+        // A missing (NaN) feature must therefore be routed to the yes leaf, mirroring XGBoost.
+        String model = "[{"
+            + "\"nodeid\": 0,"
+            + "\"split\":\"feat1\","
+            + "\"depth\":0,"
+            + "\"split_condition\":100.0,"
+            + "\"yes\":1,"
+            + "\"no\": 2,"
+            + "\"missing\":1,"
+            + "\"children\": ["
+            + "   {\"nodeid\": 1, \"depth\": 1, \"leaf\": 0.5},"
+            + "   {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
+            + "]}]";
+
+        FeatureSet set = new StoredFeatureSet("set", singletonList(randomFeature("feat1")));
+        NaiveAdditiveDecisionTree tree = parser.parse(set, model);
+        // A fresh vector leaves feat1 unset (NaN), i.e. the feature is missing.
+        FeatureVector v = tree.newFeatureVector(null);
+        assertEquals(0.5F, tree.score(v), Math.ulp(0.5F));
+        // A present value below the threshold still takes the yes child.
+        v.setFeatureScore(0, 50F);
+        assertEquals(0.5F, tree.score(v), Math.ulp(0.5F));
+        // A present value at/above the threshold takes the no child.
+        v.setFeatureScore(0, 150F);
+        assertEquals(0.2F, tree.score(v), Math.ulp(0.2F));
+    }
+
+    public void testMissingFeatureRoutedToNoChild() throws IOException {
+        // "missing" points at the "no" child (leaf 0.2). A missing (NaN) feature routes there.
+        String model = "[{"
+            + "\"nodeid\": 0,"
+            + "\"split\":\"feat1\","
+            + "\"depth\":0,"
+            + "\"split_condition\":100.0,"
+            + "\"yes\":1,"
+            + "\"no\": 2,"
+            + "\"missing\":2,"
+            + "\"children\": ["
+            + "   {\"nodeid\": 1, \"depth\": 1, \"leaf\": 0.5},"
+            + "   {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
+            + "]}]";
+
+        FeatureSet set = new StoredFeatureSet("set", singletonList(randomFeature("feat1")));
+        NaiveAdditiveDecisionTree tree = parser.parse(set, model);
+        FeatureVector v = tree.newFeatureVector(null);
+        assertEquals(0.2F, tree.score(v), Math.ulp(0.2F));
+    }
+
+    public void testMissingPointsToInvalidChild() throws IOException {
+        // "missing" must point at one of the split's own children.
+        String model = "[{"
+            + "\"nodeid\": 0,"
+            + "\"split\":\"feat1\","
+            + "\"depth\":0,"
+            + "\"split_condition\":100.0,"
+            + "\"yes\":1,"
+            + "\"no\": 2,"
+            + "\"missing\":3,"
+            + "\"children\": ["
+            + "   {\"nodeid\": 1, \"depth\": 1, \"leaf\": 0.5},"
+            + "   {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
+            + "]}]";
+        FeatureSet set = new StoredFeatureSet("set", singletonList(randomFeature("feat1")));
+        assertThat(
+            expectThrows(ParsingException.class, () -> parser.parse(set, model)).getMessage(),
+            CoreMatchers.containsString("Split structure is invalid, yes, no and/or")
+        );
+    }
+
     public void testReadSimpleSplitInObject() throws IOException {
         String model = "{"
             + "\"splits\": [{"
