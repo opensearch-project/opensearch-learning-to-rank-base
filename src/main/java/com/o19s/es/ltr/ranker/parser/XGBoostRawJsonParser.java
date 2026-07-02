@@ -89,7 +89,8 @@ public class XGBoostRawJsonParser implements LtrRankerParser {
                 reorderTreeFeatures(splitNode.getLeft(), modelFeaturesReordering),
                 reorderTreeFeatures(splitNode.getRight(), modelFeaturesReordering),
                 modelFeaturesReordering.get(splitNode.getFeature()),
-                splitNode.getThreshold()
+                splitNode.getThreshold(),
+                splitNode.getDefaultLeft()
             );
         }
 
@@ -466,11 +467,13 @@ public class XGBoostRawJsonParser implements LtrRankerParser {
             }
 
             if (isSplit(nodeId)) {
+                boolean routeMissingLeft = defaultLeft != null && defaultLeft.get(nodeId) == 1;
                 return new NaiveAdditiveDecisionTree.Split(
                     asLibTree(leftChildren.get(nodeId)),
                     asLibTree(rightChildren.get(nodeId)),
                     splitIndices.get(nodeId),
-                    splitConditions.get(nodeId)
+                    splitConditions.get(nodeId),
+                    routeMissingLeft
                 );
             } else {
                 return new NaiveAdditiveDecisionTree.Leaf(baseWeights.get(nodeId));
