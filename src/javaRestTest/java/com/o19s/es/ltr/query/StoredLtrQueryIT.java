@@ -416,7 +416,29 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
         + "   {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
         + "]}]";
 
+    private static final String SIMPLE_MODEL_XGB_MISSING_YES = "[{"
+        + "\"nodeid\": 0,"
+        + "\"split\":\"text_feature1\","
+        + "\"depth\":0,"
+        + "\"split_condition\":100.0,"
+        + "\"yes\":1,"
+        + "\"no\":2,"
+        + "\"missing\":1,"
+        + "\"children\": ["
+        + "   {\"nodeid\": 1, \"depth\": 1, \"leaf\": 0.5},"
+        + "   {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
+        + "]}]";
+
     public void testScriptFeatureUseCaseMissingFeatureNaiveAdditiveDecisionTree() throws Exception {
+        assertMissingFeatureScore(SIMPLE_MODEL_XGB, 0.2F);
+    }
+
+    public void testScriptFeatureUseCaseMissingFeatureRoutedByMissingDirection() throws Exception {
+        // "missing":1 -> a missing feature must take the "yes" child (leaf 0.5), not the "no" child.
+        assertMissingFeatureScore(SIMPLE_MODEL_XGB_MISSING_YES, 0.5F);
+    }
+
+    private void assertMissingFeatureScore(String xgbModel, float expectedScore) throws Exception {
         List<StoredFeature> features = new ArrayList<>(1);
         features
             .add(
@@ -433,7 +455,7 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
         StoredLtrModel model = new StoredLtrModel(
             "my_model",
             set,
-            new StoredLtrModel.LtrModelDefinition("model/xgboost+json", SIMPLE_MODEL_XGB, true)
+            new StoredLtrModel.LtrModelDefinition("model/xgboost+json", xgbModel, true)
         );
         addElement(model);
 
@@ -471,7 +493,7 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
         assertEquals("text_feature1", log.get(0).get("name"));
         assertEquals(null, log.get(0).get("value"));
 
-        assertEquals(0.2F, hit.getScore(), Math.ulp(0.2F));
+        assertEquals(expectedScore, hit.getScore(), Math.ulp(expectedScore));
     }
 
 }

@@ -174,7 +174,7 @@ public class XGBoostJsonParser implements LtrRankerParser {
         private Float threshold;
         private Integer rightNodeId;
         private Integer leftNodeId;
-        // Ignored
+        // XGBoost per-node missing direction: the child a missing (NaN) feature value is routed to.
         private Integer missingNodeId;
         private Float leaf;
         private List<SplitParserState> children;
@@ -252,7 +252,11 @@ public class XGBoostJsonParser implements LtrRankerParser {
         }
 
         boolean splitHasValidChildren() {
-            return children.size() == 2 && leftNodeId.equals(children.get(0).nodeId) && rightNodeId.equals(children.get(1).nodeId);
+            if (children.size() != 2 || !leftNodeId.equals(children.get(0).nodeId) || !rightNodeId.equals(children.get(1).nodeId)) {
+                return false;
+            }
+            // If a missing direction is declared it must point to one of this split's children.
+            return missingNodeId == null || missingNodeId.equals(leftNodeId) || missingNodeId.equals(rightNodeId);
         }
 
         boolean isSplit() {
@@ -261,11 +265,13 @@ public class XGBoostJsonParser implements LtrRankerParser {
 
         Node toNode(FeatureSet set) {
             if (isSplit()) {
+                boolean defaultLeft = missingNodeId != null && missingNodeId.equals(leftNodeId);
                 return new NaiveAdditiveDecisionTree.Split(
                     children.get(0).toNode(set),
                     children.get(1).toNode(set),
                     set.featureOrdinal(split),
-                    threshold
+                    threshold,
+                    defaultLeft
                 );
             } else {
                 return new NaiveAdditiveDecisionTree.Leaf(leaf);
