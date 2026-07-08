@@ -95,12 +95,27 @@ public class NaiveAdditiveDecisionTree extends SparseLtrRanker implements Accoun
         private final Node right;
         private final int feature;
         private final float threshold;
+        private final boolean defaultLeft;
 
+        /**
+         * Backward-compatible constructor. A missing (NaN) feature value is routed to the
+         * right child, matching the behavior before per-node missing directions were honored.
+         */
         public Split(Node left, Node right, int feature, float threshold) {
+            this(left, right, feature, threshold, false);
+        }
+
+        /**
+         * @param defaultLeft when true a missing (NaN) feature value is routed to the left (yes)
+         *                    child, otherwise to the right (no) child. This mirrors XGBoost's
+         *                    per-node missing direction (the "missing" pointer / "default_left" flag).
+         */
+        public Split(Node left, Node right, int feature, float threshold, boolean defaultLeft) {
             this.left = Objects.requireNonNull(left);
             this.right = Objects.requireNonNull(right);
             this.feature = feature;
             this.threshold = threshold;
+            this.defaultLeft = defaultLeft;
         }
 
         @Override
@@ -114,7 +129,10 @@ public class NaiveAdditiveDecisionTree extends SparseLtrRanker implements Accoun
             while (!n.isLeaf()) {
                 assert n instanceof Split;
                 Split s = (Split) n;
-                if (s.threshold > scores[s.feature]) {
+                float value = scores[s.feature];
+                if (Float.isNaN(value)) {
+                    n = s.defaultLeft ? s.left : s.right;
+                } else if (s.threshold > value) {
                     n = s.left;
                 } else {
                     n = s.right;
@@ -138,6 +156,10 @@ public class NaiveAdditiveDecisionTree extends SparseLtrRanker implements Accoun
 
         public float getThreshold() {
             return this.threshold;
+        }
+
+        public boolean getDefaultLeft() {
+            return this.defaultLeft;
         }
 
         /**
