@@ -36,6 +36,7 @@ public class NaiveAdditiveDecisionTree extends SparseLtrRanker implements Accoun
     private final float[] weights;
     private final int modelSize;
     private final Normalizer normalizer;
+    private final boolean missingAsZero;
 
     /**
      * TODO: Constructor for these classes are strict and not really
@@ -48,16 +49,44 @@ public class NaiveAdditiveDecisionTree extends SparseLtrRanker implements Accoun
      * @param normalizer class to perform any normalization on model score
      */
     public NaiveAdditiveDecisionTree(Node[] trees, float[] weights, int modelSize, Normalizer normalizer) {
+        this(trees, weights, modelSize, normalizer, false);
+    }
+
+    /**
+     * @param missingAsZero when true, a missing/unset feature defaults to 0.0 instead of NaN, so it
+     *                      routes through each split as a real 0.0 would (bypassing the per-node
+     *                      default_left) and explanation/logging report 0.0 consistently. Restores
+     *                      parity for models trained with missing values imputed to 0 (issue #286).
+     */
+    public NaiveAdditiveDecisionTree(Node[] trees, float[] weights, int modelSize, Normalizer normalizer, boolean missingAsZero) {
         assert trees.length == weights.length;
         this.trees = trees;
         this.weights = weights;
         this.modelSize = modelSize;
         this.normalizer = normalizer;
+        this.missingAsZero = missingAsZero;
     }
 
     @Override
     public String name() {
         return "naive_additive_decision_tree";
+    }
+
+    public boolean isMissingAsZero() {
+        return missingAsZero;
+    }
+
+    @Override
+    public SparseFeatureVector newFeatureVector(FeatureVector reuse) {
+        float defaultValue = missingAsZero ? 0.0f : Float.NaN;
+        // Only reuse when the vector's default matches this ranker's; otherwise reset() would restore
+        // a stale default and score with the wrong missing value.
+        if (reuse instanceof SparseFeatureVector && Float.compare(((SparseFeatureVector) reuse).getDefaultScore(), defaultValue) == 0) {
+            SparseFeatureVector vector = (SparseFeatureVector) reuse;
+            vector.reset();
+            return vector;
+        }
+        return new SparseFeatureVector(size(), defaultValue);
     }
 
     @Override
