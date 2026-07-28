@@ -76,37 +76,10 @@ public class XGBoostJsonParserTests extends LuceneTestCase {
         assertEquals(0.2F, tree.score(v), Math.ulp(0.2F));
     }
 
-    public void testMissingFeatureRoutedToYesChild() throws IOException {
-        // "missing" points at the "yes" child (leaf 0.5), which differs from the "no" child.
-        // A missing (NaN) feature must therefore be routed to the yes leaf, mirroring XGBoost.
-        String model = "[{"
-            + "\"nodeid\": 0,"
-            + "\"split\":\"feat1\","
-            + "\"depth\":0,"
-            + "\"split_condition\":100.0,"
-            + "\"yes\":1,"
-            + "\"no\": 2,"
-            + "\"missing\":1,"
-            + "\"children\": ["
-            + "   {\"nodeid\": 1, \"depth\": 1, \"leaf\": 0.5},"
-            + "   {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
-            + "]}]";
-
-        FeatureSet set = new StoredFeatureSet("set", singletonList(randomFeature("feat1")));
-        NaiveAdditiveDecisionTree tree = parser.parse(set, model);
-        // A fresh vector leaves feat1 unset (NaN), i.e. the feature is missing.
-        FeatureVector v = tree.newFeatureVector(null);
-        assertEquals(0.5F, tree.score(v), Math.ulp(0.5F));
-        // A present value below the threshold still takes the yes child.
-        v.setFeatureScore(0, 50F);
-        assertEquals(0.5F, tree.score(v), Math.ulp(0.5F));
-        // A present value at/above the threshold takes the no child.
-        v.setFeatureScore(0, 150F);
-        assertEquals(0.2F, tree.score(v), Math.ulp(0.2F));
-    }
-
-    public void testMissingFeatureRoutedToNoChild() throws IOException {
-        // "missing" points at the "no" child (leaf 0.2). A missing (NaN) feature routes there.
+    public void testMissingFeatureHonorsDefaultLeftByDefault() throws IOException {
+        // Default behavior (missing_as_zero absent/false): a missing feature is NaN and is routed via
+        // the per-node missing direction. threshold=100.0, "missing":2 -> route missing to the "no"
+        // child (0.2). A present value below the threshold still takes the "yes" child (0.5).
         String model = "[{"
             + "\"nodeid\": 0,"
             + "\"split\":\"feat1\","
@@ -122,7 +95,73 @@ public class XGBoostJsonParserTests extends LuceneTestCase {
 
         FeatureSet set = new StoredFeatureSet("set", singletonList(randomFeature("feat1")));
         NaiveAdditiveDecisionTree tree = parser.parse(set, model);
+        assertFalse(tree.isMissingAsZero());
+        // Missing feature -> NaN -> "missing":2 -> no child (0.2).
         FeatureVector v = tree.newFeatureVector(null);
+        assertEquals(0.2F, tree.score(v), Math.ulp(0.2F));
+        // A present value below the threshold routes to the yes child (0.5) -- distinct from missing.
+        v.setFeatureScore(0, 50F);
+        assertEquals(0.5F, tree.score(v), Math.ulp(0.5F));
+    }
+
+    public void testMissingFeatureTreatedAsZeroWhenFlagSet() throws IOException {
+        // With missing_as_zero=true, a missing feature is treated as 0.0 and routes exactly as a real
+        // 0.0 would, ignoring the "missing" pointer. threshold=100.0 -> 0.0 < 100.0 -> yes child (0.5),
+        // even though "missing":2 points at the "no" child.
+        String model = "{"
+            + "\"missing_as_zero\": true,"
+            + "\"splits\": [{"
+            + "   \"nodeid\": 0,"
+            + "   \"split\":\"feat1\","
+            + "   \"depth\":0,"
+            + "   \"split_condition\":100.0,"
+            + "   \"yes\":1,"
+            + "   \"no\": 2,"
+            + "   \"missing\":2,"
+            + "   \"children\": ["
+            + "      {\"nodeid\": 1, \"depth\": 1, \"leaf\": 0.5},"
+            + "      {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
+            + "]}]}";
+
+        FeatureSet set = new StoredFeatureSet("set", singletonList(randomFeature("feat1")));
+        NaiveAdditiveDecisionTree tree = parser.parse(set, model);
+        assertTrue(tree.isMissingAsZero());
+        // Missing -> treated as 0.0 -> 0.0 < 100.0 -> yes child (0.5).
+        FeatureVector v = tree.newFeatureVector(null);
+        assertEquals(0.5F, tree.score(v), Math.ulp(0.5F));
+        // Explicit 0.0 yields the same result as leaving it missing.
+        v.setFeatureScore(0, 0.0F);
+        assertEquals(0.5F, tree.score(v), Math.ulp(0.5F));
+        // A present value at/above the threshold still takes the no child.
+        v.setFeatureScore(0, 150F);
+        assertEquals(0.2F, tree.score(v), Math.ulp(0.2F));
+    }
+
+    public void testMissingAsZeroMatchesExplicitZeroRouting() throws IOException {
+        // With missing_as_zero=true and threshold=-1.0, a real 0.0 is >= threshold and takes the "no"
+        // child (0.2). A missing feature must route identically because it is treated as 0.0, NOT via
+        // the "missing":1 (yes) pointer.
+        String model = "{"
+            + "\"missing_as_zero\": true,"
+            + "\"splits\": [{"
+            + "   \"nodeid\": 0,"
+            + "   \"split\":\"feat1\","
+            + "   \"depth\":0,"
+            + "   \"split_condition\":-1.0,"
+            + "   \"yes\":1,"
+            + "   \"no\": 2,"
+            + "   \"missing\":1,"
+            + "   \"children\": ["
+            + "      {\"nodeid\": 1, \"depth\": 1, \"leaf\": 0.5},"
+            + "      {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
+            + "]}]}";
+
+        FeatureSet set = new StoredFeatureSet("set", singletonList(randomFeature("feat1")));
+        NaiveAdditiveDecisionTree tree = parser.parse(set, model);
+        assertTrue(tree.isMissingAsZero());
+        FeatureVector v = tree.newFeatureVector(null);
+        assertEquals(0.2F, tree.score(v), Math.ulp(0.2F));
+        v.setFeatureScore(0, 0.0F);
         assertEquals(0.2F, tree.score(v), Math.ulp(0.2F));
     }
 

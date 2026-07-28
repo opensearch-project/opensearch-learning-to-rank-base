@@ -102,8 +102,17 @@ public class XGBoostRawJsonParserTests extends LuceneTestCase {
         assertEquals(10.0, tree.score(featureVector), Math.ulp(0.1F));
     }
 
-    public void testMissingFeatureHonorsDefaultLeft() throws IOException {
-        String model = "{"
+    /**
+     * Builds a raw XGBoost model with a single split on feat1 (threshold 3): left child = node 2
+     * (weight 0), right child = node 1 (weight 10). base_score = 0.5.
+     *
+     * @param defaultLeftRoot value of default_left for the root node (1 = route missing left/node2,
+     *                        0 = route missing right/node1)
+     * @param missingAsZero   whether to emit a top-level "missing_as_zero": true field
+     */
+    private static String rawMissingModel(int defaultLeftRoot, boolean missingAsZero) {
+        return "{"
+            + (missingAsZero ? "\"missing_as_zero\": true," : "")
             + "    \"learner\":{"
             + "        \"attributes\":{},"
             + "        \"feature_names\":[\"feat1\"],"
@@ -121,7 +130,7 @@ public class XGBoostRawJsonParserTests extends LuceneTestCase {
             + "                \"categories_nodes\":[],"
             + "                \"categories_segments\":[],"
             + "                \"categories_sizes\":[],"
-            + "                \"default_left\":[1, 0, 0],"
+            + "                \"default_left\":[" + defaultLeftRoot + ", 0, 0],"
             + "                \"id\":0,"
             + "                \"left_children\":[2, -1, -1],"
             + "                \"loss_changes\":[0E0, 0E0, 0E0],"
@@ -154,13 +163,37 @@ public class XGBoostRawJsonParserTests extends LuceneTestCase {
             + "    },"
             + "    \"version\":[2,1,0]"
             + "}";
+    }
 
+    public void testMissingFeatureHonorsDefaultLeftByDefault() throws IOException {
+        // Default behavior: missing feature is NaN and routed via default_left. Here default_left=1 for
+        // the root -> route missing LEFT to node 2 (weight 0).
         FeatureSet set = new StoredFeatureSet("set", singletonList(randomFeature("feat1")));
-        NaiveAdditiveDecisionTree tree = parser.parse(set, model);
-        // A fresh vector leaves feat1 missing (NaN) -> default_left routes it to node 2 (score 0.0).
+        NaiveAdditiveDecisionTree tree = parser.parse(set, rawMissingModel(1, false));
+        assertFalse(tree.isMissingAsZero());
+        // Missing -> NaN -> default_left=1 -> node 2 (0.0).
         FeatureVector featureVector = tree.newFeatureVector(null);
         assertEquals(0.0, tree.score(featureVector), Math.ulp(0.1F));
-        // Present values still branch on the threshold as usual.
+        // Present value >= threshold routes right to node 1 (weight 10).
+        featureVector.setFeatureScore(0, 4);
+        assertEquals(10.0, tree.score(featureVector), Math.ulp(0.1F));
+    }
+
+    public void testMissingFeatureTreatedAsZeroWhenFlagSet() throws IOException {
+        // missing_as_zero=true with default_left=0 at the root: under the default behavior a missing
+        // feature would route RIGHT (node 1, weight 10). With the flag set it is treated as 0.0 and
+        // routed the same way a real 0.0 would be (0.0 < threshold 3 -> LEFT, node 2, weight 0),
+        // ignoring default_left. This is parity with models trained on 0-imputed data.
+        FeatureSet set = new StoredFeatureSet("set", singletonList(randomFeature("feat1")));
+        NaiveAdditiveDecisionTree tree = parser.parse(set, rawMissingModel(0, true));
+        assertTrue(tree.isMissingAsZero());
+        // Missing -> treated as 0.0 -> 0.0 < 3 -> node 2 (0.0), NOT default_left=0 (which would be node 1).
+        FeatureVector featureVector = tree.newFeatureVector(null);
+        assertEquals(0.0, tree.score(featureVector), Math.ulp(0.1F));
+        // Explicit 0.0 routes identically to the missing case.
+        featureVector.setFeatureScore(0, 0.0F);
+        assertEquals(0.0, tree.score(featureVector), Math.ulp(0.1F));
+        // Present values still branch on the threshold (4 >= 3 -> node 1, weight 10).
         featureVector.setFeatureScore(0, 4);
         assertEquals(10.0, tree.score(featureVector), Math.ulp(0.1F));
     }
