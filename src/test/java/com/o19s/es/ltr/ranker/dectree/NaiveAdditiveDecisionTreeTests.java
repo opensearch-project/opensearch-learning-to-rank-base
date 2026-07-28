@@ -77,6 +77,133 @@ public class NaiveAdditiveDecisionTreeTests extends LuceneTestCase {
         assertEquals(expected, ranker.score(vector), Math.ulp(expected));
     }
 
+    private static NaiveAdditiveDecisionTree buildSingleSplitTree(boolean defaultLeft, boolean missingAsZero) {
+        // Single split on feature 0 with threshold 5.0:
+        //   value < 5.0  -> left leaf  (1.0)
+        //   value >= 5.0 -> right leaf (2.0)
+        NaiveAdditiveDecisionTree.Leaf left = new NaiveAdditiveDecisionTree.Leaf(1.0f);
+        NaiveAdditiveDecisionTree.Leaf right = new NaiveAdditiveDecisionTree.Leaf(2.0f);
+        NaiveAdditiveDecisionTree.Split split = new NaiveAdditiveDecisionTree.Split(left, right, 0, 5.0f, defaultLeft);
+        return new NaiveAdditiveDecisionTree(
+            new NaiveAdditiveDecisionTree.Node[] { split },
+            new float[] { 1.0f },
+            1,
+            Normalizers.get(Normalizers.NOOP_NORMALIZER_NAME),
+            missingAsZero
+        );
+    }
+
+    public void testFourArgConstructorDefaultsToDefaultLeftBehavior() {
+        // Back-compat: the legacy 4-arg constructor (used by RankLib and other callers) must default
+        // to missingAsZero=false (honor default_left / NaN), preserving pre-existing behavior.
+        NaiveAdditiveDecisionTree.Leaf left = new NaiveAdditiveDecisionTree.Leaf(1.0f);
+        NaiveAdditiveDecisionTree.Leaf right = new NaiveAdditiveDecisionTree.Leaf(2.0f);
+        NaiveAdditiveDecisionTree.Split split = new NaiveAdditiveDecisionTree.Split(left, right, 0, 5.0f, false);
+        NaiveAdditiveDecisionTree tree = new NaiveAdditiveDecisionTree(
+            new NaiveAdditiveDecisionTree.Node[] { split },
+            new float[] { 1.0f },
+            1,
+            Normalizers.get(Normalizers.NOOP_NORMALIZER_NAME)
+        );
+        assertFalse(tree.isMissingAsZero());
+        assertTrue(Float.isNaN(tree.newFeatureVector(null).getDefaultScore()));
+    }
+
+    public void testMissingFeatureHonorsDefaultLeftByDefaultRoutesRight() {
+        // Default (missingAsZero=false): missing slot is NaN and routes via default_left.
+        // defaultLeft=false -> missing routes RIGHT (2.0), which differs from how a real 0.0 would route.
+        NaiveAdditiveDecisionTree tree = buildSingleSplitTree(false, false);
+        assertFalse(tree.isMissingAsZero());
+
+        LtrRanker.FeatureVector missing = tree.newFeatureVector(null);
+        assertTrue(Float.isNaN(missing.getDefaultScore()));
+        assertEquals(2.0f, tree.score(missing), Math.ulp(2.0f)); // NaN -> default_left=false -> right (2.0)
+
+        // A real 0.0 routes LEFT (1.0) -> proves missing (NaN) and 0.0 diverge in the default mode.
+        LtrRanker.FeatureVector zero = tree.newFeatureVector(null);
+        zero.setFeatureScore(0, 0.0f);
+        assertEquals(1.0f, tree.score(zero), Math.ulp(1.0f));
+    }
+
+    public void testMissingFeatureHonorsDefaultLeftByDefaultRoutesLeft() {
+        // Default (missingAsZero=false) with defaultLeft=true: a missing (NaN) feature routes LEFT
+        // (1.0), covering the eval() NaN->left branch. threshold=5.0, so a real value of 6.0 (>=thr)
+        // routes RIGHT (2.0) -- confirming the NaN route ignores the threshold and follows default_left.
+        NaiveAdditiveDecisionTree tree = buildSingleSplitTree(true, false);
+        assertFalse(tree.isMissingAsZero());
+
+        LtrRanker.FeatureVector missing = tree.newFeatureVector(null);
+        assertTrue(Float.isNaN(missing.getDefaultScore()));
+        assertEquals(1.0f, tree.score(missing), Math.ulp(1.0f)); // NaN -> default_left=true -> left (1.0)
+
+        LtrRanker.FeatureVector present = tree.newFeatureVector(null);
+        present.setFeatureScore(0, 6.0f);
+        assertEquals(2.0f, tree.score(present), Math.ulp(2.0f)); // 6.0 >= 5.0 -> right (2.0)
+    }
+
+    public void testMissingFeatureTreatedAsZeroWhenFlagSet() {
+        // missingAsZero=true: missing slot defaults to 0.0 and routes exactly as a real 0.0 would,
+        // ignoring default_left. defaultLeft=false would route a NaN right, but 0.0 < 5.0 routes LEFT (1.0).
+        NaiveAdditiveDecisionTree tree = buildSingleSplitTree(false, true);
+        assertTrue(tree.isMissingAsZero());
+
+        LtrRanker.FeatureVector missing = tree.newFeatureVector(null);
+        assertEquals(0.0f, missing.getDefaultScore(), 0.0f);
+        assertEquals(1.0f, tree.score(missing), Math.ulp(1.0f));
+
+        // Explicit 0.0 routes identically to the missing case.
+        LtrRanker.FeatureVector zero = tree.newFeatureVector(null);
+        zero.setFeatureScore(0, 0.0f);
+        assertEquals(tree.score(missing), tree.score(zero), 0.0f);
+
+        // A present value at/above the threshold still routes right.
+        LtrRanker.FeatureVector present = tree.newFeatureVector(null);
+        present.setFeatureScore(0, 6.0f);
+        assertEquals(2.0f, tree.score(present), Math.ulp(2.0f));
+    }
+
+    public void testReuseVectorWithMatchingDefaultIsRecycled() {
+        // A reused vector whose default matches the tree's expected default is recycled (same instance).
+        NaiveAdditiveDecisionTree zeroTree = buildSingleSplitTree(false, true); // expects 0.0 default
+        SparseFeatureVector zeroVec = new SparseFeatureVector(1, 0.0f);
+        assertSame(zeroVec, zeroTree.newFeatureVector(zeroVec));
+
+        NaiveAdditiveDecisionTree nanTree = buildSingleSplitTree(false, false); // expects NaN default
+        SparseFeatureVector nanVec = new SparseFeatureVector(1, Float.NaN);
+        assertSame(nanVec, nanTree.newFeatureVector(nanVec));
+    }
+
+    public void testReuseVectorWithMismatchedDefaultIsNotRecycled() {
+        // Reusing a NaN-default vector on a missingAsZero=true tree must NOT recycle it, otherwise
+        // reset() would refill slots with NaN and silently corrupt scoring. A fresh 0.0-default vector
+        // must be returned, and a genuinely-missing feature must then route as 0.0 (leaf 1.0).
+        NaiveAdditiveDecisionTree zeroTree = buildSingleSplitTree(false, true); // expects 0.0 default
+        SparseFeatureVector nanVec = new SparseFeatureVector(1, Float.NaN);
+        SparseFeatureVector result = zeroTree.newFeatureVector(nanVec);
+        assertNotSame(nanVec, result);
+        assertEquals(0.0f, result.getDefaultScore(), 0.0f);
+        assertEquals(1.0f, zeroTree.score(result), Math.ulp(1.0f)); // 0.0 < 5.0 -> left (1.0)
+
+        // And the reverse: a 0.0-default vector reused on a NaN-default (default_left=false) tree must
+        // NOT be recycled, otherwise missing features would wrongly route as 0.0 instead of via NaN.
+        NaiveAdditiveDecisionTree nanTree = buildSingleSplitTree(false, false); // expects NaN default
+        SparseFeatureVector zeroVec = new SparseFeatureVector(1, 0.0f);
+        SparseFeatureVector result2 = nanTree.newFeatureVector(zeroVec);
+        assertNotSame(zeroVec, result2);
+        assertTrue(Float.isNaN(result2.getDefaultScore()));
+        assertEquals(2.0f, nanTree.score(result2), Math.ulp(2.0f)); // NaN -> default_left=false -> right (2.0)
+    }
+
+    public void testReuseVectorWithMismatchedSizeIsNotRecycled() {
+        // A reused vector of the wrong size must not be recycled even if its default matches.
+        NaiveAdditiveDecisionTree zeroTree = buildSingleSplitTree(false, true); // size()==1, expects 0.0
+        SparseFeatureVector wrongSize = new SparseFeatureVector(5, 0.0f);
+        SparseFeatureVector result = zeroTree.newFeatureVector(wrongSize);
+        assertNotSame(wrongSize, result);
+        assertEquals(1, result.scores.length);
+        assertEquals(0.0f, result.getDefaultScore(), 0.0f);
+    }
+
     public void testSigmoidScore() throws IOException {
         NaiveAdditiveDecisionTree ranker = parseTreeModel("simple_tree.txt", Normalizers.get(Normalizers.SIGMOID_NORMALIZER_NAME));
         LtrRanker.FeatureVector vector = ranker.newFeatureVector(null);

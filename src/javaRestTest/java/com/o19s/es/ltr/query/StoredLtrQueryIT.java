@@ -403,7 +403,9 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
             .get();
     }
 
-    private static final String SIMPLE_MODEL_XGB = "[{"
+    // Default behavior (no missing_as_zero flag): a missing feature is routed via the "missing"
+    // pointer. threshold=100.0, "missing":2 -> a missing feature takes the "no" child (0.2).
+    private static final String SIMPLE_MODEL_XGB_DEFAULT_LEFT = "[{"
         + "\"nodeid\": 0,"
         + "\"split\":\"text_feature1\","
         + "\"depth\":0,"
@@ -416,29 +418,274 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
         + "   {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
         + "]}]";
 
-    private static final String SIMPLE_MODEL_XGB_MISSING_YES = "[{"
-        + "\"nodeid\": 0,"
-        + "\"split\":\"text_feature1\","
-        + "\"depth\":0,"
-        + "\"split_condition\":100.0,"
-        + "\"yes\":1,"
-        + "\"no\":2,"
-        + "\"missing\":1,"
-        + "\"children\": ["
-        + "   {\"nodeid\": 1, \"depth\": 1, \"leaf\": 0.5},"
-        + "   {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
-        + "]}]";
+    // Object form with missing_as_zero=true: a missing feature is treated as 0.0. threshold=100.0 ->
+    // 0.0 < 100.0 -> "yes" child (0.5), even though "missing":2 points at the "no" child.
+    private static final String SIMPLE_MODEL_XGB_MISSING_AS_ZERO = "{"
+        + "\"missing_as_zero\": true,"
+        + "\"splits\": [{"
+        + "   \"nodeid\": 0,"
+        + "   \"split\":\"text_feature1\","
+        + "   \"depth\":0,"
+        + "   \"split_condition\":100.0,"
+        + "   \"yes\":1,"
+        + "   \"no\":2,"
+        + "   \"missing\":2,"
+        + "   \"children\": ["
+        + "      {\"nodeid\": 1, \"depth\": 1, \"leaf\": 0.5},"
+        + "      {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
+        + "]}]}";
 
-    public void testScriptFeatureUseCaseMissingFeatureNaiveAdditiveDecisionTree() throws Exception {
-        assertMissingFeatureScore(SIMPLE_MODEL_XGB, 0.2F);
+    // Object form with missing_as_zero=true and a negative threshold so that a value of 0.0 is >=
+    // threshold and takes the "no" child (0.2). Proves a missing feature routes identically to 0.0.
+    private static final String SIMPLE_MODEL_XGB_MISSING_AS_ZERO_ROUTES_NO = "{"
+        + "\"missing_as_zero\": true,"
+        + "\"splits\": [{"
+        + "   \"nodeid\": 0,"
+        + "   \"split\":\"text_feature1\","
+        + "   \"depth\":0,"
+        + "   \"split_condition\":-1.0,"
+        + "   \"yes\":1,"
+        + "   \"no\":2,"
+        + "   \"missing\":1,"
+        + "   \"children\": ["
+        + "      {\"nodeid\": 1, \"depth\": 1, \"leaf\": 0.5},"
+        + "      {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
+        + "]}]}";
+
+    public void testMissingFeatureHonorsDefaultLeftByDefault() throws Exception {
+        // No flag: a missing feature is NaN and routed via "missing":2 -> "no" child (0.2). The
+        // explanation reports the NaN default that was used.
+        assertMissingFeatureScore(SIMPLE_MODEL_XGB_DEFAULT_LEFT, 0.2F, "default value of NaN used");
     }
 
-    public void testScriptFeatureUseCaseMissingFeatureRoutedByMissingDirection() throws Exception {
-        // "missing":1 -> a missing feature must take the "yes" child (leaf 0.5), not the "no" child.
-        assertMissingFeatureScore(SIMPLE_MODEL_XGB_MISSING_YES, 0.5F);
+    public void testMissingFeatureTreatedAsZeroRoutesYes() throws Exception {
+        // missing_as_zero=true, threshold=100.0: missing treated as 0.0, so 0.0 < 100.0 -> "yes" (0.5),
+        // ignoring the "missing":2 pointer. Explanation reports the 0.00 default.
+        assertMissingFeatureScore(SIMPLE_MODEL_XGB_MISSING_AS_ZERO, 0.5F, "default value of 0.00 used");
     }
 
-    private void assertMissingFeatureScore(String xgbModel, float expectedScore) throws Exception {
+    public void testMissingFeatureTreatedAsZeroRoutesNo() throws Exception {
+        // missing_as_zero=true, threshold=-1.0: missing treated as 0.0, so 0.0 >= -1.0 -> "no" (0.2),
+        // NOT the "missing":1 (yes) pointer. Confirms missing == explicit 0.0.
+        assertMissingFeatureScore(SIMPLE_MODEL_XGB_MISSING_AS_ZERO_ROUTES_NO, 0.2F, "default value of 0.00 used");
+    }
+
+    /**
+     * End-to-end parity guarantee for the change: a feature that is <em>missing</em> for a document
+     * (its sub-query does not match) must produce exactly the same model score as if that feature had
+     * been present with a value of {@code 0.0}. This is the invariant that keeps inference consistent
+     * with models trained on data where missing values are imputed to 0.
+     *
+     * <p>The test runs a single stored XGBoost model against two documents:
+     * <ul>
+     *   <li>a document where {@code text_feature1}'s match query matches (feature present), and</li>
+     *   <li>a document where it does not match (feature missing).</li>
+     * </ul>
+     * The split threshold ({@code 0.5}) is chosen below any realistic BM25 score, so a <em>present</em>
+     * feature always takes the "no" child while a <em>missing</em> feature is treated as 0.0 and takes
+     * the "yes" child. The missing document's score must equal the leaf value reached by routing 0.0,
+     * and must equal the score obtained by explicitly setting the feature to 0.0 in a control model.
+     */
+    public void testMissingFeatureScoresIdenticallyToExplicitZero() throws Exception {
+        // Split on text_feature1 at a tiny positive threshold (1e-6):
+        //   value < 1e-6  -> yes child (leaf 1.0)   <-- a missing feature (treated as exactly 0.0) lands here
+        //   value >= 1e-6 -> no  child (leaf 2.0)   <-- a present (matching) feature (BM25 > 0) lands here
+        // The threshold is chosen just above 0 so the ONLY way to reach the "yes" child is a value of
+        // exactly 0.0 -- which is precisely how a missing feature must be treated. A matching document
+        // always produces a strictly-positive BM25 score and therefore takes the "no" child.
+        // "missing":2 deliberately points at the "no" child to prove that pointer is ignored under
+        // missing_as_zero=true.
+        String model = "{"
+            + "\"missing_as_zero\": true,"
+            + "\"splits\": [{"
+            + "   \"nodeid\": 0,"
+            + "   \"split\":\"text_feature1\","
+            + "   \"depth\":0,"
+            + "   \"split_condition\":0.000001,"
+            + "   \"yes\":1,"
+            + "   \"no\":2,"
+            + "   \"missing\":2,"
+            + "   \"children\": ["
+            + "      {\"nodeid\": 1, \"depth\": 1, \"leaf\": 1.0},"
+            + "      {\"nodeid\": 2, \"depth\": 1, \"leaf\": 2.0}"
+            + "]}]}";
+
+        List<StoredFeature> features = new ArrayList<>(1);
+        features
+            .add(
+                new StoredFeature(
+                    "text_feature1",
+                    Collections.singletonList("query"),
+                    "mustache",
+                    QueryBuilders.matchQuery("field1", "{{query}}").toString()
+                )
+            );
+        StoredFeatureSet set = new StoredFeatureSet("parity_set", features);
+        addElement(set);
+        StoredLtrModel storedModel = new StoredLtrModel(
+            "parity_model",
+            set,
+            new StoredLtrModel.LtrModelDefinition("model/xgboost+json", model, true)
+        );
+        addElement(storedModel);
+
+        buildIndex();
+
+        // Case 1: query term matches field1 ("hello world") -> text_feature1 present (BM25 > 0) -> no child (2.0).
+        float presentScore = scoreFor("parity_set", "parity_model", "hello");
+        assertEquals(2.0F, presentScore, Math.ulp(2.0F));
+
+        // Case 2: query term does NOT match field1 -> text_feature1 missing -> treated as 0.0 -> yes child (1.0).
+        // The missing case routes exactly as an explicit 0.0 would (0.0 < 1e-6 -> yes child), regardless
+        // of the "missing":2 pointer. This is the train/serve parity guarantee. (The equivalence to an
+        // explicit 0.0 value is additionally verified end-to-end by testExplicitZeroFeatureRoutesAsZero.)
+        float missingScore = scoreFor("parity_set", "parity_model", "nonexistentterm");
+        assertEquals(1.0F, missingScore, Math.ulp(1.0F));
+        // And it must differ from the present case, confirming routing actually depended on the feature.
+        assertTrue("present and missing scores should differ", Math.abs(presentScore - missingScore) > Math.ulp(2.0F));
+    }
+
+    /**
+     * Companion to {@link #testMissingFeatureScoresIdenticallyToExplicitZero()} that exercises the
+     * <em>explicit 0.0</em> inference form of "missing": a feature backed by a {@code field_value_factor}
+     * over an absent numeric field with {@code "missing": 0}. Here OpenSearch itself substitutes 0.0 for
+     * every document (the feature always "matches"), so the tree receives an explicit 0.0 rather than an
+     * unset slot. For a model trained with missing values imputed to 0, this must route identically to
+     * the genuinely-missing case: exactly as a real 0.0 would.
+     */
+    public void testExplicitZeroFeatureRoutesAsZero() throws Exception {
+        // Split at tiny positive threshold: value < 1e-6 -> yes (1.0); value >= 1e-6 -> no (2.0).
+        // The field_value_factor feature yields exactly 0.0 for every doc (absent field, "missing":0),
+        // so 0.0 < 1e-6 -> yes child (1.0). "missing":2 is again deliberately ignored (missing_as_zero).
+        String model = "{"
+            + "\"missing_as_zero\": true,"
+            + "\"splits\": [{"
+            + "   \"nodeid\": 0,"
+            + "   \"split\":\"zero_feature\","
+            + "   \"depth\":0,"
+            + "   \"split_condition\":0.000001,"
+            + "   \"yes\":1,"
+            + "   \"no\":2,"
+            + "   \"missing\":2,"
+            + "   \"children\": ["
+            + "      {\"nodeid\": 1, \"depth\": 1, \"leaf\": 1.0},"
+            + "      {\"nodeid\": 2, \"depth\": 1, \"leaf\": 2.0}"
+            + "]}]}";
+
+        // A field_value_factor over an absent numeric field with missing:0 -> always evaluates to 0.0.
+        String fvfQuery = "{\"function_score\":{\"query\":{\"match_all\":{}},"
+            + "\"field_value_factor\":{\"field\":\"absent_numeric_field\",\"missing\":0}}}";
+
+        List<StoredFeature> features = new ArrayList<>(1);
+        features.add(new StoredFeature("zero_feature", Collections.emptyList(), "mustache", fvfQuery));
+        StoredFeatureSet set = new StoredFeatureSet("explicit_zero_set", features);
+        addElement(set);
+        StoredLtrModel storedModel = new StoredLtrModel(
+            "explicit_zero_model",
+            set,
+            new StoredLtrModel.LtrModelDefinition("model/xgboost+json", model, true)
+        );
+        addElement(storedModel);
+
+        buildIndex();
+
+        // The feature is present (match_all) but evaluates to exactly 0.0 -> 0.0 < 1e-6 -> yes child (1.0).
+        float score = scoreFor("explicit_zero_set", "explicit_zero_model", "hello");
+        assertEquals(1.0F, score, Math.ulp(1.0F));
+    }
+
+    /**
+     * Group A parity in a realistic multi-feature, multi-level tree using only bare text queries
+     * (no {@code field_value_factor}/{@code "missing":0}). One Group-A feature is <em>present</em>
+     * (a matching {@code match_phrase}, BM25 &gt; 0) and another Group-A feature is genuinely
+     * <em>missing</em> (a non-matching {@code match}, unset slot). The present feature must route by
+     * its real score while the missing feature must route as {@code 0.0}, and the two must interleave
+     * correctly across tree levels.
+     *
+     * <p>Tree (thresholds at 1e-6 so only an exact 0.0 takes a "yes" branch):
+     * <pre>
+     *   node0: split on phrase_feature
+     *     value &lt; 1e-6 -&gt; leaf 9.0            (would mean phrase missing; not exercised here)
+     *     value &gt;= 1e-6 -&gt; node2 (phrase present)
+     *   node2: split on text_feature_missing
+     *     value &lt; 1e-6 -&gt; leaf 1.0            (missing feature treated as 0.0 lands here)
+     *     value &gt;= 1e-6 -&gt; leaf 2.0
+     * </pre>
+     * Expected: phrase present -&gt; node2; missing feature -&gt; 0.0 -&gt; leaf 1.0. The "missing"
+     * pointers deliberately point the other way to prove they are ignored.
+     */
+    public void testGroupAMixedPresentAndMissingTextFeatures() throws Exception {
+        String model = "{"
+            + "\"missing_as_zero\": true,"
+            + "\"splits\": [{"
+            + "   \"nodeid\":0,"
+            + "   \"split\":\"phrase_feature\","
+            + "   \"depth\":0,"
+            + "   \"split_condition\":0.000001,"
+            + "   \"yes\":1,"
+            + "   \"no\":2,"
+            + "   \"missing\":2,"
+            + "   \"children\":["
+            + "      {\"nodeid\":1,\"depth\":1,\"leaf\":9.0},"
+            + "      {\"nodeid\":2,"
+            + "       \"split\":\"text_feature_missing\","
+            + "       \"depth\":1,"
+            + "       \"split_condition\":0.000001,"
+            + "       \"yes\":3,"
+            + "       \"no\":4,"
+            + "       \"missing\":4,"
+            + "       \"children\":["
+            + "          {\"nodeid\":3,\"depth\":2,\"leaf\":1.0},"
+            + "          {\"nodeid\":4,\"depth\":2,\"leaf\":2.0}"
+            + "       ]}"
+            + "]}]}";
+
+        List<StoredFeature> features = new ArrayList<>(2);
+        // Group-A feature that MATCHES the indexed doc (field1 = "hello world") -> present, BM25 > 0.
+        features
+            .add(new StoredFeature("phrase_feature", Collections.emptyList(), "mustache",
+                QueryBuilders.matchPhraseQuery("field1", "hello world").toString()));
+        // Group-A feature that does NOT match (field2 has no such term) -> missing, unset slot.
+        features
+            .add(new StoredFeature("text_feature_missing", Collections.emptyList(), "mustache",
+                QueryBuilders.matchQuery("field2", "nonexistentterm").toString()));
+
+        StoredFeatureSet set = new StoredFeatureSet("groupa_set", features);
+        addElement(set);
+        StoredLtrModel storedModel = new StoredLtrModel(
+            "groupa_model",
+            set,
+            new StoredLtrModel.LtrModelDefinition("model/xgboost+json", model, true)
+        );
+        addElement(storedModel);
+
+        buildIndex();
+
+        // phrase present (BM25 > 0 -> node2) AND text_feature_missing missing (-> 0.0 -> leaf 1.0).
+        float score = scoreFor("groupa_set", "groupa_model", "ignored");
+        assertEquals(1.0F, score, Math.ulp(1.0F));
+    }
+
+    private float scoreFor(String featureSet, String modelName, String queryTerm) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("query", queryTerm);
+        StoredLtrQueryBuilder sbuilder = new StoredLtrQueryBuilder(LtrTestUtils.nullLoader())
+            .featureSetName(featureSet)
+            .modelName(modelName)
+            .params(params)
+            .queryName("test")
+            .boost(1);
+        QueryBuilder query = QueryBuilders.boolQuery().must(new WrapperQueryBuilder(sbuilder.toString()));
+        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder().query(query).fetchSource(true).size(10);
+        SearchResponse resp = client().prepareSearch("test_index").setSource(sourceBuilder).get();
+        // buildIndex() indexes exactly one document, so the top hit is unambiguously the document whose
+        // feature we are asserting on. Assert that invariant explicitly so this helper can never return
+        // an unrelated document's score (which would otherwise silently produce a false-positive result).
+        assertEquals("scoreFor assumes a single-document index", 1L, resp.getHits().getTotalHits().value());
+        return resp.getHits().getAt(0).getScore();
+    }
+
+    private void assertMissingFeatureScore(String xgbModel, float expectedScore, String expectedExplanation) throws Exception {
         List<StoredFeature> features = new ArrayList<>(1);
         features
             .add(
@@ -488,7 +735,7 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
         // verify that text_feature1 has a missing value, and that the reported score results from the model taking the
         // corresponding branch, along with the explanation
         String explanation = hit.getExplanation().getDetails()[0].getDescription();
-        assertThat(explanation, containsString("default value of NaN used"));
+        assertThat(explanation, containsString(expectedExplanation));
 
         assertEquals("text_feature1", log.get(0).get("name"));
         assertEquals(null, log.get(0).get("value"));

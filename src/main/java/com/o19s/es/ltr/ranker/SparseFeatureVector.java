@@ -18,8 +18,26 @@ package com.o19s.es.ltr.ranker;
 
 public class SparseFeatureVector extends ArrayFeatureVector {
 
+    /**
+     * Create a sparse feature vector where unset/missing feature slots default to {@link Float#NaN}.
+     */
     public SparseFeatureVector(int size) {
-        super(size, Float.NaN);
+        this(size, Float.NaN);
+    }
+
+    /**
+     * Create a sparse feature vector where unset/missing feature slots default to the supplied value.
+     *
+     * <p>Passing {@code 0.0f} restores the legacy behavior where a feature that does not match a
+     * document is treated as {@code 0.0} at scoring time, which is required for models trained with
+     * missing values imputed to 0.
+     */
+    public SparseFeatureVector(int size, float defaultValue) {
+        super(size, defaultValue);
+        // reset() is required: ArrayFeatureVector's constructor only allocates the backing array and
+        // stores defaultScore; it does not fill the array. Without this call, unset slots would remain
+        // at Java's array default (0.0f) instead of defaultValue. This is essential when defaultValue
+        // is NaN (and harmless, though redundant, when it is 0.0f). Do not remove.
         reset();
     }
 }

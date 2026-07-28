@@ -59,7 +59,7 @@ public class XGBoostJsonParser implements LtrRankerParser {
         float[] weights = new float[trees.length];
         // Tree weights are already encoded in outputs
         Arrays.fill(weights, 1F);
-        return new NaiveAdditiveDecisionTree(trees, weights, set.size(), modelDefinition.normalizer);
+        return new NaiveAdditiveDecisionTree(trees, weights, set.size(), modelDefinition.normalizer, modelDefinition.missingAsZero);
     }
 
     private static class XGBoostDefinition {
@@ -68,10 +68,14 @@ public class XGBoostJsonParser implements LtrRankerParser {
             PARSER = new ObjectParser<>("xgboost_definition", XGBoostDefinition::new);
             PARSER.declareString(XGBoostDefinition::setNormalizer, new ParseField("objective"));
             PARSER.declareObjectArray(XGBoostDefinition::setSplitParserStates, SplitParserState::parse, new ParseField("splits"));
+            PARSER.declareBoolean(XGBoostDefinition::setMissingAsZero, new ParseField("missing_as_zero"));
         }
 
         private Normalizer normalizer;
         private List<SplitParserState> splitParserStates;
+        // When true, a missing/unset feature is treated as 0.0 at scoring time instead of being routed
+        // via the per-node default_left flag. Defaults to false (honor the XGBoost missing direction).
+        private boolean missingAsZero = false;
 
         public static XGBoostDefinition parse(XContentParser parser, FeatureSet set) throws IOException {
             XGBoostDefinition definition;
@@ -90,6 +94,11 @@ public class XGBoostJsonParser implements LtrRankerParser {
                     throw new ParsingException(parser.getTokenLocation(), "XGBoost model missing required field [splits]");
                 }
             } else if (startToken == XContentParser.Token.START_ARRAY) {
+                // Legacy array form: a bare array of tree/split objects. Model-level options such as
+                // "missing_as_zero" are ONLY supported in the object form (with a "splits" array); there
+                // is no place for them in a JSON array. Any attempt to add such a field inside a split
+                // object is rejected by SplitParserState's strict parser (unknown field), so the flag can
+                // never be silently ignored -- a user must switch to the object form to use it.
                 definition = new XGBoostDefinition();
                 definition.splitParserStates = new ArrayList<>();
                 while (parser.nextToken() != XContentParser.Token.END_ARRAY) {
@@ -140,6 +149,10 @@ public class XGBoostJsonParser implements LtrRankerParser {
 
         void setSplitParserStates(List<SplitParserState> splitParserStates) {
             this.splitParserStates = splitParserStates;
+        }
+
+        void setMissingAsZero(boolean missingAsZero) {
+            this.missingAsZero = missingAsZero;
         }
 
         Node[] getTrees(FeatureSet set) {

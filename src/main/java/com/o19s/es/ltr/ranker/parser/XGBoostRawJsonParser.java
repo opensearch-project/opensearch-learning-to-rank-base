@@ -76,7 +76,8 @@ public class XGBoostRawJsonParser implements LtrRankerParser {
             adjustedTrees,
             weights,
             set.size(),
-            modelDefinition.getLearner().getObjective().getNormalizer()
+            modelDefinition.getLearner().getObjective().getNormalizer(),
+            modelDefinition.isMissingAsZero()
         );
     }
 
@@ -110,6 +111,7 @@ public class XGBoostRawJsonParser implements LtrRankerParser {
                     new ParseField("learner")
                 );
             PARSER.declareIntArray(XGBoostRawJsonParser.XGBoostDefinition::setVersion, new ParseField("version"));
+            PARSER.declareBoolean(XGBoostRawJsonParser.XGBoostDefinition::setMissingAsZero, new ParseField("missing_as_zero"));
         }
 
         public static XGBoostRawJsonParser.XGBoostDefinition parse(XContentParser parser, FeatureSet set) throws IOException {
@@ -182,6 +184,18 @@ public class XGBoostRawJsonParser implements LtrRankerParser {
 
         public void setVersion(List<Integer> version) {
             this.version = version;
+        }
+
+        // When true, a missing/unset feature is treated as 0.0 at scoring time instead of being routed
+        // via the per-node default_left flag. Defaults to false (honor the XGBoost missing direction).
+        private boolean missingAsZero = false;
+
+        public boolean isMissingAsZero() {
+            return missingAsZero;
+        }
+
+        public void setMissingAsZero(boolean missingAsZero) {
+            this.missingAsZero = missingAsZero;
         }
     }
 

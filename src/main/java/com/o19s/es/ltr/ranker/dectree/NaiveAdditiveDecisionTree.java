@@ -36,11 +36,17 @@ public class NaiveAdditiveDecisionTree extends SparseLtrRanker implements Accoun
     private final float[] weights;
     private final int modelSize;
     private final Normalizer normalizer;
+    private final boolean missingAsZero;
 
     /**
      * TODO: Constructor for these classes are strict and not really
      * designed for a fluent building process. We might consider
      * changing this according to model parsers we implement.
+     *
+     * <p>Missing feature values are routed via each node's {@code default_left} flag (the XGBoost
+     * per-node missing direction). Use
+     * {@link #NaiveAdditiveDecisionTree(Node[], float[], int, Normalizer, boolean)} to instead treat
+     * missing features as {@code 0.0} for parity with models trained on 0-imputed data.
      *
      * @param trees an array of trees
      * @param weights the respective weights
@@ -48,16 +54,55 @@ public class NaiveAdditiveDecisionTree extends SparseLtrRanker implements Accoun
      * @param normalizer class to perform any normalization on model score
      */
     public NaiveAdditiveDecisionTree(Node[] trees, float[] weights, int modelSize, Normalizer normalizer) {
+        this(trees, weights, modelSize, normalizer, false);
+    }
+
+    /**
+     * @param missingAsZero when {@code true}, a feature that is missing/unset for a document is
+     *                      treated as {@code 0.0} at scoring time (so it routes through each split
+     *                      exactly as a real {@code 0.0} would), rather than being routed via the
+     *                      per-node {@code default_left} flag. This restores parity with models
+     *                      trained where missing values are imputed to {@code 0} (e.g. pandas
+     *                      {@code fillna(0)} prior to training). When {@code false} (the default) the
+     *                      per-node XGBoost missing direction is honored.
+     */
+    public NaiveAdditiveDecisionTree(Node[] trees, float[] weights, int modelSize, Normalizer normalizer, boolean missingAsZero) {
         assert trees.length == weights.length;
         this.trees = trees;
         this.weights = weights;
         this.modelSize = modelSize;
         this.normalizer = normalizer;
+        this.missingAsZero = missingAsZero;
+    }
+
+    /**
+     * @return whether missing feature values are treated as {@code 0.0} ({@code true}) or routed via
+     *         the per-node {@code default_left} flag ({@code false}).
+     */
+    public boolean isMissingAsZero() {
+        return missingAsZero;
     }
 
     @Override
     public String name() {
         return "naive_additive_decision_tree";
+    }
+
+    /**
+     * The value used for missing/unset features.
+     *
+     * <p>When {@code missingAsZero} is {@code false} (the default) this is {@link Float#NaN}, so a
+     * feature that does not match a document is routed via the per-node {@code default_left} flag (the
+     * XGBoost missing direction). When {@code missingAsZero} is {@code true} this is {@code 0.0f}: a
+     * missing feature then routes through each split exactly as a real {@code 0.0} would, and
+     * {@link Split#eval(float[])} never observes {@code NaN} for genuinely-missing features (so the
+     * {@code default_left} routing is effectively bypassed). This restores parity with models trained
+     * where missing values are imputed to {@code 0}, and the explanation output reports a default
+     * value of {@code 0.00} consistently with scoring.
+     */
+    @Override
+    protected float missingValue() {
+        return missingAsZero ? 0.0f : Float.NaN;
     }
 
     @Override
