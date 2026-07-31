@@ -27,6 +27,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.common.CheckedFunction;
@@ -34,9 +36,11 @@ import org.opensearch.common.cache.Cache;
 import org.opensearch.common.cache.CacheBuilder;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.common.unit.MemorySizeValue;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.monitor.jvm.JvmInfo;
+import org.opensearch.threadpool.ThreadPool;
 
 import com.o19s.es.ltr.feature.Feature;
 import com.o19s.es.ltr.feature.FeatureSet;
@@ -46,6 +50,8 @@ import com.o19s.es.ltr.feature.store.CompiledLtrModel;
  * Store various caches used by the plugin
  */
 public class Caches {
+    private static final Logger logger = LogManager.getLogger(Caches.class);
+
     public static final Setting<ByteSizeValue> LTR_CACHE_MEM_SETTING;
     public static final Setting<TimeValue> LTR_CACHE_EXPIRE_AFTER_WRITE = Setting
         .timeSetting("ltr.caches.expire_after_write", TimeValue.timeValueHours(1), TimeValue.timeValueNanos(0), Setting.Property.NodeScope);
@@ -56,17 +62,36 @@ public class Caches {
     private final Cache<CacheKey, FeatureSet> featureSetCache;
     private final Cache<CacheKey, CompiledLtrModel> modelCache;
 
-    static {
-        LTR_CACHE_MEM_SETTING = Setting
-            .memorySizeSetting(
-                "ltr.caches.max_mem",
-                (s) -> new ByteSizeValue(Math.min(RamUsageEstimator.ONE_MB * 10, JvmInfo.jvmInfo().getMem().getHeapMax().getBytes() / 10))
-                    .toString(),
-                Setting.Property.NodeScope
-            );
+    static ByteSizeValue defaultMaxMem(long heapBytes) {
+        long tenMb = RamUsageEstimator.ONE_MB * 10;
+        return new ByteSizeValue(Math.min(heapBytes / 10, Math.max(heapBytes / 100, tenMb)));
     }
+
+    static {
+        LTR_CACHE_MEM_SETTING = new Setting<>(
+            new Setting.SimpleKey("ltr.caches.max_mem"),
+            // getStringRep, not toString: the latter rounds to one decimal and the parser rejects fractions.
+            (s) -> defaultMaxMem(JvmInfo.jvmInfo().getMem().getHeapMax().getBytes()).getStringRep(),
+            (s) -> MemorySizeValue.parseBytesSizeValueOrHeapRatio(s, "ltr.caches.max_mem"),
+            Caches::validateMaxMem,
+            Setting.Property.NodeScope,
+            Setting.Property.Dynamic
+        );
+    }
+
+    /**
+     * {@link ByteSizeValue} accepts the unit-less value -1, which {@link Cache#setMaximumWeight} then
+     * rejects. Validating here fails the update request instead of failing later on every node.
+     */
+    private static void validateMaxMem(ByteSizeValue value) {
+        if (value.getBytes() < 0) {
+            throw new IllegalArgumentException("ltr.caches.max_mem must not be negative, got [" + value + "]");
+        }
+    }
+
     private final Map<String, PerStoreStats> perStoreStats = new ConcurrentHashMap<>();
-    private final long maxWeight;
+    private volatile ByteSizeValue maxWeight;
+    private volatile ThreadPool threadPool;
 
     public Caches(TimeValue expAfterWrite, TimeValue expAfterAccess, ByteSizeValue maxWeight) {
         this.featureCache = configCache(CacheBuilder.<CacheKey, Feature>builder(), expAfterWrite, expAfterAccess, maxWeight)
@@ -81,7 +106,41 @@ public class Caches {
             .weigher((s, w) -> w.ramBytesUsed())
             .removalListener((l) -> this.onRemove(l.getKey(), l.getValue()))
             .build();
-        this.maxWeight = maxWeight.getBytes();
+        this.maxWeight = maxWeight;
+    }
+
+    /** Evicting down to a smaller limit can take a while, so keep it off the cluster applier thread. */
+    public void setThreadPool(ThreadPool threadPool) {
+        this.threadPool = threadPool;
+    }
+
+    /**
+     * Applies a new per-cache memory limit in place. Entries are kept when growing; when shrinking, the
+     * caches evict down to the new limit.
+     */
+    public synchronized void setMaxMem(ByteSizeValue newMaxMem) {
+        long previous = maxWeight.getBytes();
+        if (newMaxMem.getBytes() == previous) {
+            return;
+        }
+        maxWeight = newMaxMem;
+        featureCache.setMaximumWeight(newMaxMem.getBytes());
+        featureSetCache.setMaximumWeight(newMaxMem.getBytes());
+        modelCache.setMaximumWeight(newMaxMem.getBytes());
+        logger.info("ltr.caches.max_mem updated from [{}] to [{}] per cache", new ByteSizeValue(previous), newMaxMem);
+        if (newMaxMem.getBytes() < previous) {
+            if (threadPool != null) {
+                threadPool.executor(ThreadPool.Names.GENERIC).execute(this::refresh);
+            } else {
+                refresh();
+            }
+        }
+    }
+
+    private void refresh() {
+        featureCache.refresh();
+        featureSetCache.refresh();
+        modelCache.refresh();
     }
 
     public static long weigther(CacheKey key, Object data) {
@@ -205,7 +264,7 @@ public class Caches {
     }
 
     public long getMaxWeight() {
-        return maxWeight;
+        return maxWeight.getBytes();
     }
 
     public static class CacheKey {
