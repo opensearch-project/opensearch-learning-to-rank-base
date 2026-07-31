@@ -85,7 +85,7 @@ public class Caches {
      */
     private static void validateMaxMem(ByteSizeValue value) {
         if (value.getBytes() < 0) {
-            throw new IllegalArgumentException("ltr.caches.max_mem must not be negative, got [" + value + "]");
+            throw new IllegalArgumentException("ltr.caches.max_mem must not be negative");
         }
     }
 
