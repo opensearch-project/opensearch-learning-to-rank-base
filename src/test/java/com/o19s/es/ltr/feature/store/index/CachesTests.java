@@ -18,6 +18,7 @@ package com.o19s.es.ltr.feature.store.index;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.lucene.tests.util.LuceneTestCase;
 import org.apache.lucene.util.RamUsageEstimator;
@@ -26,6 +27,8 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.MemorySizeValue;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.core.common.unit.ByteSizeValue;
+import org.opensearch.threadpool.TestThreadPool;
+import org.opensearch.threadpool.ThreadPool;
 
 import com.o19s.es.ltr.LtrTestUtils;
 import com.o19s.es.ltr.feature.store.CompiledLtrModel;
@@ -116,6 +119,9 @@ public class CachesTests extends LuceneTestCase {
         store.loadModel(model.name());
         assertEquals(3, caches.getPerStoreStats(memStore.getStoreName()).totalCount());
 
+        // No thread pool is installed, so setMaxMem evicts synchronously (Caches.java falls back to an inline
+        // refresh). This deliberately exercises the eviction *logic*; the async GENERIC-pool dispatch that runs
+        // in production is covered separately by testShrinkingEvictsViaGenericThreadPool.
         // A limit below every cached entry's weight must evict all three caches and unwind their stats.
         caches.setMaxMem(new ByteSizeValue(1));
 
@@ -125,6 +131,59 @@ public class CachesTests extends LuceneTestCase {
         assertEquals(0, caches.modelCache().count());
         assertEquals(0, caches.getPerStoreStats(memStore.getStoreName()).totalCount());
         assertEquals(0, caches.getPerStoreStats(memStore.getStoreName()).totalRam());
+    }
+
+    public void testShrinkingEvictsViaGenericThreadPool() throws Exception {
+        // In production threadPool is always non-null (installed in LtrQueryParserPlugin.createComponents), so a
+        // shrink dispatches refresh() to the GENERIC pool and eviction is asynchronous. This is the branch the
+        // synchronous test above cannot reach.
+        ThreadPool threadPool = new TestThreadPool("CachesTests");
+        try {
+            MemStore memStore = new MemStore();
+            StoredFeature feat = LtrTestUtils.randomFeature();
+            StoredFeatureSet set = LtrTestUtils.randomFeatureSet();
+            CompiledLtrModel model = LtrTestUtils.buildRandomModel();
+            memStore.add(feat);
+            memStore.add(set);
+            memStore.add(model);
+
+            Caches caches = newCaches(new ByteSizeValue(ONE_MB * 10));
+            caches.setThreadPool(threadPool);
+            CachedFeatureStore store = new CachedFeatureStore(memStore, caches);
+            store.load(feat.name());
+            store.loadSet(set.name());
+            store.loadModel(model.name());
+            assertEquals(3, caches.getPerStoreStats(memStore.getStoreName()).totalCount());
+
+            caches.setMaxMem(new ByteSizeValue(1));
+
+            // The limit is applied synchronously; only the eviction is dispatched to the pool.
+            assertEquals(1, caches.getMaxWeight());
+
+            // Eviction and stats unwinding happen on the GENERIC pool, so wait for them to complete.
+            assertBusy(caches, memStore.getStoreName());
+        } finally {
+            ThreadPool.terminate(threadPool, 5, TimeUnit.SECONDS);
+        }
+    }
+
+    // LuceneTestCase does not expose OpenSearchTestCase#assertBusy, so poll the async eviction directly.
+    private static void assertBusy(Caches caches, String storeName) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 10_000;
+        while (System.currentTimeMillis() < deadline) {
+            if (caches.featureCache().count() == 0
+                && caches.featureSetCache().count() == 0
+                && caches.modelCache().count() == 0
+                && caches.getPerStoreStats(storeName).totalCount() == 0) {
+                break;
+            }
+            Thread.sleep(50);
+        }
+        assertEquals(0, caches.featureCache().count());
+        assertEquals(0, caches.featureSetCache().count());
+        assertEquals(0, caches.modelCache().count());
+        assertEquals(0, caches.getPerStoreStats(storeName).totalCount());
+        assertEquals(0, caches.getPerStoreStats(storeName).totalRam());
     }
 
     public void testClusterSettingsUpdateAppliesTheNewLimit() {
