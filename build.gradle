@@ -72,6 +72,7 @@ opensearchplugin {
   name 'opensearch-ltr'
   description 'Learning to Rank Query w/ RankLib Models'
   classname 'com.o19s.es.ltr.LtrQueryParserPlugin'
+  extendedPlugins = ['transport-grpc']
   // license of the plugin, may be different than the above license
   licenseFile = rootProject.file('LICENSE.txt')
   // copyright notices, may be different than the above notice
@@ -143,6 +144,8 @@ dependencies {
   implementation 'org.slf4j:slf4j-api:2.0.17'
   testImplementation 'org.slf4j:slf4j-simple:2.0.17'
   implementation "org.opensearch:common-utils:${common_utils_version}"
+  compileOnly "org.opensearch.plugin:transport-grpc-spi:${opensearch_version}"
+  compileOnly "org.opensearch:protobufs:${versions.opensearchprotobufs}"
 
   runtimeOnly 'org.locationtech.spatial4j:spatial4j:0.7'
   runtimeOnly 'org.locationtech.jts:jts-core:1.15.0'

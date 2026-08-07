@@ -341,11 +341,20 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
         return new LTRStats((stats));
     }
 
-    protected FeatureStoreLoader getFeatureStoreLoader() {
+    public FeatureStoreLoader getFeatureStoreLoader() {
         return (storeName, clientSupplier) -> new CachedFeatureStore(
             new IndexFeatureStore(storeName, clientSupplier, parserFactory),
             caches
         );
+    }
+
+    /**
+     * Exposes the plugin's {@link LTRStats} instance so the gRPC {@code sltr} query converter
+     * (registered via the transport-grpc {@code QueryBuilderProtoConverter} SPI) can build
+     * {@link StoredLtrQueryBuilder} instances with the same stats used by the REST path.
+     */
+    public LTRStats getLtrStats() {
+        return ltrStats;
     }
 
     // A simplified version of some token filters needed by the feature stores.
