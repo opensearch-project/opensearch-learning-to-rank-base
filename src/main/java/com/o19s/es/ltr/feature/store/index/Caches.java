@@ -27,6 +27,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.common.CheckedFunction;
@@ -37,6 +39,7 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.monitor.jvm.JvmInfo;
+import org.opensearch.threadpool.ThreadPool;
 
 import com.o19s.es.ltr.feature.Feature;
 import com.o19s.es.ltr.feature.FeatureSet;
@@ -46,6 +49,9 @@ import com.o19s.es.ltr.feature.store.CompiledLtrModel;
  * Store various caches used by the plugin
  */
 public class Caches {
+    private static final Logger logger = LogManager.getLogger(Caches.class);
+
+    static final String MAX_MEM_KEY = "ltr.caches.max_mem";
     public static final Setting<ByteSizeValue> LTR_CACHE_MEM_SETTING;
     public static final Setting<TimeValue> LTR_CACHE_EXPIRE_AFTER_WRITE = Setting
         .timeSetting("ltr.caches.expire_after_write", TimeValue.timeValueHours(1), TimeValue.timeValueNanos(0), Setting.Property.NodeScope);
@@ -56,17 +62,44 @@ public class Caches {
     private final Cache<CacheKey, FeatureSet> featureSetCache;
     private final Cache<CacheKey, CompiledLtrModel> modelCache;
 
-    static {
-        LTR_CACHE_MEM_SETTING = Setting
-            .memorySizeSetting(
-                "ltr.caches.max_mem",
-                (s) -> new ByteSizeValue(Math.min(RamUsageEstimator.ONE_MB * 10, JvmInfo.jvmInfo().getMem().getHeapMax().getBytes() / 10))
-                    .toString(),
-                Setting.Property.NodeScope
-            );
+    /**
+     * The limit bounds each of the three caches (feature, feature set, model) independently, so the real
+     * per-node ceiling is {@code 3 * max_mem}. There is no aggregate cap; {@link org.opensearch.ltr.breaker.LTRCircuitBreakerService}
+     * guards overall JVM usage but does not bound these caches. Above this fraction of heap the aggregate is
+     * logged as a warning, since the value is operator-controlled and this is almost certainly larger than intended.
+     */
+    static final double AGGREGATE_HEAP_WARN_FRACTION = 0.25;
+
+    static ByteSizeValue defaultMaxMem(long heapBytes) {
+        long tenMb = RamUsageEstimator.ONE_MB * 10;
+        return new ByteSizeValue(Math.min(heapBytes / 10, Math.max(heapBytes / 100, tenMb)));
     }
+
+    static {
+        LTR_CACHE_MEM_SETTING = new Setting<>(
+            new Setting.SimpleKey(MAX_MEM_KEY),
+            // getStringRep, not toString: the latter rounds to one decimal and the parser rejects fractions.
+            (s) -> defaultMaxMem(JvmInfo.jvmInfo().getMem().getHeapMax().getBytes()).getStringRep(),
+            new Setting.MemorySizeValueParser(MAX_MEM_KEY),
+            Caches::validateMaxMem,
+            Setting.Property.NodeScope,
+            Setting.Property.Dynamic
+        );
+    }
+
+    /**
+     * {@link ByteSizeValue} accepts the unit-less value -1, which {@link Cache#setMaximumWeight} then
+     * rejects. Validating here fails the update request instead of failing later on every node.
+     */
+    private static void validateMaxMem(ByteSizeValue value) {
+        if (value.getBytes() < 0) {
+            throw new IllegalArgumentException(MAX_MEM_KEY + " must not be negative");
+        }
+    }
+
     private final Map<String, PerStoreStats> perStoreStats = new ConcurrentHashMap<>();
-    private final long maxWeight;
+    private volatile ByteSizeValue maxWeight;
+    private volatile ThreadPool threadPool;
 
     public Caches(TimeValue expAfterWrite, TimeValue expAfterAccess, ByteSizeValue maxWeight) {
         this.featureCache = configCache(CacheBuilder.<CacheKey, Feature>builder(), expAfterWrite, expAfterAccess, maxWeight)
@@ -81,7 +114,69 @@ public class Caches {
             .weigher((s, w) -> w.ramBytesUsed())
             .removalListener((l) -> this.onRemove(l.getKey(), l.getValue()))
             .build();
-        this.maxWeight = maxWeight.getBytes();
+        this.maxWeight = maxWeight;
+        warnIfAggregateExceedsHeap(maxWeight);
+    }
+
+    /** Evicting down to a smaller limit can take a while, so keep it off the cluster applier thread. */
+    public void setThreadPool(ThreadPool threadPool) {
+        this.threadPool = threadPool;
+    }
+
+    /**
+     * Applies a new per-cache memory limit in place. Entries are kept when growing; when shrinking, the
+     * caches evict down to the new limit. The limit applies to each of the three caches independently, so
+     * the aggregate ceiling this establishes is {@code 3 * newMaxMem}.
+     */
+    public synchronized void setMaxMem(ByteSizeValue newMaxMem) {
+        long previous = maxWeight.getBytes();
+        if (newMaxMem.getBytes() == previous) {
+            return;
+        }
+        maxWeight = newMaxMem;
+        featureCache.setMaximumWeight(newMaxMem.getBytes());
+        featureSetCache.setMaximumWeight(newMaxMem.getBytes());
+        modelCache.setMaximumWeight(newMaxMem.getBytes());
+        logger.info("{} updated from [{}] to [{}] per cache", MAX_MEM_KEY, new ByteSizeValue(previous), newMaxMem);
+        warnIfAggregateExceedsHeap(newMaxMem);
+        if (newMaxMem.getBytes() < previous) {
+            if (threadPool != null) {
+                threadPool.executor(ThreadPool.Names.GENERIC).execute(this::refresh);
+            } else {
+                refresh();
+            }
+        }
+    }
+
+    /**
+     * The limit is not an allocation; it only caps how much each cache may hold. It is operator-controlled and
+     * intentionally not bounded, so a large value is accepted, but {@code 3 * max_mem} above a sizable fraction
+     * of heap is almost certainly a misconfiguration and is worth surfacing.
+     */
+    private static void warnIfAggregateExceedsHeap(ByteSizeValue perCacheLimit) {
+        long heapMax = JvmInfo.jvmInfo().getMem().getHeapMax().getBytes();
+        if (heapMax <= 0) {
+            return;
+        }
+        long aggregate = perCacheLimit.getBytes() * 3;
+        if (aggregate > heapMax * AGGREGATE_HEAP_WARN_FRACTION) {
+            logger
+                .warn(
+                    "{} is [{}] per cache; the three LTR caches together may use up to [{}], which is over {}% of the [{}] heap. "
+                        + "This is not pre-allocated and the circuit breaker still guards the JVM, but verify this value is intended.",
+                    MAX_MEM_KEY,
+                    perCacheLimit,
+                    new ByteSizeValue(aggregate),
+                    (int) (AGGREGATE_HEAP_WARN_FRACTION * 100),
+                    new ByteSizeValue(heapMax)
+                );
+        }
+    }
+
+    private void refresh() {
+        featureCache.refresh();
+        featureSetCache.refresh();
+        modelCache.refresh();
     }
 
     public static long weigther(CacheKey key, Object data) {
@@ -205,7 +300,7 @@ public class Caches {
     }
 
     public long getMaxWeight() {
-        return maxWeight;
+        return maxWeight.getBytes();
     }
 
     public static class CacheKey {
