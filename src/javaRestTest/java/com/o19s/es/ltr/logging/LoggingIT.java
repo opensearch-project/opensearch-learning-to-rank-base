@@ -259,6 +259,59 @@ public class LoggingIT extends BaseIntegrationTest {
 
     }
 
+    public void testRescoreLoggingWithoutNamedQuery() throws Exception {
+        prepareModels();
+        Map<String, Doc> docs = buildIndex();
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("query", "found");
+        List<String> idsColl = new ArrayList<>(docs.keySet());
+        Collections.shuffle(idsColl, random());
+        String[] ids = idsColl.subList(0, TestUtil.nextInt(random(), 5, 15)).toArray(new String[0]);
+
+        StoredLtrQueryBuilder sbuilder_rescore = new StoredLtrQueryBuilder(LtrTestUtils.nullLoader())
+            .featureSetName("my_set")
+            .params(params)
+            .boost(random().nextInt(3));
+
+        // Query without any named queries - just a simple match query
+        QueryBuilder query = QueryBuilders
+            .boolQuery()
+            .must(QueryBuilders.matchQuery("field1", "found"))
+            .filter(QueryBuilders.idsQuery().addIds(ids));
+
+        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder()
+            .query(query)
+            .fetchSource(false)
+            .size(10)
+            .addRescorer(new QueryRescorerBuilder(new WrapperQueryBuilder(sbuilder_rescore.toString())))
+            .ext(Collections.singletonList(new LoggingSearchExtBuilder().addRescoreLogging("rescore_log", 0, true)));
+
+        SearchResponse resp = client().prepareSearch("test_index").setSource(sourceBuilder).get();
+
+        // Verify that _ltrlog field is present in the results
+        for (SearchHit hit : resp.getHits()) {
+            assertTrue("Expected _ltrlog field to be present", hit.getFields().containsKey("_ltrlog"));
+            Map<String, List<Map<String, Object>>> logs = hit.getFields().get("_ltrlog").getValue();
+            assertTrue("Expected rescore_log entry", logs.containsKey("rescore_log"));
+
+            List<Map<String, Object>> log = logs.get("rescore_log");
+            assertEquals("Expected 4 features", 4, log.size());
+
+            // Verify feature names
+            assertEquals("text_feature1", log.get(0).get("name"));
+            assertEquals("text_feature2", log.get(1).get("name"));
+            assertEquals("numeric_feature1", log.get(2).get("name"));
+            assertEquals("derived_feature", log.get(3).get("name"));
+
+            // Verify that values are present (with missing_as_zero=true, all should have values)
+            assertTrue("Expected value for text_feature1", log.get(0).containsKey("value"));
+            assertTrue("Expected value for text_feature2", log.get(1).containsKey("value"));
+            assertTrue("Expected value for numeric_feature1", log.get(2).containsKey("value"));
+            assertTrue("Expected value for derived_feature", log.get(3).containsKey("value"));
+        }
+    }
+
     public void testLog() throws Exception {
         prepareModels();
         Map<String, Doc> docs = buildIndex();

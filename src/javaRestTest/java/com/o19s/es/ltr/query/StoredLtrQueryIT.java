@@ -416,7 +416,103 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
         + "   {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
         + "]}]";
 
+    private static final String SIMPLE_MODEL_XGB_MISSING_YES = "[{"
+        + "\"nodeid\": 0,"
+        + "\"split\":\"text_feature1\","
+        + "\"depth\":0,"
+        + "\"split_condition\":100.0,"
+        + "\"yes\":1,"
+        + "\"no\":2,"
+        + "\"missing\":1,"
+        + "\"children\": ["
+        + "   {\"nodeid\": 1, \"depth\": 1, \"leaf\": 0.5},"
+        + "   {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
+        + "]}]";
+
+    // Object form with missing_as_zero=true; same "missing":2 as SIMPLE_MODEL_XGB (which scores 0.2),
+    // but a missing feature is treated as 0.0 (100 > 0 -> "yes") so it scores 0.5.
+    private static final String SIMPLE_MODEL_XGB_MISSING_AS_ZERO = "{"
+        + "\"missing_as_zero\": true,"
+        + "\"objective\": \"reg:linear\","
+        + "\"splits\": [{"
+        + "\"nodeid\": 0,"
+        + "\"split\":\"text_feature1\","
+        + "\"depth\":0,"
+        + "\"split_condition\":100.0,"
+        + "\"yes\":1,"
+        + "\"no\":2,"
+        + "\"missing\":2,"
+        + "\"children\": ["
+        + "   {\"nodeid\": 1, \"depth\": 1, \"leaf\": 0.5},"
+        + "   {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
+        + "]}]}";
+
     public void testScriptFeatureUseCaseMissingFeatureNaiveAdditiveDecisionTree() throws Exception {
+        assertMissingFeatureScore(SIMPLE_MODEL_XGB, 0.2F);
+    }
+
+    public void testScriptFeatureUseCaseMissingFeatureRoutedByMissingDirection() throws Exception {
+        // "missing":1 -> a missing feature must take the "yes" child (leaf 0.5), not the "no" child.
+        assertMissingFeatureScore(SIMPLE_MODEL_XGB_MISSING_YES, 0.5F);
+    }
+
+    public void testMissingAsZeroModelScoresExplainsAndLogsZero() throws Exception {
+        // Model missing_as_zero=true: a missing feature is 0.0 -> routes "yes" (0.5), explain reports 0.00,
+        // and (with the log spec's missing_as_zero) _ltrlog records 0.0 for the missing feature.
+        StoredFeatureSet set = new StoredFeatureSet(
+            "my_set",
+            Collections
+                .singletonList(
+                    new StoredFeature(
+                        "text_feature1",
+                        Collections.singletonList("query"),
+                        "mustache",
+                        QueryBuilders.matchQuery("field1", "{{query}}").toString()
+                    )
+                )
+        );
+        addElement(set);
+        addElement(
+            new StoredLtrModel(
+                "my_model",
+                set,
+                new StoredLtrModel.LtrModelDefinition("model/xgboost+json", SIMPLE_MODEL_XGB_MISSING_AS_ZERO, true)
+            )
+        );
+        buildIndex();
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("query", "bonjour");
+        StoredLtrQueryBuilder sbuilder = new StoredLtrQueryBuilder(LtrTestUtils.nullLoader())
+            .featureSetName("my_set")
+            .modelName("my_model")
+            .params(params)
+            .queryName("test")
+            .boost(1);
+        QueryBuilder query = QueryBuilders.boolQuery().must(new WrapperQueryBuilder(sbuilder.toString()));
+        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder()
+            .query(query)
+            .explain(true)
+            .fetchSource(true)
+            .size(10)
+            .ext(Collections.singletonList(new LoggingSearchExtBuilder().addQueryLogging("log", "test", true)));
+
+        SearchResponse resp = client().prepareSearch("test_index").setSource(sourceBuilder).get();
+        SearchHit hit = resp.getHits().getAt(0);
+
+        // score: missing -> 0.0 -> "yes" -> 0.5
+        assertEquals(0.5F, hit.getScore(), Math.ulp(0.5F));
+        // explain: default value reported as 0.00 (not NaN), consistent with scoring
+        String explanation = hit.getExplanation().getDetails()[0].getDescription();
+        assertThat(explanation, containsString("default value of 0.00 used"));
+        // _ltrlog: missing feature logged as 0.0
+        Map<String, List<Map<String, Object>>> logs = hit.getFields().get("_ltrlog").getValue();
+        List<Map<String, Object>> log = logs.get("log");
+        assertEquals("text_feature1", log.get(0).get("name"));
+        assertEquals(0.0F, ((Number) log.get(0).get("value")).floatValue(), Math.ulp(0.0F));
+    }
+
+    private void assertMissingFeatureScore(String xgbModel, float expectedScore) throws Exception {
         List<StoredFeature> features = new ArrayList<>(1);
         features
             .add(
@@ -433,7 +529,7 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
         StoredLtrModel model = new StoredLtrModel(
             "my_model",
             set,
-            new StoredLtrModel.LtrModelDefinition("model/xgboost+json", SIMPLE_MODEL_XGB, true)
+            new StoredLtrModel.LtrModelDefinition("model/xgboost+json", xgbModel, true)
         );
         addElement(model);
 
@@ -471,7 +567,7 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
         assertEquals("text_feature1", log.get(0).get("name"));
         assertEquals(null, log.get(0).get("value"));
 
-        assertEquals(0.2F, hit.getScore(), Math.ulp(0.2F));
+        assertEquals(expectedScore, hit.getScore(), Math.ulp(expectedScore));
     }
 
 }

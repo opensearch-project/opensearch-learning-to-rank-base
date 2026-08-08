@@ -8,5 +8,9 @@ coverage:
     status:
         project:
             default:
-                target: 50%    # the required coverage value
-                threshold: 1%  # the leniency in hitting the target
+                target: auto   # use base branch coverage as the target
+                threshold: 2%  # the leniency in hitting the target
+        patch:
+            default:
+                target: 70%    # require at least 70% coverage on changed lines
+                threshold: 5%

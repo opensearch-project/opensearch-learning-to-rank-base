@@ -16,7 +16,7 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 | Johannes Peter  | [JohannesDaniel](https://github.com/JohannesDaniel) | Principal Engineer     |
 | Yaliang Wu      | [ylwu-amzn](https://github.com/ylwu-amzn)           | Amazon                 |
 | Jing Zhang      | [jngz-es](https://github.com/jngz-es)               | Amazon                 |
-| Rithin Pullela  | [rithin-pullela-aws](https://github.com/rithin-pullela-aws) | Amazon                 |
+| Rithin Pullela  | [rithinpullela](https://github.com/rithinpullela) | Amazon                 |
 
 ## Emeritus
 

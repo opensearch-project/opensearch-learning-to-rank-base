@@ -36,6 +36,7 @@ public class NaiveAdditiveDecisionTree extends SparseLtrRanker implements Accoun
     private final float[] weights;
     private final int modelSize;
     private final Normalizer normalizer;
+    private final boolean missingAsZero;
 
     /**
      * TODO: Constructor for these classes are strict and not really
@@ -48,16 +49,44 @@ public class NaiveAdditiveDecisionTree extends SparseLtrRanker implements Accoun
      * @param normalizer class to perform any normalization on model score
      */
     public NaiveAdditiveDecisionTree(Node[] trees, float[] weights, int modelSize, Normalizer normalizer) {
+        this(trees, weights, modelSize, normalizer, false);
+    }
+
+    /**
+     * @param missingAsZero when true, a missing/unset feature defaults to 0.0 instead of NaN, so it
+     *                      routes through each split as a real 0.0 would (bypassing the per-node
+     *                      default_left) and explanation/logging report 0.0 consistently. Restores
+     *                      parity for models trained with missing values imputed to 0 (issue #286).
+     */
+    public NaiveAdditiveDecisionTree(Node[] trees, float[] weights, int modelSize, Normalizer normalizer, boolean missingAsZero) {
         assert trees.length == weights.length;
         this.trees = trees;
         this.weights = weights;
         this.modelSize = modelSize;
         this.normalizer = normalizer;
+        this.missingAsZero = missingAsZero;
     }
 
     @Override
     public String name() {
         return "naive_additive_decision_tree";
+    }
+
+    public boolean isMissingAsZero() {
+        return missingAsZero;
+    }
+
+    @Override
+    public SparseFeatureVector newFeatureVector(FeatureVector reuse) {
+        float defaultValue = missingAsZero ? 0.0f : Float.NaN;
+        // Only reuse when the vector's default matches this ranker's; otherwise reset() would restore
+        // a stale default and score with the wrong missing value.
+        if (reuse instanceof SparseFeatureVector && Float.compare(((SparseFeatureVector) reuse).getDefaultScore(), defaultValue) == 0) {
+            SparseFeatureVector vector = (SparseFeatureVector) reuse;
+            vector.reset();
+            return vector;
+        }
+        return new SparseFeatureVector(size(), defaultValue);
     }
 
     @Override
@@ -95,12 +124,27 @@ public class NaiveAdditiveDecisionTree extends SparseLtrRanker implements Accoun
         private final Node right;
         private final int feature;
         private final float threshold;
+        private final boolean defaultLeft;
 
+        /**
+         * Backward-compatible constructor. A missing (NaN) feature value is routed to the
+         * right child, matching the behavior before per-node missing directions were honored.
+         */
         public Split(Node left, Node right, int feature, float threshold) {
+            this(left, right, feature, threshold, false);
+        }
+
+        /**
+         * @param defaultLeft when true a missing (NaN) feature value is routed to the left (yes)
+         *                    child, otherwise to the right (no) child. This mirrors XGBoost's
+         *                    per-node missing direction (the "missing" pointer / "default_left" flag).
+         */
+        public Split(Node left, Node right, int feature, float threshold, boolean defaultLeft) {
             this.left = Objects.requireNonNull(left);
             this.right = Objects.requireNonNull(right);
             this.feature = feature;
             this.threshold = threshold;
+            this.defaultLeft = defaultLeft;
         }
 
         @Override
@@ -114,7 +158,10 @@ public class NaiveAdditiveDecisionTree extends SparseLtrRanker implements Accoun
             while (!n.isLeaf()) {
                 assert n instanceof Split;
                 Split s = (Split) n;
-                if (s.threshold > scores[s.feature]) {
+                float value = scores[s.feature];
+                if (Float.isNaN(value)) {
+                    n = s.defaultLeft ? s.left : s.right;
+                } else if (s.threshold > value) {
                     n = s.left;
                 } else {
                     n = s.right;
@@ -138,6 +185,10 @@ public class NaiveAdditiveDecisionTree extends SparseLtrRanker implements Accoun
 
         public float getThreshold() {
             return this.threshold;
+        }
+
+        public boolean getDefaultLeft() {
+            return this.defaultLeft;
         }
 
         /**

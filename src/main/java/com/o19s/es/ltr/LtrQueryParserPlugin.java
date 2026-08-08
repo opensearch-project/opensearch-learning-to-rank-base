@@ -313,6 +313,9 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
 
         LTRSettings.getInstance().init(clusterService);
 
+        caches.setThreadPool(threadPool);
+        clusterService.getClusterSettings().addSettingsUpdateConsumer(Caches.LTR_CACHE_MEM_SETTING, caches::setMaxMem);
+
         final JvmService jvmService = new JvmService(environment.settings());
         final LTRCircuitBreakerService ltrCircuitBreakerService = new LTRCircuitBreakerService(jvmService).init();
 

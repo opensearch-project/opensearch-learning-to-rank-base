@@ -76,7 +76,8 @@ public class XGBoostRawJsonParser implements LtrRankerParser {
             adjustedTrees,
             weights,
             set.size(),
-            modelDefinition.getLearner().getObjective().getNormalizer()
+            modelDefinition.getLearner().getObjective().getNormalizer(),
+            modelDefinition.missingAsZero
         );
     }
 
@@ -89,7 +90,8 @@ public class XGBoostRawJsonParser implements LtrRankerParser {
                 reorderTreeFeatures(splitNode.getLeft(), modelFeaturesReordering),
                 reorderTreeFeatures(splitNode.getRight(), modelFeaturesReordering),
                 modelFeaturesReordering.get(splitNode.getFeature()),
-                splitNode.getThreshold()
+                splitNode.getThreshold(),
+                splitNode.getDefaultLeft()
             );
         }
 
@@ -109,6 +111,8 @@ public class XGBoostRawJsonParser implements LtrRankerParser {
                     new ParseField("learner")
                 );
             PARSER.declareIntArray(XGBoostRawJsonParser.XGBoostDefinition::setVersion, new ParseField("version"));
+            // Opt-in: treat missing (unset) features as 0.0 for models trained with fillna=0 (issue #286). Default false.
+            PARSER.declareBoolean(XGBoostRawJsonParser.XGBoostDefinition::setMissingAsZero, new ParseField("missing_as_zero"));
         }
 
         public static XGBoostRawJsonParser.XGBoostDefinition parse(XContentParser parser, FeatureSet set) throws IOException {
@@ -177,6 +181,12 @@ public class XGBoostRawJsonParser implements LtrRankerParser {
 
         public List<Integer> getVersion() {
             return version;
+        }
+
+        private boolean missingAsZero = false;
+
+        public void setMissingAsZero(boolean missingAsZero) {
+            this.missingAsZero = missingAsZero;
         }
 
         public void setVersion(List<Integer> version) {
@@ -466,11 +476,13 @@ public class XGBoostRawJsonParser implements LtrRankerParser {
             }
 
             if (isSplit(nodeId)) {
+                boolean routeMissingLeft = defaultLeft != null && defaultLeft.get(nodeId) == 1;
                 return new NaiveAdditiveDecisionTree.Split(
                     asLibTree(leftChildren.get(nodeId)),
                     asLibTree(rightChildren.get(nodeId)),
                     splitIndices.get(nodeId),
-                    splitConditions.get(nodeId)
+                    splitConditions.get(nodeId),
+                    routeMissingLeft
                 );
             } else {
                 return new NaiveAdditiveDecisionTree.Leaf(baseWeights.get(nodeId));
