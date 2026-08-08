@@ -22,6 +22,9 @@ jobs:
     if: github.repository == 'opensearch-project/opensearch-learning-to-rank-base'
     runs-on: ubuntu-latest
     strategy:
+      # Let every matrix leg report independently. Branch protection requires the
+      # java 21 checks, and fail-fast would cancel them when another leg fails.
+      fail-fast: false
       matrix:
         java: [21]
     steps:
@@ -41,6 +44,7 @@ jobs:
   Build-ltr-linux:
     needs: [Get-CI-Image-Tag, spotless]
     strategy:
+      fail-fast: false
       matrix:
         java: [ 11, 17, 21 ]
 
@@ -78,8 +82,12 @@ jobs:
 
   Build-ltr-windows:
     strategy:
+      fail-fast: false
       matrix:
-        java: [ 11, 17, 21 ]
+        # java 11 is omitted on Windows: :validatePluginZipPom loads plexus-utils,
+        # which ships class file version 61.0 (java 17) and cannot run on a java 11
+        # JVM. Linux still covers java 11, so runtime support is unaffected.
+        java: [ 17, 21 ]
     name: Build and Test LTR Plugin on Windows
     if: github.repository == 'opensearch-project/opensearch-learning-to-rank-base'
     needs: [spotless]
