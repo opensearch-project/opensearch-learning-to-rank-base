@@ -147,6 +147,39 @@ public class XGBoostJsonParserTests extends LuceneTestCase {
         );
     }
 
+    public void testMissingAsZeroTreatsMissingLikeExplicitZero() throws IOException {
+        // "missing":2 -> defaultLeft=false, so with NaN handling a missing feature routes to "no" (0.2).
+        // With missing_as_zero the unset slot defaults to 0.0 and routes as a real 0.0 would (100 > 0 -> "yes" -> 0.5).
+        String splits = "\"splits\": [{"
+            + "\"nodeid\": 0,"
+            + "\"split\":\"feat1\","
+            + "\"depth\":0,"
+            + "\"split_condition\":100.0,"
+            + "\"yes\":1,"
+            + "\"no\": 2,"
+            + "\"missing\":2,"
+            + "\"children\": ["
+            + "   {\"nodeid\": 1, \"depth\": 1, \"leaf\": 0.5},"
+            + "   {\"nodeid\": 2, \"depth\": 1, \"leaf\": 0.2}"
+            + "]}]";
+        FeatureSet set = new StoredFeatureSet("set", singletonList(randomFeature("feat1")));
+
+        NaiveAdditiveDecisionTree defaultTree = parser.parse(set, "{" + splits + "}");
+        assertFalse(defaultTree.isMissingAsZero());
+        assertTrue(Float.isNaN(defaultTree.newFeatureVector(null).getDefaultScore()));
+        assertEquals(0.2F, defaultTree.score(defaultTree.newFeatureVector(null)), Math.ulp(0.2F));
+
+        NaiveAdditiveDecisionTree zeroTree = parser.parse(set, "{\"missing_as_zero\": true, " + splits + "}");
+        assertTrue(zeroTree.isMissingAsZero());
+        assertEquals(0.0F, zeroTree.newFeatureVector(null).getDefaultScore(), 0.0F);
+        // Missing feature scores identically to an explicit 0.0, and both differ from the default (NaN) tree.
+        float missing = zeroTree.score(zeroTree.newFeatureVector(null));
+        FeatureVector explicitZero = zeroTree.newFeatureVector(null);
+        explicitZero.setFeatureScore(0, 0.0F);
+        assertEquals(0.5F, missing, Math.ulp(0.5F));
+        assertEquals(missing, zeroTree.score(explicitZero), 0.0F);
+    }
+
     public void testReadSimpleSplitInObject() throws IOException {
         String model = "{"
             + "\"splits\": [{"

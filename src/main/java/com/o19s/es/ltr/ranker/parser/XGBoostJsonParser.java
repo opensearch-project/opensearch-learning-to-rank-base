@@ -59,7 +59,7 @@ public class XGBoostJsonParser implements LtrRankerParser {
         float[] weights = new float[trees.length];
         // Tree weights are already encoded in outputs
         Arrays.fill(weights, 1F);
-        return new NaiveAdditiveDecisionTree(trees, weights, set.size(), modelDefinition.normalizer);
+        return new NaiveAdditiveDecisionTree(trees, weights, set.size(), modelDefinition.normalizer, modelDefinition.missingAsZero);
     }
 
     private static class XGBoostDefinition {
@@ -68,10 +68,13 @@ public class XGBoostJsonParser implements LtrRankerParser {
             PARSER = new ObjectParser<>("xgboost_definition", XGBoostDefinition::new);
             PARSER.declareString(XGBoostDefinition::setNormalizer, new ParseField("objective"));
             PARSER.declareObjectArray(XGBoostDefinition::setSplitParserStates, SplitParserState::parse, new ParseField("splits"));
+            // Opt-in: treat missing (unset) features as 0.0 for models trained with fillna=0 (issue #286). Default false.
+            PARSER.declareBoolean(XGBoostDefinition::setMissingAsZero, new ParseField("missing_as_zero"));
         }
 
         private Normalizer normalizer;
         private List<SplitParserState> splitParserStates;
+        private boolean missingAsZero = false;
 
         public static XGBoostDefinition parse(XContentParser parser, FeatureSet set) throws IOException {
             XGBoostDefinition definition;
@@ -140,6 +143,10 @@ public class XGBoostJsonParser implements LtrRankerParser {
 
         void setSplitParserStates(List<SplitParserState> splitParserStates) {
             this.splitParserStates = splitParserStates;
+        }
+
+        void setMissingAsZero(boolean missingAsZero) {
+            this.missingAsZero = missingAsZero;
         }
 
         Node[] getTrees(FeatureSet set) {

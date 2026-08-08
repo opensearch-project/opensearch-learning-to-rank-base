@@ -165,6 +165,55 @@ public class XGBoostRawJsonParserTests extends LuceneTestCase {
         assertEquals(10.0, tree.score(featureVector), Math.ulp(0.1F));
     }
 
+    public void testMissingAsZeroOverridesDefaultLeftRaw() throws IOException {
+        // default_left=0 -> a missing (NaN) feature routes right (node 1, weight 10.0). With
+        // missing_as_zero the missing feature is 0.0 (< 3.0) and routes left (node 2, weight 0.0).
+        String body = "    \"learner\":{"
+            + "        \"attributes\":{},"
+            + "        \"feature_names\":[\"feat1\"],"
+            + "        \"feature_types\":[\"float\"],"
+            + "        \"gradient_booster\":{"
+            + "        \"model\":{"
+            + "            \"gbtree_model_param\":{\"num_parallel_tree\":\"1\",\"num_trees\":\"1\"},"
+            + "            \"iteration_indptr\":[0,1],"
+            + "            \"tree_info\":[0],"
+            + "            \"trees\":[{"
+            + "                \"base_weights\":[1E0, 10E0, 0E0],"
+            + "                \"categories\":[],"
+            + "                \"categories_nodes\":[],"
+            + "                \"categories_segments\":[],"
+            + "                \"categories_sizes\":[],"
+            + "                \"default_left\":[0, 0, 0],"
+            + "                \"id\":0,"
+            + "                \"left_children\":[2, -1, -1],"
+            + "                \"loss_changes\":[0E0, 0E0, 0E0],"
+            + "                \"parents\":[2147483647, 0, 0],"
+            + "                \"right_children\":[1, -1, -1],"
+            + "                \"split_conditions\":[3E0, -1E0, -1E0],"
+            + "                \"split_indices\":[0, 0, 0],"
+            + "                \"split_type\":[0, 0, 0],"
+            + "                \"sum_hessian\":[1E0, 1E0, 1E0],"
+            + "                \"tree_param\":{\"num_deleted\":\"0\",\"num_feature\":\"1\",\"num_nodes\":\"3\",\"size_leaf_vector\":\"1\"}"
+            + "                }"
+            + "            ]},"
+            + "            \"name\":\"gbtree\""
+            + "        },"
+            + "        \"learner_model_param\":{\"base_score\":\"5E-1\",\"num_class\":\"0\",\"num_feature\":\"1\",\"num_target\":\"1\"},"
+            + "        \"objective\":{\"name\":\"reg:linear\",\"reg_loss_param\":{\"scale_pos_weight\":\"1\"}}"
+            + "    },"
+            + "    \"version\":[2,1,0]"
+            + "}";
+        FeatureSet set = new StoredFeatureSet("set", singletonList(randomFeature("feat1")));
+
+        NaiveAdditiveDecisionTree defaultTree = parser.parse(set, "{" + body);
+        assertFalse(defaultTree.isMissingAsZero());
+        assertEquals(10.0F, defaultTree.score(defaultTree.newFeatureVector(null)), Math.ulp(10.0F));
+
+        NaiveAdditiveDecisionTree zeroTree = parser.parse(set, "{\"missing_as_zero\": true," + body);
+        assertTrue(zeroTree.isMissingAsZero());
+        assertEquals(0.0F, zeroTree.score(zeroTree.newFeatureVector(null)), Math.ulp(0.1F));
+    }
+
     public void testReadWithLogisticObjective() throws IOException {
         String model = "{"
             + "    \"learner\":{"

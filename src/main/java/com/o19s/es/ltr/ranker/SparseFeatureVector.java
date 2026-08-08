@@ -19,7 +19,11 @@ package com.o19s.es.ltr.ranker;
 public class SparseFeatureVector extends ArrayFeatureVector {
 
     public SparseFeatureVector(int size) {
-        super(size, Float.NaN);
+        this(size, Float.NaN);
+    }
+
+    public SparseFeatureVector(int size, float defaultValue) {
+        super(size, defaultValue);
         reset();
     }
 }
