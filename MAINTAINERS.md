@@ -15,10 +15,10 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 | Scott Stults    | [sstults](https://github.com/sstults)               | OpenSource Connections |
 | Johannes Peter  | [JohannesDaniel](https://github.com/JohannesDaniel) | Principal Engineer     |
 | Yaliang Wu      | [ylwu-amzn](https://github.com/ylwu-amzn)           | Amazon                 |
-| Jing Zhang      | [jngz-es](https://github.com/jngz-es)               | Amazon                 |
-| Rithin Pullela  | [rithinpullela](https://github.com/rithinpullela) | Amazon                 |
+| Rithin Pullela  | [rithinpullela](https://github.com/rithinpullela)   | Amazon                 |
 
 ## Emeritus
 
-| Maintainer         | GitHub ID                                                 | Affiliation |
-| ------------------ | --------------------------------------------------------- | ----------- |
+| Maintainer      | GitHub ID                                           | Affiliation            |
+| --------------- | --------------------------------------------------- |------------------------|
+| Jing Zhang      | [jngz-es](https://github.com/jngz-es)               | Amazon                 |
