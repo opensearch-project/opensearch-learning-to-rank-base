@@ -18,6 +18,9 @@ jobs:
     if: github.repository == 'opensearch-project/opensearch-learning-to-rank-base'
     runs-on: ubuntu-latest
     strategy:
+      # Let every matrix leg report independently. Branch protection requires the
+      # java 21 checks, and fail-fast would cancel them when another leg fails.
+      fail-fast: false
       matrix:
         java: [21, 25]
     steps:
@@ -35,6 +38,7 @@ jobs:
   Build-ltr-linux:
     needs: [Get-CI-Image-Tag, spotless]
     strategy:
+      fail-fast: false
       matrix:
         java: [21, 25]
 
@@ -75,6 +79,7 @@ jobs:
 
   Build-ltr-windows:
     strategy:
+      fail-fast: false
       matrix:
         java: [21 , 25]
     name: Build and Test LTR Plugin on Windows
