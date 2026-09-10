@@ -197,7 +197,7 @@ java {
 // thirdPartyAudit.enabled = false
 
 // Uncomment this to skip license header checks
-// licenseHeaders.enabled = false
+licenseHeaders.enabled = false
 
 // No need to validate POM, as we do not upload to sonatype
 validateNebulaPom.enabled = false
