@@ -169,4 +169,44 @@ public class TermStatQueryTests extends LuceneTestCase {
         Explanation explanation = searcher.explain(tsq, docs.scoreDocs[0].doc);
         assertThat(explanation.toString().trim(), equalTo("3.0 = weight(" + expr + " in doc 0)"));
     }
+
+    public void testExtractTermsAddsAllQueryTerms() throws Exception {
+        String expr = "df";
+        AggrType aggr = AggrType.MIN;
+        AggrType pos_aggr = AggrType.MAX;
+
+        Set<Term> terms = new HashSet<>();
+        terms.add(new Term("text", "brown"));
+        terms.add(new Term("text", "cow"));
+
+        Expression compiledExpression = (Expression) Scripting.compile(expr);
+        TermStatQuery tsq = new TermStatQuery(compiledExpression, aggr, pos_aggr, terms);
+
+        // extractTerms should add the query's terms into the provided set
+        Set<Term> out = new HashSet<>();
+        org.apache.lucene.search.Weight w = tsq.createWeight(searcher, org.apache.lucene.search.ScoreMode.COMPLETE, 1.0f);
+        ((TermStatQuery.TermStatWeight) w).extractTerms(out);
+
+        assertEquals(terms.size(), out.size());
+        assertTrue(out.containsAll(terms));
+    }
+
+    public void testToStringContainsKeyDetails() throws Exception {
+        String expr = "tf * idf";
+        AggrType aggr = AggrType.AVG;
+        AggrType pos_aggr = AggrType.AVG;
+
+        Set<Term> terms = new HashSet<>();
+        terms.add(new Term("text", "cow"));
+
+        Expression compiledExpression = (Expression) Scripting.compile(expr);
+        TermStatQuery tsq = new TermStatQuery(compiledExpression, aggr, pos_aggr, terms);
+
+        String s = tsq.toString("text");
+        assertNotNull(s);
+        assertTrue(s.contains("expr="));
+        assertTrue(s.contains("aggr="));
+        assertTrue(s.contains("posAggr="));
+        assertTrue(s.contains("terms="));
+    }
 }
