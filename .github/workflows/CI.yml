@@ -22,6 +22,7 @@ jobs:
     if: github.repository == 'opensearch-project/opensearch-learning-to-rank-base'
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         java: [21]
     steps:
@@ -41,6 +42,7 @@ jobs:
   Build-ltr-linux:
     needs: [Get-CI-Image-Tag, spotless]
     strategy:
+      fail-fast: false
       matrix:
         java: [ 11, 17, 21 ]
 
@@ -73,11 +75,12 @@ jobs:
         run: |
           chown -R 1000:1000 `pwd`
           su `id -un 1000` -c 'whoami && java -version && 
-                              ./gradlew -Dtests.security.manager=false clean test -x spotlessJava'
+                              ./gradlew -Dtests.security.manager=false clean test'
 
 
   Build-ltr-windows:
     strategy:
+      fail-fast: false
       matrix:
         java: [ 11, 17, 21 ]
     name: Build and Test LTR Plugin on Windows
@@ -97,4 +100,4 @@ jobs:
       - name: Build and Run Tests
         shell: bash
         run: |
-          ./gradlew.bat build -x spotlessJava
+          ./gradlew.bat build
