@@ -153,6 +153,7 @@ configurations.configureEach {
   resolutionStrategy.force 'org.eclipse.platform:org.eclipse.core.runtime:3.29.0'
   resolutionStrategy.force 'org.slf4j:slf4j-api:2.0.17'
   resolutionStrategy.force 'com.google.errorprone:error_prone_annotations:2.41.0'
+  resolutionStrategy.force 'org.jspecify:jspecify:1.0.1'
 }
 
 configurations {
