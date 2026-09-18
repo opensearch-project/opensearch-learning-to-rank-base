@@ -2,7 +2,7 @@ import org.opensearch.gradle.test.RestIntegTestTask
 
 buildscript {
   ext {
-    opensearch_version = System.getProperty("opensearch.version", "3.8.0-SNAPSHOT")
+    opensearch_version = System.getProperty("opensearch.version", "3.9.0-SNAPSHOT")
     is_snapshot = "true" == System.getProperty("build.snapshot", "true")
     build_version_qualifier = System.getProperty("build.version_qualifier", "")
 
@@ -153,6 +153,7 @@ configurations.configureEach {
   resolutionStrategy.force 'org.eclipse.platform:org.eclipse.core.runtime:3.29.0'
   resolutionStrategy.force 'org.slf4j:slf4j-api:2.0.17'
   resolutionStrategy.force 'com.google.errorprone:error_prone_annotations:2.41.0'
+  resolutionStrategy.force 'org.jspecify:jspecify:1.0.1'
 }
 
 configurations {
@@ -197,7 +198,7 @@ java {
 // thirdPartyAudit.enabled = false
 
 // Uncomment this to skip license header checks
-// licenseHeaders.enabled = false
+licenseHeaders.enabled = false
 
 // No need to validate POM, as we do not upload to sonatype
 validateNebulaPom.enabled = false
