@@ -1,0 +1,14 @@
+# Actions the plugin subject performs that the security plugin classifies as cluster permissions
+# rather than index permissions. Index actions on .ltrstore* need no entry here, because a plugin
+# subject is granted those on the system indices it registers.
+cluster_permissions:
+  # The feature store REST APIs are served by the plugin's own transport actions, which the plugin
+  # subject invokes. Their names do not start with "indices:", so each needs granting explicitly.
+  - "cluster:admin/ltr/featurestore/list"
+  - "cluster:admin/ltr/featurestore/data"
+  - "cluster:admin/ltr/store/add-features-to-set"
+  - "cluster:admin/ltr/store/create-model-from-set"
+  # Invalidating the cached element after a store write.
+  - "cluster:admin/ltr/caches"
+  # GET /_ltr counts the elements in every store with one multi-search.
+  - "indices:data/read/msearch"

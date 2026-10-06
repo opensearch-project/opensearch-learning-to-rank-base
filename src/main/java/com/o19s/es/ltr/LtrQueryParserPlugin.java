@@ -54,6 +54,7 @@ import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;
+import org.opensearch.identity.PluginSubject;
 import org.opensearch.index.analysis.PreConfiguredTokenFilter;
 import org.opensearch.index.analysis.PreConfiguredTokenizer;
 import org.opensearch.indices.SystemIndexDescriptor;
@@ -72,6 +73,7 @@ import org.opensearch.ltr.transport.TransportLTRStatsAction;
 import org.opensearch.monitor.jvm.JvmService;
 import org.opensearch.plugins.ActionPlugin;
 import org.opensearch.plugins.AnalysisPlugin;
+import org.opensearch.plugins.IdentityAwarePlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.ScriptPlugin;
 import org.opensearch.plugins.SearchPlugin;
@@ -125,17 +127,26 @@ import com.o19s.es.ltr.rest.RestFeatureStoreCaches;
 import com.o19s.es.ltr.rest.RestSearchStoreElements;
 import com.o19s.es.ltr.rest.RestStoreManager;
 import com.o19s.es.ltr.utils.FeatureStoreLoader;
+import com.o19s.es.ltr.utils.PluginClient;
 import com.o19s.es.ltr.utils.Suppliers;
 import com.o19s.es.termstat.TermStatQueryBuilder;
 
 import ciir.umass.edu.learning.RankerFactory;
 
-public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, ScriptPlugin, ActionPlugin, AnalysisPlugin, SystemIndexPlugin {
+public class LtrQueryParserPlugin extends Plugin
+    implements
+        SearchPlugin,
+        ScriptPlugin,
+        ActionPlugin,
+        AnalysisPlugin,
+        SystemIndexPlugin,
+        IdentityAwarePlugin {
     public static final String LTR_BASE_URI = "/_plugins/_ltr";
     public static final String LTR_LEGACY_BASE_URI = "/_opendistro/_ltr";
     private final LtrRankerParserFactory parserFactory;
     private final Caches caches;
     private final LTRStats ltrStats;
+    private PluginClient pluginClient;
 
     public LtrQueryParserPlugin(Settings settings) {
         caches = new Caches(settings);
@@ -208,14 +219,14 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
         List<RestHandler> list = new ArrayList<>();
 
         for (String type : ValidatingLtrQueryBuilder.SUPPORTED_TYPES) {
-            list.add(new RestFeatureManager(type));
-            list.add(new RestSearchStoreElements(type));
+            list.add(new RestFeatureManager(type, pluginClient));
+            list.add(new RestSearchStoreElements(type, pluginClient));
         }
-        list.add(new RestStoreManager());
+        list.add(new RestStoreManager(pluginClient));
 
         list.add(new RestFeatureStoreCaches());
-        list.add(new RestCreateModelFromSet());
-        list.add(new RestAddFeatureToSet());
+        list.add(new RestCreateModelFromSet(pluginClient));
+        list.add(new RestAddFeatureToSet(pluginClient));
         list.add(new RestStatsLTRAction(ltrStats));
         return unmodifiableList(list);
     }
@@ -303,6 +314,8 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
         IndexNameExpressionResolver indexNameExpressionResolver,
         Supplier<RepositoriesService> repositoriesServiceSupplier
     ) {
+        pluginClient = new PluginClient(client);
+
         clusterService.addListener(event -> {
             for (Index i : event.indicesDeleted()) {
                 if (IndexFeatureStore.isIndexStore(i.getName())) {
@@ -321,6 +334,11 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
 
         addStats(client, clusterService, ltrCircuitBreakerService);
         return asList(caches, parserFactory, ltrCircuitBreakerService, ltrStats);
+    }
+
+    @Override
+    public void assignSubject(PluginSubject pluginSubject) {
+        pluginClient.setSubject(pluginSubject);
     }
 
     private void addStats(
@@ -345,10 +363,7 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
     }
 
     protected FeatureStoreLoader getFeatureStoreLoader() {
-        return (storeName, clientSupplier) -> new CachedFeatureStore(
-            new IndexFeatureStore(storeName, clientSupplier, parserFactory),
-            caches
-        );
+        return (storeName) -> new CachedFeatureStore(new IndexFeatureStore(storeName, () -> pluginClient, parserFactory), caches);
     }
 
     // A simplified version of some token filters needed by the feature stores.

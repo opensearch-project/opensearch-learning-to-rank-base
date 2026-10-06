@@ -135,7 +135,7 @@ public class LtrTestUtils {
     }
 
     public static FeatureStoreLoader nullLoader() {
-        return (storeName, client) -> {
+        return (storeName) -> {
             throw new IllegalStateException(
                 "Invalid state, this query cannot be "
                     + "built without a valid store loader. Your are seeing this exception because you attempt to call "
@@ -173,7 +173,7 @@ public class LtrTestUtils {
     }
 
     public static FeatureStoreLoader wrapMemStore(MemStore store) {
-        return (storeName, client) -> store;
+        return (storeName) -> store;
     }
 
     public static String testFeatureSetString() {
