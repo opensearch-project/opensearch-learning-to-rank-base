@@ -36,6 +36,7 @@ import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.test.OpenSearchTestCase;
+import org.opensearch.test.client.NoOpNodeClient;
 import org.opensearch.test.rest.FakeRestChannel;
 import org.opensearch.test.rest.FakeRestRequest;
 import org.opensearch.threadpool.ThreadPool;
@@ -83,7 +84,7 @@ public class RestHandlersPluginSubjectTests extends OpenSearchTestCase {
         pluginClient.setSubject(new RecordingPluginSubject(threadContext, SUBJECT));
 
         // A real node client, so its final request builders and admin clients route to doExecute.
-        nodeClient = new NodeClient(Settings.EMPTY, threadPool) {
+        nodeClient = new NoOpNodeClient(threadPool) {
             @Override
             public <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
                 ActionType<Response> action,
@@ -102,54 +103,54 @@ public class RestHandlersPluginSubjectTests extends OpenSearchTestCase {
 
     public void testGetElementRunsAsTheSubject() throws Exception {
         handle(new RestFeatureManager("feature", pluginClient), RestRequest.Method.GET, Map.of("name", "f"), null);
-        assertCalls(List.of(GetAction.NAME + "@" + SUBJECT), List.of());
+        assertCalls(List.of(asSubject(GetAction.NAME)), List.of());
     }
 
     public void testAddElementRunsAsTheSubject() throws Exception {
         String feature = "{\"feature\":{\"name\":\"f\",\"params\":[],\"template\":{\"match_all\":{}}}}";
         handle(new RestFeatureManager("feature", pluginClient), RestRequest.Method.PUT, Map.of("name", "f"), feature);
-        assertCalls(List.of(FeatureStoreAction.NAME + "@" + SUBJECT), List.of());
+        assertCalls(List.of(asSubject(FeatureStoreAction.NAME)), List.of());
     }
 
     public void testDeleteElementClearsCachesAsTheCallerThenDeletesAsTheSubject() throws Exception {
         handle(new RestFeatureManager("feature", pluginClient), RestRequest.Method.DELETE, Map.of("name", "f"), null);
-        assertCalls(List.of(DeleteAction.NAME + "@" + SUBJECT), List.of(ClearCachesAction.NAME + "@" + CALLER));
+        assertCalls(List.of(asSubject(DeleteAction.NAME)), List.of(asCaller(ClearCachesAction.NAME)));
     }
 
     public void testSearchElementsRunsAsTheSubject() throws Exception {
         handle(new RestSearchStoreElements("feature", pluginClient), RestRequest.Method.GET, Map.of(), null);
-        assertCalls(List.of(SearchAction.NAME + "@" + SUBJECT), List.of());
+        assertCalls(List.of(asSubject(SearchAction.NAME)), List.of());
     }
 
     public void testListStoresRunsAsTheSubject() throws Exception {
         handle(new RestStoreManager(pluginClient), RestRequest.Method.GET, Map.of(), null);
-        assertCalls(List.of(ListStoresAction.NAME + "@" + SUBJECT), List.of());
+        assertCalls(List.of(asSubject(ListStoresAction.NAME)), List.of());
     }
 
     public void testGetStoreRunsAsTheSubject() throws Exception {
         handle(new RestStoreManager(pluginClient), RestRequest.Method.GET, Map.of("store", "s"), null);
-        assertCalls(List.of(IndicesExistsAction.NAME + "@" + SUBJECT), List.of());
+        assertCalls(List.of(asSubject(IndicesExistsAction.NAME)), List.of());
     }
 
     public void testDeleteStoreRunsAsTheSubject() throws Exception {
         handle(new RestStoreManager(pluginClient), RestRequest.Method.DELETE, Map.of("store", "s"), null);
-        assertCalls(List.of(DeleteIndexAction.NAME + "@" + SUBJECT), List.of());
+        assertCalls(List.of(asSubject(DeleteIndexAction.NAME)), List.of());
     }
 
     public void testCreateStoreRunsAsTheCaller() throws Exception {
         handle(new RestStoreManager(pluginClient), RestRequest.Method.PUT, Map.of("store", "s"), null);
-        assertCalls(List.of(), List.of(CreateIndexAction.NAME + "@" + CALLER));
+        assertCalls(List.of(), List.of(asCaller(CreateIndexAction.NAME)));
     }
 
     public void testAddFeaturesToSetRunsAsTheSubject() throws Exception {
         handle(new RestAddFeatureToSet(pluginClient), RestRequest.Method.POST, Map.of("name", "set", "query", "f*"), null);
-        assertCalls(List.of(AddFeaturesToSetAction.NAME + "@" + SUBJECT), List.of());
+        assertCalls(List.of(asSubject(AddFeaturesToSetAction.NAME)), List.of());
     }
 
     public void testCreateModelFromSetRunsAsTheSubject() throws Exception {
         String model = "{\"model\":{\"name\":\"m\",\"model\":{\"type\":\"model/linear\",\"definition\":{\"f\":1.0}}}}";
         handle(new RestCreateModelFromSet(pluginClient), RestRequest.Method.POST, Map.of("name", "set"), model);
-        assertCalls(List.of(CreateModelFromSetAction.NAME + "@" + SUBJECT), List.of());
+        assertCalls(List.of(asSubject(CreateModelFromSetAction.NAME)), List.of());
     }
 
     private void handle(BaseRestHandler handler, RestRequest.Method method, Map<String, String> params, String content) throws Exception {
@@ -161,6 +162,14 @@ public class RestHandlersPluginSubjectTests extends OpenSearchTestCase {
         }
         FakeRestRequest request = builder.build();
         handler.handleRequest(request, new FakeRestChannel(request, true, 1), nodeClient);
+    }
+
+    private static String asSubject(String action) {
+        return action + "@" + SUBJECT;
+    }
+
+    private static String asCaller(String action) {
+        return action + "@" + CALLER;
     }
 
     private String callAsSeen(ActionType<?> action) {

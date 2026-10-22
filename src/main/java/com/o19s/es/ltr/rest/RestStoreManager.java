@@ -24,8 +24,6 @@ import java.util.Objects;
 
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsResponse;
-import org.opensearch.action.support.clustermanager.AcknowledgedResponse;
-import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.ltr.settings.LTRSettings;
@@ -157,9 +155,7 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
         DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(indexName);
         return (channel) -> {
             try {
-                ActionListener<AcknowledgedResponse> listener = new RestToXContentListener<>(channel);
-
-                pluginClient.admin().indices().delete(deleteIndexRequest, listener);
+                pluginClient.admin().indices().delete(deleteIndexRequest, new RestToXContentListener<>(channel));
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }

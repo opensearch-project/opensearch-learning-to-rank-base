@@ -24,8 +24,6 @@ import static org.opensearch.index.query.QueryBuilders.termQuery;
 import java.util.List;
 import java.util.Objects;
 
-import org.opensearch.action.search.SearchResponse;
-import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.ltr.settings.LTRSettings;
@@ -82,9 +80,12 @@ public class RestSearchStoreElements extends FeatureStoreBaseRestHandler {
         }
         return (channel) -> {
             try {
-                ActionListener<SearchResponse> searchListener = new RestStatusToXContentListener<>(channel);
-
-                pluginClient.prepareSearch(indexName).setQuery(qb).setSize(size).setFrom(from).execute(searchListener);
+                pluginClient
+                    .prepareSearch(indexName)
+                    .setQuery(qb)
+                    .setSize(size)
+                    .setFrom(from)
+                    .execute(new RestStatusToXContentListener<>(channel));
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }

@@ -2,8 +2,7 @@
 # rather than index permissions. Index actions on .ltrstore* need no entry here, because a plugin
 # subject is granted those on the system indices it registers.
 cluster_permissions:
-  # The feature store REST APIs are served by the plugin's own transport actions, which the plugin
-  # subject invokes. Their names do not start with "indices:", so each needs granting explicitly.
+  # The plugin's own transport actions, which the feature store REST APIs invoke as the plugin subject.
   - "cluster:admin/ltr/featurestore/list"
   - "cluster:admin/ltr/featurestore/data"
   - "cluster:admin/ltr/store/add-features-to-set"

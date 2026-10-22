@@ -18,6 +18,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -101,7 +102,7 @@ public class PluginClientTests extends OpenSearchTestCase {
         threadContext.putTransient(CALLER_TRANSIENT, "set-by-caller");
         assignSubject();
 
-        pluginClient.execute(DUMMY_ACTION, new DummyRequest(), ActionListener.wrap(r -> {}, e -> {}));
+        pluginClient.execute(DUMMY_ACTION, new DummyRequest(), ignoring());
 
         assertEquals("the action must run inside runAs", "set-by-subject", subjectSeenByDelegate);
         assertNull("the caller's context must not reach the action", callerSeenByDelegate);
@@ -118,7 +119,7 @@ public class PluginClientTests extends OpenSearchTestCase {
     public void testRestoresTheRespondingThreadsContextAfterTheListenerReturns() throws Exception {
         threadContext.putTransient(CALLER_TRANSIENT, "set-by-caller");
         assignSubject();
-        pluginClient.execute(DUMMY_ACTION, new DummyRequest(), ActionListener.wrap(r -> {}, e -> {}));
+        pluginClient.execute(DUMMY_ACTION, new DummyRequest(), ignoring());
 
         // Restoring the caller's context and leaving it there would strand it on a pooled thread for
         // whatever runs next.
@@ -214,7 +215,7 @@ public class PluginClientTests extends OpenSearchTestCase {
             () -> pluginClient.setSubject(new RecordingPluginSubject(threadContext, "set-by-second-subject"))
         );
 
-        pluginClient.execute(DUMMY_ACTION, new DummyRequest(), ActionListener.wrap(r -> {}, e -> {}));
+        pluginClient.execute(DUMMY_ACTION, new DummyRequest(), ignoring());
         assertEquals("a rejected subject must not replace the assigned one", "set-by-subject", subjectSeenByDelegate);
     }
 
@@ -224,13 +225,13 @@ public class PluginClientTests extends OpenSearchTestCase {
         delegateBehaviour = listener -> subjectsSeen.add(subjectSeenByDelegate);
 
         // The REST handlers and IndexFeatureStore reach the subject through these, not through execute.
-        pluginClient.prepareGet("index", "id").execute(ActionListener.wrap(r -> {}, e -> {}));
-        pluginClient.prepareSearch("index").execute(ActionListener.wrap(r -> {}, e -> {}));
-        pluginClient.prepareDelete("index", "id").execute(ActionListener.wrap(r -> {}, e -> {}));
-        pluginClient.admin().indices().prepareExists("index").execute(ActionListener.wrap(r -> {}, e -> {}));
-        pluginClient.admin().indices().delete(new DeleteIndexRequest("index"), ActionListener.wrap(r -> {}, e -> {}));
+        pluginClient.prepareGet("index", "id").execute(ignoring());
+        pluginClient.prepareSearch("index").execute(ignoring());
+        pluginClient.prepareDelete("index", "id").execute(ignoring());
+        pluginClient.admin().indices().prepareExists("index").execute(ignoring());
+        pluginClient.admin().indices().delete(new DeleteIndexRequest("index"), ignoring());
 
-        assertEquals(List.of("set-by-subject", "set-by-subject", "set-by-subject", "set-by-subject", "set-by-subject"), subjectsSeen);
+        assertEquals(Collections.nCopies(5, "set-by-subject"), subjectsSeen);
     }
 
     public void testRejectsANullSubject() {
@@ -259,6 +260,10 @@ public class PluginClientTests extends OpenSearchTestCase {
 
         assertEquals("set-by-caller", callerSeen.get());
         assertNull("the subject's context must not reach the listener", subjectSeen.get());
+    }
+
+    private static <T> ActionListener<T> ignoring() {
+        return ActionListener.wrap(r -> {}, e -> {});
     }
 
     private RecordingPluginSubject assignSubject() {
