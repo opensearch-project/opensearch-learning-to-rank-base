@@ -12,10 +12,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -28,13 +29,12 @@ import java.util.function.Consumer;
 import org.opensearch.action.ActionRequest;
 import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.ActionType;
-import org.opensearch.common.CheckedRunnable;
+import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.action.ActionResponse;
 import org.opensearch.core.common.io.stream.StreamOutput;
-import org.opensearch.identity.PluginSubject;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.client.Client;
@@ -43,7 +43,7 @@ import org.opensearch.transport.client.Client;
 public class PluginClientTests extends OpenSearchTestCase {
 
     private static final String CALLER_TRANSIENT = "caller.marker";
-    private static final String SUBJECT_TRANSIENT = "subject.marker";
+    private static final String SUBJECT_TRANSIENT = RecordingPluginSubject.MARKER_TRANSIENT;
     private static final String RESPONDER_TRANSIENT = "responder.marker";
 
     private static final ActionType<DummyResponse> DUMMY_ACTION = new ActionType<>(
@@ -195,18 +195,42 @@ public class PluginClientTests extends OpenSearchTestCase {
     }
 
     public void testRejectsUseBeforeASubjectIsAssigned() {
+        List<Object> notified = new ArrayList<>();
         IllegalStateException e = expectThrows(
             IllegalStateException.class,
-            () -> pluginClient.execute(DUMMY_ACTION, new DummyRequest(), ActionListener.wrap(r -> {}, ex -> {}))
+            () -> pluginClient.execute(DUMMY_ACTION, new DummyRequest(), ActionListener.wrap(notified::add, notified::add))
         );
-        assertTrue(e.getMessage().contains("subject"));
+        assertEquals("PluginClient is not initialized with a subject.", e.getMessage());
+        assertEquals("the listener must not be told about a wiring error that was thrown", List.of(), notified);
+        verify(delegate, never()).execute(any(ActionType.class), any(ActionRequest.class), any(ActionListener.class));
     }
 
     public void testAcceptsTheSameSubjectTwiceButRejectsADifferentOne() {
-        RecordingSubject first = assignSubject();
+        RecordingPluginSubject first = assignSubject();
         pluginClient.setSubject(first);
 
-        expectThrows(IllegalStateException.class, () -> pluginClient.setSubject(new RecordingSubject(threadContext)));
+        expectThrows(
+            IllegalStateException.class,
+            () -> pluginClient.setSubject(new RecordingPluginSubject(threadContext, "set-by-second-subject"))
+        );
+
+        pluginClient.execute(DUMMY_ACTION, new DummyRequest(), ActionListener.wrap(r -> {}, e -> {}));
+        assertEquals("a rejected subject must not replace the assigned one", "set-by-subject", subjectSeenByDelegate);
+    }
+
+    public void testRequestBuildersAndAdminClientsRunAsTheSubject() {
+        assignSubject();
+        List<String> subjectsSeen = new ArrayList<>();
+        delegateBehaviour = listener -> subjectsSeen.add(subjectSeenByDelegate);
+
+        // The REST handlers and IndexFeatureStore reach the subject through these, not through execute.
+        pluginClient.prepareGet("index", "id").execute(ActionListener.wrap(r -> {}, e -> {}));
+        pluginClient.prepareSearch("index").execute(ActionListener.wrap(r -> {}, e -> {}));
+        pluginClient.prepareDelete("index", "id").execute(ActionListener.wrap(r -> {}, e -> {}));
+        pluginClient.admin().indices().prepareExists("index").execute(ActionListener.wrap(r -> {}, e -> {}));
+        pluginClient.admin().indices().delete(new DeleteIndexRequest("index"), ActionListener.wrap(r -> {}, e -> {}));
+
+        assertEquals(List.of("set-by-subject", "set-by-subject", "set-by-subject", "set-by-subject", "set-by-subject"), subjectsSeen);
     }
 
     public void testRejectsANullSubject() {
@@ -237,8 +261,8 @@ public class PluginClientTests extends OpenSearchTestCase {
         assertNull("the subject's context must not reach the listener", subjectSeen.get());
     }
 
-    private RecordingSubject assignSubject() {
-        RecordingSubject subject = new RecordingSubject(threadContext);
+    private RecordingPluginSubject assignSubject() {
+        RecordingPluginSubject subject = new RecordingPluginSubject(threadContext, "set-by-subject");
         pluginClient.setSubject(subject);
         return subject;
     }
@@ -249,33 +273,6 @@ public class PluginClientTests extends OpenSearchTestCase {
             threadContext.putTransient(RESPONDER_TRANSIENT, "set-by-responder");
             completion.accept(capturedListener);
         }).get(10, TimeUnit.SECONDS);
-    }
-
-    /**
-     * Stands in for the plugin subject. Stashes and restores around its body as NoopPluginSubject and
-     * SecurePluginSubject do, and marks the context so a test can tell the subject's apart from the
-     * caller's.
-     */
-    private static class RecordingSubject implements PluginSubject {
-
-        private final ThreadContext threadContext;
-
-        RecordingSubject(ThreadContext threadContext) {
-            this.threadContext = threadContext;
-        }
-
-        @Override
-        public Principal getPrincipal() {
-            return () -> "plugin:test";
-        }
-
-        @Override
-        public <E extends Exception> void runAs(CheckedRunnable<E> runnable) throws E {
-            try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-                threadContext.putTransient(SUBJECT_TRANSIENT, "set-by-subject");
-                runnable.run();
-            }
-        }
     }
 
     private static class DummyRequest extends ActionRequest {
