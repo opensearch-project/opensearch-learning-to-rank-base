@@ -9,4 +9,4 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Add License Header
-        run: npx github:kt3k/deno_license_checker#d45b69c7ee7aed5981db0b8a347b2b345ea6b398 # v3.2.2
+        run: npx @kt3k/license-checker@3.2.2
