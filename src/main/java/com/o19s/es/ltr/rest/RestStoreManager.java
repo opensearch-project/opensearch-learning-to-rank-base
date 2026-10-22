@@ -45,6 +45,11 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
 
     private final PluginClient pluginClient;
 
+    /**
+     * Creates the handler.
+     *
+     * @param pluginClient lists, checks and deletes stores as the plugin subject
+     */
     public RestStoreManager(PluginClient pluginClient) {
         this.pluginClient = Objects.requireNonNull(pluginClient);
     }

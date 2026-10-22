@@ -51,6 +51,12 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
     private final String type;
     private final PluginClient pluginClient;
 
+    /**
+     * Creates the handler for one element type.
+     *
+     * @param type the element type the routes serve
+     * @param pluginClient reads and writes the store as the plugin subject
+     */
     public RestFeatureManager(String type, PluginClient pluginClient) {
         this.type = type;
         this.pluginClient = Objects.requireNonNull(pluginClient);

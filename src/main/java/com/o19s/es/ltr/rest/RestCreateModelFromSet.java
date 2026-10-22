@@ -47,6 +47,11 @@ public class RestCreateModelFromSet extends FeatureStoreBaseRestHandler {
 
     private final PluginClient pluginClient;
 
+    /**
+     * Creates the handler.
+     *
+     * @param pluginClient runs the create-model-from-set action as the plugin subject
+     */
     public RestCreateModelFromSet(PluginClient pluginClient) {
         this.pluginClient = Objects.requireNonNull(pluginClient);
     }

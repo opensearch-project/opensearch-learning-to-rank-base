@@ -336,6 +336,11 @@ public class LtrQueryParserPlugin extends Plugin
         return asList(caches, parserFactory, ltrCircuitBreakerService, ltrStats);
     }
 
+    /**
+     * Gives the plugin client the subject it runs store access as.
+     *
+     * @param pluginSubject this plugin's system subject
+     */
     @Override
     public void assignSubject(PluginSubject pluginSubject) {
         pluginClient.setSubject(pluginSubject);

@@ -40,6 +40,12 @@ public class RestSearchStoreElements extends FeatureStoreBaseRestHandler {
     private final String type;
     private final PluginClient pluginClient;
 
+    /**
+     * Creates the handler for one element type.
+     *
+     * @param type the element type the routes search
+     * @param pluginClient searches the store as the plugin subject
+     */
     public RestSearchStoreElements(String type, PluginClient pluginClient) {
         this.type = type;
         this.pluginClient = Objects.requireNonNull(pluginClient);

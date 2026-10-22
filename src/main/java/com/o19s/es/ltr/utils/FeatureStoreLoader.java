@@ -18,7 +18,14 @@ package com.o19s.es.ltr.utils;
 
 import com.o19s.es.ltr.feature.store.FeatureStore;
 
+/** Loads the feature store an {@code sltr} query names. */
 @FunctionalInterface
 public interface FeatureStoreLoader {
+    /**
+     * Loads a store.
+     *
+     * @param storeName the name of the store index
+     * @return the store
+     */
     FeatureStore load(String storeName);
 }

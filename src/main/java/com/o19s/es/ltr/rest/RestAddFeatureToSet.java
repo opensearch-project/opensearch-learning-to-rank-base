@@ -42,6 +42,11 @@ public class RestAddFeatureToSet extends FeatureStoreBaseRestHandler {
 
     private final PluginClient pluginClient;
 
+    /**
+     * Creates the handler.
+     *
+     * @param pluginClient runs the add-features-to-set action as the plugin subject
+     */
     public RestAddFeatureToSet(PluginClient pluginClient) {
         this.pluginClient = Objects.requireNonNull(pluginClient);
     }
