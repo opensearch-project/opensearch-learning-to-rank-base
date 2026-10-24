@@ -222,6 +222,7 @@ testClusters.register("integTest") {
 
 tasks.named("check").configure {
   dependsOn(integTest)
+  dependsOn("integTestMultiCluster")
   dependsOn(spotlessCheck)
 }
 
@@ -236,6 +237,41 @@ integTest {
   // The --debug-jvm command-line option makes the cluster debuggable; this makes the tests debuggable
   if (System.getProperty("test.debug") != null) {
     jvmArgs '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005'
+  }
+}
+
+// RestoreToNewClusterIT needs a second cluster, so it runs only in integTestMultiCluster
+['integTest', 'javaRestTest'].each { name ->
+  tasks.named(name).configure {
+    filter {
+      excludeTestsMatching "com.o19s.es.ltr.RestoreToNewClusterIT"
+    }
+  }
+}
+
+// Cluster A (integTestMultiCluster's own cluster) and cluster B (integTestSecondCluster, a second, empty cluster).
+// Both use the same snapshot folder (path.repo), so B can read A's snapshots.
+def testSnapshotFolder = layout.buildDirectory.dir('testSnapshotFolder').get().asFile
+testSnapshotFolder.mkdirs()
+['integTestMultiCluster', 'integTestSecondCluster'].each { name ->
+  testClusters.register(name) {
+    plugin(project.tasks.bundlePlugin.archiveFile)
+    setting 'path.repo', testSnapshotFolder.absolutePath
+  }
+}
+
+// Runs the tests that need two clusters. Created with `task`, not tasks.register: its clusters have to exist
+// before the project finishes evaluating, or their OpenSearch distribution is never downloaded.
+task integTestMultiCluster(type: RestIntegTestTask) {
+  description = "Run integration tests that need two clusters"
+  testClassesDirs = sourceSets.javaRestTest.output.classesDirs
+  classpath = sourceSets.javaRestTest.runtimeClasspath
+  dependsOn "bundlePlugin"
+  useCluster testClusters.integTestSecondCluster
+  systemProperty 'tests.security.manager', 'false'
+  nonInputProperties.systemProperty('tests.second_cluster', "${-> testClusters.integTestSecondCluster.allHttpSocketURI.join(',')}")
+  filter {
+    includeTestsMatching "com.o19s.es.ltr.RestoreToNewClusterIT"
   }
 }
 
