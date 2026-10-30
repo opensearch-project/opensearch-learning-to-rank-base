@@ -20,12 +20,10 @@ import static java.util.Collections.unmodifiableList;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsResponse;
-import org.opensearch.action.support.clustermanager.AcknowledgedResponse;
-import org.opensearch.common.util.concurrent.ThreadContext;
-import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.ltr.settings.LTRSettings;
@@ -39,8 +37,21 @@ import org.opensearch.transport.client.node.NodeClient;
 
 import com.o19s.es.ltr.action.ListStoresAction;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
+import com.o19s.es.ltr.utils.PluginClient;
 
 public class RestStoreManager extends FeatureStoreBaseRestHandler {
+
+    private final PluginClient pluginClient;
+
+    /**
+     * Creates the handler.
+     *
+     * @param pluginClient lists, checks and deletes stores as the plugin subject
+     */
+    public RestStoreManager(PluginClient pluginClient) {
+        this.pluginClient = Objects.requireNonNull(pluginClient);
+    }
+
     @Override
     public String getName() {
         return "Manage the LtR store";
@@ -93,37 +104,30 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
             }
             throw new IllegalArgumentException("Updating a feature store is not yet supported.");
         } else if (request.method() == RestRequest.Method.DELETE) {
-            return deleteIndex(client, indexName);
+            return deleteIndex(indexName);
         } else {
             assert request.method() == RestRequest.Method.GET;
             // XXX: ambiguous api
             if (request.hasParam("store")) {
-                return getStore(client, indexName);
+                return getStore(indexName);
             }
-            return listStores(client);
+            return listStores();
         }
     }
 
-    RestChannelConsumer listStores(NodeClient client) {
+    RestChannelConsumer listStores() {
         return (channel) -> {
-            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
-                RestToXContentListener<ListStoresAction.ListStoresActionResponse> listStoresListener = new RestToXContentListener<>(
-                    channel
-                );
-
-                ActionListener<ListStoresAction.ListStoresActionResponse> wrappedListener = ActionListener
-                    .runBefore(listStoresListener, () -> threadContext.restore());
-
-                new ListStoresAction.ListStoresActionBuilder(client).execute(wrappedListener);
+            try {
+                new ListStoresAction.ListStoresActionBuilder(pluginClient).execute(new RestToXContentListener<>(channel));
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }
         };
     }
 
-    RestChannelConsumer getStore(NodeClient client, String indexName) {
+    RestChannelConsumer getStore(String indexName) {
         return (channel) -> {
-            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
+            try {
                 RestBuilderListener<IndicesExistsResponse> existsListener = new RestBuilderListener<IndicesExistsResponse>(channel) {
                     @Override
                     public RestResponse buildResponse(IndicesExistsResponse indicesExistsResponse, XContentBuilder builder)
@@ -133,10 +137,7 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
                     }
                 };
 
-                ActionListener<IndicesExistsResponse> wrappedListener = ActionListener
-                    .runBefore(existsListener, () -> threadContext.restore());
-
-                client.admin().indices().prepareExists(indexName).execute(wrappedListener);
+                pluginClient.admin().indices().prepareExists(indexName).execute(existsListener);
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }
@@ -150,14 +151,11 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
             .create(IndexFeatureStore.buildIndexRequest(indexName), new RestToXContentListener<>(channel));
     }
 
-    RestChannelConsumer deleteIndex(NodeClient client, String indexName) {
+    RestChannelConsumer deleteIndex(String indexName) {
         DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(indexName);
         return (channel) -> {
-            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
-                ActionListener<AcknowledgedResponse> wrappedListener = ActionListener
-                    .runBefore(new RestToXContentListener<>(channel), () -> threadContext.restore());
-
-                client.admin().indices().delete(deleteIndexRequest, wrappedListener);
+            try {
+                pluginClient.admin().indices().delete(deleteIndexRequest, new RestToXContentListener<>(channel));
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }

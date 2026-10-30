@@ -21,9 +21,9 @@ import static java.util.Collections.unmodifiableList;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 
 import org.opensearch.ExceptionsHelper;
-import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.ParseField;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.ParsingException;
@@ -41,8 +41,20 @@ import com.o19s.es.ltr.action.CreateModelFromSetAction;
 import com.o19s.es.ltr.action.CreateModelFromSetAction.CreateModelFromSetRequestBuilder;
 import com.o19s.es.ltr.feature.FeatureValidation;
 import com.o19s.es.ltr.feature.store.StoredLtrModel;
+import com.o19s.es.ltr.utils.PluginClient;
 
 public class RestCreateModelFromSet extends FeatureStoreBaseRestHandler {
+
+    private final PluginClient pluginClient;
+
+    /**
+     * Creates the handler.
+     *
+     * @param pluginClient runs the create-model-from-set action as the plugin subject
+     */
+    public RestCreateModelFromSet(PluginClient pluginClient) {
+        this.pluginClient = Objects.requireNonNull(pluginClient);
+    }
 
     @Override
     public String getName() {
@@ -76,7 +88,7 @@ public class RestCreateModelFromSet extends FeatureStoreBaseRestHandler {
         String routing = request.param("routing");
         ParserState state = new ParserState();
         request.withContentOrSourceParamParserOrNull((p) -> ParserState.parse(p, state));
-        CreateModelFromSetRequestBuilder builder = new CreateModelFromSetRequestBuilder(client);
+        CreateModelFromSetRequestBuilder builder = new CreateModelFromSetRequestBuilder(pluginClient);
         if (expectedVersion != null) {
             builder.withVersion(store, request.param("name"), expectedVersion, state.model.name, state.model.model);
         } else {
@@ -85,7 +97,7 @@ public class RestCreateModelFromSet extends FeatureStoreBaseRestHandler {
         builder.request().setValidation(state.validation);
         builder.routing(routing);
         return (channel) -> {
-            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
+            try {
                 ActionListener<CreateModelFromSetAction.CreateModelFromSetResponse> wrappedListener = ActionListener
                     .wrap(
                         response -> new RestStatusToXContentListener<CreateModelFromSetAction.CreateModelFromSetResponse>(
@@ -115,10 +127,7 @@ public class RestCreateModelFromSet extends FeatureStoreBaseRestHandler {
                         }
                     );
 
-                ActionListener<CreateModelFromSetAction.CreateModelFromSetResponse> contextRestoringListener = ActionListener
-                    .runBefore(wrappedListener, () -> threadContext.restore());
-
-                builder.execute(contextRestoringListener);
+                builder.execute(wrappedListener);
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }

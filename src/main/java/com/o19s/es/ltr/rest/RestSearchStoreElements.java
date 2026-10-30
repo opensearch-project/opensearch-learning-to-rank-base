@@ -22,10 +22,8 @@ import static org.opensearch.index.query.QueryBuilders.matchQuery;
 import static org.opensearch.index.query.QueryBuilders.termQuery;
 
 import java.util.List;
+import java.util.Objects;
 
-import org.opensearch.action.search.SearchResponse;
-import org.opensearch.common.util.concurrent.ThreadContext;
-import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.ltr.settings.LTRSettings;
@@ -34,11 +32,21 @@ import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestStatusToXContentListener;
 import org.opensearch.transport.client.node.NodeClient;
 
+import com.o19s.es.ltr.utils.PluginClient;
+
 public class RestSearchStoreElements extends FeatureStoreBaseRestHandler {
     private final String type;
+    private final PluginClient pluginClient;
 
-    public RestSearchStoreElements(String type) {
+    /**
+     * Creates the handler for one element type.
+     *
+     * @param type the element type the routes search
+     * @param pluginClient searches the store as the plugin subject
+     */
+    public RestSearchStoreElements(String type, PluginClient pluginClient) {
         this.type = type;
+        this.pluginClient = Objects.requireNonNull(pluginClient);
     }
 
     @Override
@@ -59,10 +67,10 @@ public class RestSearchStoreElements extends FeatureStoreBaseRestHandler {
             throw new IllegalStateException("LTR plugin is disabled. To enable, update ltr.plugin.enabled to true");
         }
 
-        return search(client, type, indexName(request), request);
+        return search(type, indexName(request), request);
     }
 
-    RestChannelConsumer search(NodeClient client, String type, String indexName, RestRequest request) {
+    RestChannelConsumer search(String type, String indexName, RestRequest request) {
         String prefix = request.param("prefix");
         int from = request.paramAsInt("from", 0);
         int size = request.paramAsInt("size", 20);
@@ -71,12 +79,13 @@ public class RestSearchStoreElements extends FeatureStoreBaseRestHandler {
             qb.must(matchQuery("name.prefix", prefix));
         }
         return (channel) -> {
-            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
-                ActionListener<SearchResponse> searchListener = new RestStatusToXContentListener<>(channel);
-
-                ActionListener<SearchResponse> wrappedListener = ActionListener.runBefore(searchListener, () -> threadContext.restore());
-
-                client.prepareSearch(indexName).setQuery(qb).setSize(size).setFrom(from).execute(wrappedListener);
+            try {
+                pluginClient
+                    .prepareSearch(indexName)
+                    .setQuery(qb)
+                    .setSize(size)
+                    .setFrom(from)
+                    .execute(new RestStatusToXContentListener<>(channel));
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }

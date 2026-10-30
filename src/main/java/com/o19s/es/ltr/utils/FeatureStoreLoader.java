@@ -16,13 +16,16 @@
 
 package com.o19s.es.ltr.utils;
 
-import java.util.function.Supplier;
-
-import org.opensearch.transport.client.Client;
-
 import com.o19s.es.ltr.feature.store.FeatureStore;
 
+/** Loads the feature store an {@code sltr} query names. */
 @FunctionalInterface
 public interface FeatureStoreLoader {
-    FeatureStore load(String storeName, Supplier<Client> clientSupplier);
+    /**
+     * Loads a store.
+     *
+     * @param storeName the name of the store index
+     * @return the store
+     */
+    FeatureStore load(String storeName);
 }

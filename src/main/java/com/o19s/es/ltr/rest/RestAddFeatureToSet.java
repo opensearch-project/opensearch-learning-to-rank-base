@@ -21,10 +21,9 @@ import static java.util.Collections.unmodifiableList;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 
-import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.ParseField;
-import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.ObjectParser;
 import org.opensearch.core.xcontent.XContentParser;
@@ -34,12 +33,23 @@ import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestStatusToXContentListener;
 import org.opensearch.transport.client.node.NodeClient;
 
-import com.o19s.es.ltr.action.AddFeaturesToSetAction;
 import com.o19s.es.ltr.action.AddFeaturesToSetAction.AddFeaturesToSetRequestBuilder;
 import com.o19s.es.ltr.feature.FeatureValidation;
 import com.o19s.es.ltr.feature.store.StoredFeature;
+import com.o19s.es.ltr.utils.PluginClient;
 
 public class RestAddFeatureToSet extends FeatureStoreBaseRestHandler {
+
+    private final PluginClient pluginClient;
+
+    /**
+     * Creates the handler.
+     *
+     * @param pluginClient runs the add-features-to-set action as the plugin subject
+     */
+    public RestAddFeatureToSet(PluginClient pluginClient) {
+        this.pluginClient = Objects.requireNonNull(pluginClient);
+    }
 
     @Override
     public String getName() {
@@ -93,7 +103,7 @@ public class RestAddFeatureToSet extends FeatureStoreBaseRestHandler {
             );
         }
 
-        AddFeaturesToSetRequestBuilder builder = new AddFeaturesToSetRequestBuilder(client);
+        AddFeaturesToSetRequestBuilder builder = new AddFeaturesToSetRequestBuilder(pluginClient);
         builder.request().setStore(store);
         builder.request().setFeatureSet(setName);
         builder.request().setFeatureNameQuery(featureQuery);
@@ -102,14 +112,8 @@ public class RestAddFeatureToSet extends FeatureStoreBaseRestHandler {
         builder.request().setMerge(merge);
         builder.request().setValidation(validation);
         return (channel) -> {
-            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
-                ActionListener<AddFeaturesToSetAction.AddFeaturesToSetResponse> wrappedListener = ActionListener
-                    .runBefore(
-                        new RestStatusToXContentListener<>(channel, (r) -> r.getResponse().getLocation(routing)),
-                        threadContext::restore
-                    );
-
-                builder.execute(wrappedListener);
+            try {
+                builder.execute(new RestStatusToXContentListener<>(channel, (r) -> r.getResponse().getLocation(routing)));
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }
