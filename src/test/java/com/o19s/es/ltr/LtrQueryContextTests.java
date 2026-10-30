@@ -1,3 +1,7 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package com.o19s.es.ltr;
 
 import java.util.Arrays;
