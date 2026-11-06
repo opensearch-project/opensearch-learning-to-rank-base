@@ -129,6 +129,79 @@ public class TermStatSupplier extends AbstractMap<String, ArrayList<Float>> {
         }
     }
 
+    public void bumpPrecomputed(
+        LeafReaderContext context,
+        int docID,
+        Set<Term> terms,
+        ScoreMode scoreMode,
+        Map<Term, TermStates> termContexts,
+        Map<Term, TermStatistics> termStatisticsMap,
+        Map<String, Long> fieldDocCounts
+    ) throws IOException {
+        df_stats.getData().clear();
+        idf_stats.getData().clear();
+        tf_stats.getData().clear();
+        ttf_stats.getData().clear();
+        tp_stats.getData().clear();
+        matchedTermCount = 0;
+
+        PostingsEnum postingsEnum = null;
+        for (Term term : terms) {
+            if (docID == DocIdSetIterator.NO_MORE_DOCS) {
+                break;
+            }
+
+            TermStates termStates = termContexts.get(term);
+            if (termStates == null || !termStates.wasBuiltFor(ReaderUtil.getTopLevelContext(context))) {
+                insertZeroes();
+                continue;
+            }
+
+            IOSupplier<TermState> termStateSupplier = termStates.get(context);
+            if (termStateSupplier == null || termStateSupplier.get() == null || termStates.docFreq() == 0) {
+                insertZeroes();
+                continue;
+            }
+            TermState state = termStateSupplier.get();
+
+            // Use precomputed DFS-aggregated term and collection statistics
+            TermStatistics ts = termStatisticsMap.get(term);
+            Long docCount = fieldDocCounts.get(term.field());
+            if (ts == null || docCount == null || ts.docFreq() == 0) {
+                insertZeroes();
+                continue;
+            }
+
+            // Collection Statistics
+            df_stats.add(ts.docFreq());
+            idf_stats.add(sim.idf(ts.docFreq(), docCount));
+            ttf_stats.add(ts.totalTermFreq());
+
+            // Doc specifics
+            TermsEnum termsEnum = context.reader().terms(term.field()).iterator();
+            termsEnum.seekExact(term.bytes(), state);
+            postingsEnum = termsEnum.postings(postingsEnum, PostingsEnum.ALL);
+
+            if (postingsEnum.advance(docID) == docID) {
+                matchedTermCount++;
+                tf_stats.add(postingsEnum.freq());
+
+                if (postingsEnum.freq() > 0) {
+                    StatisticsHelper positions = new StatisticsHelper();
+                    for (int i = 0; i < postingsEnum.freq(); i++) {
+                        positions.add((float) postingsEnum.nextPosition() + 1);
+                    }
+                    tp_stats.add(positions.getAggr(posAggrType));
+                } else {
+                    tp_stats.add(0.0f);
+                }
+            } else {
+                tf_stats.add(0.0f);
+                tp_stats.add(0.0f);
+            }
+        }
+    }
+
     /**
      * Returns {@code true} if this map contains a mapping for the specified
      * stat type;
@@ -203,13 +276,13 @@ public class TermStatSupplier extends AbstractMap<String, ArrayList<Float>> {
                             case 0:
                                 return new SimpleImmutableEntry<>("df", df_stats.getData());
                             case 1:
-                                return new SimpleImmutableEntry<>("idf", df_stats.getData());
+                                return new SimpleImmutableEntry<>("idf", idf_stats.getData());
                             case 2:
-                                return new SimpleImmutableEntry<>("tf", df_stats.getData());
+                                return new SimpleImmutableEntry<>("tf", tf_stats.getData());
                             case 3:
-                                return new SimpleImmutableEntry<>("ttf", df_stats.getData());
+                                return new SimpleImmutableEntry<>("ttf", ttf_stats.getData());
                             case 4:
-                                return new SimpleImmutableEntry<>("tp", df_stats.getData());
+                                return new SimpleImmutableEntry<>("tp", tp_stats.getData());
 
                             default:
                                 return null;

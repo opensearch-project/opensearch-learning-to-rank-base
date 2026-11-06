@@ -28,9 +28,9 @@ import org.apache.lucene.index.TermStates;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.DoubleValues;
 import org.apache.lucene.search.DoubleValuesSource;
-import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.TermStatistics;
 
 import com.o19s.es.explore.StatisticsHelper;
 import com.o19s.es.explore.StatisticsHelper.AggrType;
@@ -43,31 +43,34 @@ public class TermStatScorer extends Scorer {
     private AggrType posAggr;
 
     private final LeafReaderContext context;
-    private final IndexSearcher searcher;
     private final Set<Term> terms;
     private final ScoreMode scoreMode;
     private final Map<Term, TermStates> termContexts;
+    private final Map<Term, TermStatistics> termStatisticsMap;
+    private final Map<String, Long> fieldDocCounts;
 
     public TermStatScorer(
         TermStatQuery.TermStatWeight weight,
-        IndexSearcher searcher,
         LeafReaderContext context,
         Expression compiledExpression,
         Set<Term> terms,
         ScoreMode scoreMode,
         AggrType aggr,
         AggrType posAggr,
-        Map<Term, TermStates> termContexts
+        Map<Term, TermStates> termContexts,
+        Map<Term, TermStatistics> termStatisticsMap,
+        Map<String, Long> fieldDocCounts
     ) {
         super();
         this.context = context;
         this.compiledExpression = compiledExpression;
-        this.searcher = searcher;
         this.terms = terms;
         this.scoreMode = scoreMode;
         this.aggr = aggr;
         this.posAggr = posAggr;
         this.termContexts = termContexts;
+        this.termStatisticsMap = termStatisticsMap;
+        this.fieldDocCounts = fieldDocCounts;
 
         this.iter = DocIdSetIterator.all(context.reader().maxDoc());
     }
@@ -88,7 +91,7 @@ public class TermStatScorer extends Scorer {
 
         // Refresh the term stats
         tsq.setPosAggr(posAggr);
-        tsq.bump(searcher, context, docID(), terms, scoreMode, termContexts);
+        tsq.bumpPrecomputed(context, docID(), terms, scoreMode, termContexts, termStatisticsMap, fieldDocCounts);
 
         // Prepare computed statistics
         StatisticsHelper computed = new StatisticsHelper();
