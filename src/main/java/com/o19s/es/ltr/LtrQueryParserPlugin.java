@@ -1,4 +1,5 @@
 /*
+ * SPDX-License-Identifier: Apache-2.0
  * Copyright [2016] Doug Turnbull
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -312,6 +313,9 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
         });
 
         LTRSettings.getInstance().init(clusterService);
+
+        caches.setThreadPool(threadPool);
+        clusterService.getClusterSettings().addSettingsUpdateConsumer(Caches.LTR_CACHE_MEM_SETTING, caches::setMaxMem);
 
         final JvmService jvmService = new JvmService(environment.settings());
         final LTRCircuitBreakerService ltrCircuitBreakerService = new LTRCircuitBreakerService(jvmService).init();

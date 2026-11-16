@@ -1,4 +1,5 @@
 /*
+ * SPDX-License-Identifier: Apache-2.0
  * Copyright [2017] Wikimedia Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +20,11 @@ package com.o19s.es.ltr.ranker;
 public class SparseFeatureVector extends ArrayFeatureVector {
 
     public SparseFeatureVector(int size) {
-        super(size, Float.NaN);
+        this(size, Float.NaN);
+    }
+
+    public SparseFeatureVector(int size, float defaultValue) {
+        super(size, defaultValue);
         reset();
     }
 }

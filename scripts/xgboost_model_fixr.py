@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# SPDX-License-Identifier: Apache-2.0
 
 """This is a script for fixing XGBoost boosting trees which have negative scores.
     We calculate the most negative leaf value, and append one more tree to the model

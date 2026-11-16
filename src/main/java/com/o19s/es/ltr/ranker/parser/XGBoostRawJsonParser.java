@@ -1,4 +1,5 @@
 /*
+ * SPDX-License-Identifier: Apache-2.0
  * Copyright [2017] Wikimedia Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -76,7 +77,8 @@ public class XGBoostRawJsonParser implements LtrRankerParser {
             adjustedTrees,
             weights,
             set.size(),
-            modelDefinition.getLearner().getObjective().getNormalizer()
+            modelDefinition.getLearner().getObjective().getNormalizer(),
+            modelDefinition.missingAsZero
         );
     }
 
@@ -110,6 +112,8 @@ public class XGBoostRawJsonParser implements LtrRankerParser {
                     new ParseField("learner")
                 );
             PARSER.declareIntArray(XGBoostRawJsonParser.XGBoostDefinition::setVersion, new ParseField("version"));
+            // Opt-in: treat missing (unset) features as 0.0 for models trained with fillna=0 (issue #286). Default false.
+            PARSER.declareBoolean(XGBoostRawJsonParser.XGBoostDefinition::setMissingAsZero, new ParseField("missing_as_zero"));
         }
 
         public static XGBoostRawJsonParser.XGBoostDefinition parse(XContentParser parser, FeatureSet set) throws IOException {
@@ -178,6 +182,12 @@ public class XGBoostRawJsonParser implements LtrRankerParser {
 
         public List<Integer> getVersion() {
             return version;
+        }
+
+        private boolean missingAsZero = false;
+
+        public void setMissingAsZero(boolean missingAsZero) {
+            this.missingAsZero = missingAsZero;
         }
 
         public void setVersion(List<Integer> version) {

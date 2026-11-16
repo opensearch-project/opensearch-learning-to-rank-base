@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 from unittest import TestCase
 from xgboost_model_fixr import find_min
 from xgboost_model_fixr import find_first_feature
