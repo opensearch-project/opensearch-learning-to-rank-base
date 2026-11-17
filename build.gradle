@@ -14,6 +14,7 @@ buildscript {
     if (is_snapshot) {
       opensearch_build += "-SNAPSHOT"
     }
+    security_plugin_version = System.getProperty("security.version", opensearch_build)
     common_utils_version = System.getProperty("common_utils.version", opensearch_build)
   }
 
@@ -354,4 +355,42 @@ jacocoTestReport {
         html.required = true
         csv.required = false
     }
+}
+
+// Opt in so ordinary integration tests do not resolve or install Security.
+if (Boolean.getBoolean('security.enabled')) {
+  configurations { securityPlugin }
+  dependencies { securityPlugin "org.opensearch.plugin:opensearch-security:${security_plugin_version}@zip" }
+
+  testClusters.integTest {
+    plugin(layout.file(provider { configurations.securityPlugin.singleFile }))
+    nodes.each { node ->
+      node.secure = true
+      node.credentials[0].putAll([username: 'admin', password: 'admin'])
+    }
+    ['esnode.pem', 'esnode-key.pem', 'root-ca.pem'].each { name ->
+      extraConfigFile name, file("src/test/resources/security/${name}")
+    }
+    setting 'plugins.security.ssl.transport.pemcert_filepath', 'esnode.pem'
+    setting 'plugins.security.ssl.transport.pemkey_filepath', 'esnode-key.pem'
+    setting 'plugins.security.ssl.transport.pemtrustedcas_filepath', 'root-ca.pem'
+    setting 'plugins.security.ssl.transport.enforce_hostname_verification', 'false'
+    setting 'plugins.security.nodes_dn', '["CN=node-0.example.com,OU=node,O=node,L=test,DC=de"]'
+    setting 'plugins.security.ssl.http.enabled', 'true'
+    setting 'plugins.security.ssl.http.pemcert_filepath', 'esnode.pem'
+    setting 'plugins.security.ssl.http.pemkey_filepath', 'esnode-key.pem'
+    setting 'plugins.security.ssl.http.pemtrustedcas_filepath', 'root-ca.pem'
+    setting 'plugins.security.allow_unsafe_democertificates', 'true'
+    setting 'plugins.security.allow_default_init_securityindex', 'true'
+  }
+  integTest {
+    systemProperty 'https', 'true'
+    systemProperty 'user', 'admin'
+    systemProperty 'password', 'admin'
+    systemProperty 'security.enabled', 'true'
+    filter {
+      includeTestsMatching 'com.o19s.es.ltr.LtrQueryClientYamlTestSuiteIT'
+      includeTestsMatching 'com.o19s.es.ltr.SecurityEnabledIT'
+    }
+  }
 }
