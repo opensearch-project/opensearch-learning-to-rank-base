@@ -69,7 +69,7 @@ jobs:
         run: |
           chown -R 1000:1000 `pwd`
           su `id -un 1000` -c 'whoami && java -version &&
-                              ./gradlew -Dtests.security.manager=false clean test jacocoTestReport -x spotlessJava'
+                              ./gradlew clean test jacocoTestReport -x spotlessJava'
 
       - name: Upload Coverage Report
         uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457 # v3
@@ -97,4 +97,4 @@ jobs:
       - name: Build and Run Tests
         shell: bash
         run: |
-          ./gradlew.bat -Dtests.security.manager=false build -x spotlessJava
+          ./gradlew.bat build -x spotlessJava

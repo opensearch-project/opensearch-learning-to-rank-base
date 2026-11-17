@@ -24,8 +24,6 @@
     ".java-version",
     ".policy",
     ".properties",
-    ".Dockerfile",
-    "docker/",
     ".gradle",
     "gradle/wrapper",
     "settings.gradle",
