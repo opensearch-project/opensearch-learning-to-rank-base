@@ -59,7 +59,7 @@ with `-Dsecurity.version=<version>` when testing a different compatible build.
 The `Integration tests with Security` workflow runs this command for pull requests
 and publishes test reports and cluster logs, including on failures.
 
-The node certificate, private key, and CA in `src/test/resources/security/` are public
-test fixtures copied from the Security repository's `bwc-test/src/test/resources/security/`
-at commit `35f0035312b48090d666247fd46d1bef085a4d4b`. The node certificate expires in
-February 2034. These fixtures and credentials are only for local test clusters.
+The node certificate, private key, and CA are downloaded from the Security repository's
+`main` branch under `bwc-test/src/test/resources/security/` into `build/security-resources/`.
+Existing downloads are reused; `./gradlew clean` removes them so the next security test
+run fetches fresh copies. These public fixtures and demo credentials are only for test clusters.
