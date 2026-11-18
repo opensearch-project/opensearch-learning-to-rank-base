@@ -38,3 +38,28 @@ Since OpenSearch 2.19, this plugin is released as part of the OpenSearch release
 Each release line has its own branch (for example `3.9`, `2.19`). To get a change merged to `main` onto a release branch, add a `backport <branch>` label to the pull request; the [Backport](.github/workflows/backport.yml) workflow then opens the backport pull request automatically.
 
 Releases before 2.19 were published as plugin zips on the [GitHub releases page](https://github.com/opensearch-project/opensearch-learning-to-rank-base/releases).
+
+## Integration tests with Security
+
+Run the YAML REST suite against a local cluster with the Security plugin installed:
+
+```sh
+./gradlew integTest -Dsecurity.enabled=true --max-workers=2
+```
+
+This mode uses HTTPS and the demo `admin`/`admin` user for both requests and cleanup.
+It also runs `SecurityEnabledIT`, which checks the authenticated identity and verifies
+that invalid credentials are rejected. The in-process Java integration tests and the
+two-cluster snapshot suite are not included in this mode; they continue to run in the
+ordinary integration test tasks. This is compatibility coverage, not a restricted-user
+permissions suite.
+
+The Security plugin version follows the OpenSearch version by default. Override it
+with `-Dsecurity.version=<version>` when testing a different compatible build.
+The `Integration tests with Security` workflow runs this command for pull requests
+and publishes test reports and cluster logs, including on failures.
+
+The node certificate, private key, and CA are downloaded from the Security repository's
+`main` branch under `bwc-test/src/test/resources/security/` into `build/security-resources/`.
+Existing downloads are reused; `./gradlew clean` removes them so the next security test
+run fetches fresh copies. These public fixtures and demo credentials are only for test clusters.
