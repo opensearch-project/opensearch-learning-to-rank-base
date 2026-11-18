@@ -386,7 +386,6 @@ if (Boolean.getBoolean('security.enabled')) {
     setting 'plugins.security.ssl.transport.pemkey_filepath', 'esnode-key.pem'
     setting 'plugins.security.ssl.transport.pemtrustedcas_filepath', 'root-ca.pem'
     setting 'plugins.security.ssl.transport.enforce_hostname_verification', 'false'
-    setting 'plugins.security.nodes_dn', '["CN=node-0.example.com,OU=node,O=node,L=test,DC=de"]'
     setting 'plugins.security.ssl.http.enabled', 'true'
     setting 'plugins.security.ssl.http.pemcert_filepath', 'esnode.pem'
     setting 'plugins.security.ssl.http.pemkey_filepath', 'esnode-key.pem'
