@@ -1,0 +1,35 @@
+name: Integration tests with Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security-integration-tests:
+    name: LTR integration tests with Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout LTR
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Set up Java
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - name: Run integration tests with Security
+        run: ./gradlew integTest -Dsecurity.enabled=true --no-daemon --max-workers=2
+      - name: Upload test results and cluster logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: security-integration-tests
+          path: |
+            build/reports/tests/integTest/
+            build/test-results/integTest/
+            build/testclusters/integTest-*/logs/

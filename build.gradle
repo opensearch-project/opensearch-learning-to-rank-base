@@ -2,7 +2,7 @@ import org.opensearch.gradle.test.RestIntegTestTask
 
 buildscript {
   ext {
-    opensearch_version = System.getProperty("opensearch.version", "3.10.0-SNAPSHOT")
+    opensearch_version = System.getProperty("opensearch.version", "3.11.0-SNAPSHOT")
     is_snapshot = "true" == System.getProperty("build.snapshot", "true")
     build_version_qualifier = System.getProperty("build.version_qualifier", "")
 
@@ -14,6 +14,7 @@ buildscript {
     if (is_snapshot) {
       opensearch_build += "-SNAPSHOT"
     }
+    security_plugin_version = System.getProperty("security.version", opensearch_build)
     common_utils_version = System.getProperty("common_utils.version", opensearch_build)
   }
 
@@ -39,6 +40,7 @@ plugins {
   id 'idea'
   id 'maven-publish'
   id 'jacoco'
+  id 'de.undercouch.download' version '5.7.0'
   id 'com.diffplug.spotless' version '8.10.1' apply false
 }
 
@@ -354,4 +356,52 @@ jacocoTestReport {
         html.required = true
         csv.required = false
     }
+}
+
+// Opt in so ordinary integration tests do not resolve or install Security.
+if (Boolean.getBoolean('security.enabled')) {
+  configurations { securityPlugin }
+  dependencies { securityPlugin "org.opensearch.plugin:opensearch-security:${security_plugin_version}@zip" }
+
+  def securityCertificates = ['esnode.pem', 'esnode-key.pem', 'root-ca.pem']
+  def securityResources = layout.buildDirectory.dir('security-resources')
+  def downloadSecurityCertificates = tasks.register('downloadSecurityCertificates', de.undercouch.gradle.tasks.download.Download) {
+    src securityCertificates.collect { name ->
+      "https://raw.githubusercontent.com/opensearch-project/security/refs/heads/main/bwc-test/src/test/resources/security/${name}"
+    }
+    dest securityResources
+    overwrite false
+  }
+
+  testClusters.integTest {
+    plugin(layout.file(provider { configurations.securityPlugin.singleFile }))
+    nodes.each { node ->
+      node.secure = true
+      node.credentials[0].putAll([username: 'admin', password: 'admin'])
+    }
+    securityCertificates.each { name ->
+      extraConfigFile name, securityResources.get().file(name).asFile
+    }
+    setting 'plugins.security.ssl.transport.pemcert_filepath', 'esnode.pem'
+    setting 'plugins.security.ssl.transport.pemkey_filepath', 'esnode-key.pem'
+    setting 'plugins.security.ssl.transport.pemtrustedcas_filepath', 'root-ca.pem'
+    setting 'plugins.security.ssl.transport.enforce_hostname_verification', 'false'
+    setting 'plugins.security.ssl.http.enabled', 'true'
+    setting 'plugins.security.ssl.http.pemcert_filepath', 'esnode.pem'
+    setting 'plugins.security.ssl.http.pemkey_filepath', 'esnode-key.pem'
+    setting 'plugins.security.ssl.http.pemtrustedcas_filepath', 'root-ca.pem'
+    setting 'plugins.security.allow_unsafe_democertificates', 'true'
+    setting 'plugins.security.allow_default_init_securityindex', 'true'
+  }
+  integTest {
+    dependsOn downloadSecurityCertificates
+    systemProperty 'https', 'true'
+    systemProperty 'user', 'admin'
+    systemProperty 'password', 'admin'
+    systemProperty 'security.enabled', 'true'
+    filter {
+      includeTestsMatching 'com.o19s.es.ltr.LtrQueryClientYamlTestSuiteIT'
+      includeTestsMatching 'com.o19s.es.ltr.SecurityEnabledIT'
+    }
+  }
 }

@@ -18,14 +18,8 @@ package com.o19s.es.ltr;
 
 import static org.opensearch.client.RestClientBuilder.DEFAULT_MAX_CONN_PER_ROUTE;
 import static org.opensearch.client.RestClientBuilder.DEFAULT_MAX_CONN_TOTAL;
-import static org.opensearch.commons.ConfigConstants.OPENSEARCH_SECURITY_SSL_HTTP_ENABLED;
-import static org.opensearch.commons.ConfigConstants.OPENSEARCH_SECURITY_SSL_HTTP_KEYSTORE_FILEPATH;
-import static org.opensearch.commons.ConfigConstants.OPENSEARCH_SECURITY_SSL_HTTP_PEMCERT_FILEPATH;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Path;
 import java.util.*;
 
 import org.apache.hc.client5.http.auth.AuthScope;
@@ -45,11 +39,9 @@ import org.junit.After;
 import org.opensearch.client.Request;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestClientBuilder;
-import org.opensearch.common.io.PathUtils;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.ThreadContext;
-import org.opensearch.commons.rest.SecureRestClientBuilder;
 import org.opensearch.test.rest.yaml.ClientYamlTestCandidate;
 import org.opensearch.test.rest.yaml.OpenSearchClientYamlSuiteTestCase;
 
@@ -70,15 +62,7 @@ public class LtrQueryClientYamlTestSuiteIT extends OpenSearchClientYamlSuiteTest
     }
 
     protected boolean isHttps() {
-        boolean isHttps = Optional.ofNullable(System.getProperty("https")).map("true"::equalsIgnoreCase).orElse(false);
-        if (isHttps) {
-            // currently only external cluster is supported for security enabled testing
-            if (Optional.ofNullable(System.getProperty("tests.rest.cluster")).isEmpty()) {
-                throw new RuntimeException("cluster url should be provided for security enabled testing");
-            }
-        }
-
-        return isHttps;
+        return Boolean.getBoolean("https");
     }
 
     @Override
@@ -88,46 +72,19 @@ public class LtrQueryClientYamlTestSuiteIT extends OpenSearchClientYamlSuiteTest
 
     @Override
     protected Settings restAdminSettings() {
-        return Settings
-            .builder()
-            // disable the warning exception for admin client since it's only used for cleanup.
-            .put("strictDeprecationMode", false)
-            .put("http.port", 9200)
-            .put(OPENSEARCH_SECURITY_SSL_HTTP_ENABLED, isHttps())
-            .put(OPENSEARCH_SECURITY_SSL_HTTP_PEMCERT_FILEPATH, "sample.pem")
-            .put(OPENSEARCH_SECURITY_SSL_HTTP_KEYSTORE_FILEPATH, "test-kirk.jks")
-            .put("plugins.security.ssl.http.keystore_password", "changeit")
-            .put("plugins.security.ssl.http.keystore_keypassword", "changeit")
-            .build();
+        return Settings.builder().put("strictDeprecationMode", false).build();
     }
 
     @Override
     protected RestClient buildClient(Settings settings, HttpHost[] hosts) throws IOException {
-        boolean strictDeprecationMode = settings.getAsBoolean("strictDeprecationMode", true);
         RestClientBuilder builder = RestClient.builder(hosts);
         if (isHttps()) {
-            String keystore = settings.get(OPENSEARCH_SECURITY_SSL_HTTP_KEYSTORE_FILEPATH);
-            if (Objects.nonNull(keystore)) {
-                URI uri;
-                try {
-                    uri = Objects.requireNonNull(this.getClass().getClassLoader().getResource("security/sample.pem")).toURI();
-                } catch (URISyntaxException e) {
-                    throw new RuntimeException(e);
-                }
-                Path configPath = PathUtils.get(uri).getParent().toAbsolutePath();
-                return new SecureRestClientBuilder(settings, configPath).build();
-            } else {
-                configureHttpsClient(builder, settings);
-                builder.setStrictDeprecationMode(strictDeprecationMode);
-                return builder.build();
-            }
-
+            configureHttpsClient(builder, settings);
         } else {
             configureClient(builder, settings);
-            builder.setStrictDeprecationMode(strictDeprecationMode);
-            return builder.build();
         }
-
+        builder.setStrictDeprecationMode(settings.getAsBoolean("strictDeprecationMode", true));
+        return builder.build();
     }
 
     @After
