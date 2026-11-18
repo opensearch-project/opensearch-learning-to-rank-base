@@ -22,7 +22,6 @@ import static java.util.Collections.unmodifiableList;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Objects;
 
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.core.ParseField;
@@ -42,20 +41,8 @@ import com.o19s.es.ltr.action.CreateModelFromSetAction;
 import com.o19s.es.ltr.action.CreateModelFromSetAction.CreateModelFromSetRequestBuilder;
 import com.o19s.es.ltr.feature.FeatureValidation;
 import com.o19s.es.ltr.feature.store.StoredLtrModel;
-import com.o19s.es.ltr.utils.PluginClient;
 
 public class RestCreateModelFromSet extends FeatureStoreBaseRestHandler {
-
-    private final PluginClient pluginClient;
-
-    /**
-     * Creates the handler.
-     *
-     * @param pluginClient runs the create-model-from-set action as the plugin subject
-     */
-    public RestCreateModelFromSet(PluginClient pluginClient) {
-        this.pluginClient = Objects.requireNonNull(pluginClient);
-    }
 
     @Override
     public String getName() {
@@ -89,7 +76,7 @@ public class RestCreateModelFromSet extends FeatureStoreBaseRestHandler {
         String routing = request.param("routing");
         ParserState state = new ParserState();
         request.withContentOrSourceParamParserOrNull((p) -> ParserState.parse(p, state));
-        CreateModelFromSetRequestBuilder builder = new CreateModelFromSetRequestBuilder(pluginClient);
+        CreateModelFromSetRequestBuilder builder = new CreateModelFromSetRequestBuilder(client);
         if (expectedVersion != null) {
             builder.withVersion(store, request.param("name"), expectedVersion, state.model.name, state.model.model);
         } else {

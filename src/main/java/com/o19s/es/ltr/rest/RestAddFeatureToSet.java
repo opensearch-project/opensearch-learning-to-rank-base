@@ -22,7 +22,6 @@ import static java.util.Collections.unmodifiableList;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Objects;
 
 import org.opensearch.core.ParseField;
 import org.opensearch.core.rest.RestStatus;
@@ -37,20 +36,8 @@ import org.opensearch.transport.client.node.NodeClient;
 import com.o19s.es.ltr.action.AddFeaturesToSetAction.AddFeaturesToSetRequestBuilder;
 import com.o19s.es.ltr.feature.FeatureValidation;
 import com.o19s.es.ltr.feature.store.StoredFeature;
-import com.o19s.es.ltr.utils.PluginClient;
 
 public class RestAddFeatureToSet extends FeatureStoreBaseRestHandler {
-
-    private final PluginClient pluginClient;
-
-    /**
-     * Creates the handler.
-     *
-     * @param pluginClient runs the add-features-to-set action as the plugin subject
-     */
-    public RestAddFeatureToSet(PluginClient pluginClient) {
-        this.pluginClient = Objects.requireNonNull(pluginClient);
-    }
 
     @Override
     public String getName() {
@@ -104,7 +91,7 @@ public class RestAddFeatureToSet extends FeatureStoreBaseRestHandler {
             );
         }
 
-        AddFeaturesToSetRequestBuilder builder = new AddFeaturesToSetRequestBuilder(pluginClient);
+        AddFeaturesToSetRequestBuilder builder = new AddFeaturesToSetRequestBuilder(client);
         builder.request().setStore(store);
         builder.request().setFeatureSet(setName);
         builder.request().setFeatureNameQuery(featureQuery);

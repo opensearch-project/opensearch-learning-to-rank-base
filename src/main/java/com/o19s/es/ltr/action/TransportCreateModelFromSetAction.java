@@ -21,7 +21,6 @@ import java.io.IOException;
 
 import org.opensearch.action.get.GetRequest;
 import org.opensearch.action.get.GetResponse;
-import org.opensearch.action.get.TransportGetAction;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
@@ -42,13 +41,32 @@ import com.o19s.es.ltr.feature.store.StorableElement;
 import com.o19s.es.ltr.feature.store.StoredFeatureSet;
 import com.o19s.es.ltr.feature.store.StoredLtrModel;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
+import com.o19s.es.ltr.utils.PluginClient;
 
+/**
+ * Creates a model from a stored feature set. The feature set get runs as the plugin subject. The model is then stored
+ * through {@link FeatureStoreAction} in the caller's context, so the caller is checked for that action too and the
+ * validation search runs as the caller.
+ */
 public class TransportCreateModelFromSetAction extends HandledTransportAction<CreateModelFromSetRequest, CreateModelFromSetResponse> {
     private final ClusterService clusterService;
-    private final TransportGetAction getAction;
+    private final PluginClient pluginClient;
     private final TransportFeatureStoreAction featureStoreAction;
     private final LTRCircuitBreakerService ltrCircuitBreakerService;
 
+    /**
+     * Creates the action.
+     *
+     * @param settings the node settings
+     * @param threadPool the thread pool
+     * @param transportService the transport service
+     * @param actionFilters the action filters
+     * @param indexNameExpressionResolver the index name resolver
+     * @param clusterService the cluster service
+     * @param pluginClient reads the feature set as the plugin subject
+     * @param featureStoreAction stores the model
+     * @param ltrCircuitBreakerService refuses writes while the memory circuit is open
+     */
     @Inject
     public TransportCreateModelFromSetAction(
         Settings settings,
@@ -57,13 +75,13 @@ public class TransportCreateModelFromSetAction extends HandledTransportAction<Cr
         ActionFilters actionFilters,
         IndexNameExpressionResolver indexNameExpressionResolver,
         ClusterService clusterService,
-        TransportGetAction getAction,
+        PluginClient pluginClient,
         TransportFeatureStoreAction featureStoreAction,
         LTRCircuitBreakerService ltrCircuitBreakerService
     ) {
         super(CreateModelFromSetAction.NAME, transportService, actionFilters, CreateModelFromSetRequest::new);
         this.clusterService = clusterService;
-        this.getAction = getAction;
+        this.pluginClient = pluginClient;
         this.featureStoreAction = featureStoreAction;
         this.ltrCircuitBreakerService = ltrCircuitBreakerService;
     }
@@ -81,7 +99,7 @@ public class TransportCreateModelFromSetAction extends HandledTransportAction<Cr
         GetRequest getRequest = new GetRequest(request.getStore())
             .id(StorableElement.generateId(StoredFeatureSet.TYPE, request.getFeatureSetName()));
         getRequest.setParentTask(clusterService.localNode().getId(), task.getId());
-        getAction.execute(getRequest, ActionListener.wrap((r) -> this.doStore(task, r, request, listener), listener::onFailure));
+        pluginClient.get(getRequest, ActionListener.wrap((r) -> this.doStore(task, r, request, listener), listener::onFailure));
     }
 
     private void doStore(

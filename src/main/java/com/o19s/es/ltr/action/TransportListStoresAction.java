@@ -53,15 +53,27 @@ import org.opensearch.search.aggregations.bucket.MultiBucketsAggregation;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
-import org.opensearch.transport.client.Client;
 
 import com.o19s.es.ltr.action.ListStoresAction.ListStoresActionRequest;
 import com.o19s.es.ltr.action.ListStoresAction.ListStoresActionResponse;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
+import com.o19s.es.ltr.utils.PluginClient;
 
+/** Lists the feature stores and counts their elements. The counting multi-search runs as the plugin subject. */
 public class TransportListStoresAction extends TransportClusterManagerNodeReadAction<ListStoresActionRequest, ListStoresActionResponse> {
-    private final Client client;
+    private final PluginClient pluginClient;
 
+    /**
+     * Creates the action.
+     *
+     * @param settings the node settings
+     * @param transportService the transport service
+     * @param clusterService the cluster service
+     * @param threadPool the thread pool
+     * @param actionFilters the action filters
+     * @param indexNameExpressionResolver the index name resolver
+     * @param pluginClient counts the store elements as the plugin subject
+     */
     @Inject
     public TransportListStoresAction(
         Settings settings,
@@ -70,7 +82,7 @@ public class TransportListStoresAction extends TransportClusterManagerNodeReadAc
         ThreadPool threadPool,
         ActionFilters actionFilters,
         IndexNameExpressionResolver indexNameExpressionResolver,
-        Client client
+        PluginClient pluginClient
     ) {
         super(
             ListStoresAction.NAME,
@@ -81,7 +93,7 @@ public class TransportListStoresAction extends TransportClusterManagerNodeReadAc
             ListStoresActionRequest::new,
             indexNameExpressionResolver
         );
-        this.client = client;
+        this.pluginClient = pluginClient;
     }
 
     @Override
@@ -105,7 +117,7 @@ public class TransportListStoresAction extends TransportClusterManagerNodeReadAc
                 state,
                 new ClusterStateRequest().indices(IndexFeatureStore.DEFAULT_STORE, IndexFeatureStore.STORE_PREFIX + "*")
             );
-        final MultiSearchRequestBuilder req = client.prepareMultiSearch();
+        final MultiSearchRequestBuilder req = pluginClient.prepareMultiSearch();
         final List<Tuple<String, Integer>> versions = new ArrayList<>();
         Stream
             .of(names)
@@ -125,7 +137,7 @@ public class TransportListStoresAction extends TransportClusterManagerNodeReadAc
     }
 
     private SearchRequestBuilder countSearchRequest(IndexMetadata meta) {
-        return client
+        return pluginClient
             .prepareSearch(meta.getIndex().getName())
             .setQuery(QueryBuilders.matchAllQuery())
             .setSize(0)

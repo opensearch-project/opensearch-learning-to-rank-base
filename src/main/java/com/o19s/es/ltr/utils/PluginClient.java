@@ -10,7 +10,7 @@ package com.o19s.es.ltr.utils;
 
 import org.opensearch.transport.client.Client;
 
-/** This plugin's client, which runs feature store actions as the plugin's system subject. */
+/** This plugin's client, which runs its feature store index operations as the plugin's system subject. */
 public final class PluginClient extends org.opensearch.commons.client.PluginClient {
 
     /**

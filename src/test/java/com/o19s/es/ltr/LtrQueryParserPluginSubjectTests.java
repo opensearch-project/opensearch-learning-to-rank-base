@@ -14,11 +14,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 import org.opensearch.action.ActionRequest;
 import org.opensearch.action.ActionType;
+import org.opensearch.action.admin.indices.exists.indices.IndicesExistsAction;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Setting;
@@ -36,8 +40,8 @@ import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.client.Client;
 import org.opensearch.transport.client.node.NodeClient;
 
-import com.o19s.es.ltr.action.ListStoresAction;
 import com.o19s.es.ltr.rest.RestStoreManager;
+import com.o19s.es.ltr.utils.PluginClient;
 import com.o19s.es.ltr.utils.RecordingPluginSubject;
 
 /** Tests that the subject core passes to {@code assignSubject} is the one the plugin's store access runs as. */
@@ -68,7 +72,10 @@ public class LtrQueryParserPluginSubjectTests extends OpenSearchTestCase {
         Environment environment = mock(Environment.class);
         when(environment.settings()).thenReturn(Settings.EMPTY);
 
-        plugin.createComponents(client, clusterService, threadPool, null, null, null, environment, null, null, null, null);
+        Collection<Object> components = plugin
+            .createComponents(client, clusterService, threadPool, null, null, null, environment, null, null, null, null);
+        // Core binds each component by its class, which is how the transport actions receive the plugin client.
+        assertEquals(1, components.stream().filter(component -> component.getClass() == PluginClient.class).count());
         plugin.assignSubject(new RecordingPluginSubject(threadContext, "plugin"));
 
         RestHandler storeManager = plugin
@@ -78,7 +85,10 @@ public class LtrQueryParserPluginSubjectTests extends OpenSearchTestCase {
             .findFirst()
             .orElseThrow();
         threadContext.putTransient(RecordingPluginSubject.MARKER_TRANSIENT, "caller");
-        FakeRestRequest request = new FakeRestRequest.Builder(NamedXContentRegistry.EMPTY).withMethod(RestRequest.Method.GET).build();
+        FakeRestRequest request = new FakeRestRequest.Builder(NamedXContentRegistry.EMPTY)
+            .withMethod(RestRequest.Method.GET)
+            .withParams(new HashMap<>(Map.of("store", "custom")))
+            .build();
         FakeRestChannel channel = new FakeRestChannel(request, true, 1);
         storeManager.handleRequest(request, channel, mock(NodeClient.class));
 
@@ -86,6 +96,6 @@ public class LtrQueryParserPluginSubjectTests extends OpenSearchTestCase {
             fail("the handler responded with an error: " + channel.capturedResponse().content().utf8ToString());
         }
 
-        assertEquals(List.of(ListStoresAction.NAME + "@plugin"), calls);
+        assertEquals(List.of(IndicesExistsAction.NAME + "@plugin"), calls);
     }
 }

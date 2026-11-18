@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 
-import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.XContentBuilder;
@@ -36,6 +35,7 @@ import org.opensearch.rest.action.RestBuilderListener;
 import org.opensearch.rest.action.RestToXContentListener;
 import org.opensearch.transport.client.node.NodeClient;
 
+import com.o19s.es.ltr.action.DeleteStoreAction;
 import com.o19s.es.ltr.action.ListStoresAction;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
 import com.o19s.es.ltr.utils.PluginClient;
@@ -47,7 +47,7 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
     /**
      * Creates the handler.
      *
-     * @param pluginClient lists, checks and deletes stores as the plugin subject
+     * @param pluginClient checks that a store exists as the plugin subject
      */
     public RestStoreManager(PluginClient pluginClient) {
         this.pluginClient = Objects.requireNonNull(pluginClient);
@@ -105,21 +105,21 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
             }
             throw new IllegalArgumentException("Updating a feature store is not yet supported.");
         } else if (request.method() == RestRequest.Method.DELETE) {
-            return deleteIndex(indexName);
+            return deleteIndex(client, indexName);
         } else {
             assert request.method() == RestRequest.Method.GET;
             // XXX: ambiguous api
             if (request.hasParam("store")) {
                 return getStore(indexName);
             }
-            return listStores();
+            return listStores(client);
         }
     }
 
-    RestChannelConsumer listStores() {
+    RestChannelConsumer listStores(NodeClient client) {
         return (channel) -> {
             try {
-                new ListStoresAction.ListStoresActionBuilder(pluginClient).execute(new RestToXContentListener<>(channel));
+                new ListStoresAction.ListStoresActionBuilder(client).execute(new RestToXContentListener<>(channel));
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }
@@ -152,11 +152,11 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
             .create(IndexFeatureStore.buildIndexRequest(indexName), new RestToXContentListener<>(channel));
     }
 
-    RestChannelConsumer deleteIndex(String indexName) {
-        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(indexName);
+    RestChannelConsumer deleteIndex(NodeClient client, String indexName) {
+        DeleteStoreAction.DeleteStoreRequest deleteStoreRequest = new DeleteStoreAction.DeleteStoreRequest(indexName);
         return (channel) -> {
             try {
-                pluginClient.admin().indices().delete(deleteIndexRequest, new RestToXContentListener<>(channel));
+                client.execute(DeleteStoreAction.INSTANCE, deleteStoreRequest, new RestToXContentListener<>(channel));
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }

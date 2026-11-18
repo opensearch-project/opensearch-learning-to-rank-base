@@ -56,7 +56,7 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
      * Creates the handler for one element type.
      *
      * @param type the element type the routes serve
-     * @param pluginClient reads and writes the store as the plugin subject
+     * @param pluginClient reads and deletes store elements as the plugin subject
      */
     public RestFeatureManager(String type, PluginClient pluginClient) {
         this.type = type;
@@ -98,7 +98,7 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
         } else if (request.method() == RestRequest.Method.HEAD || request.method() == RestRequest.Method.GET) {
             return get(type, indexName, request);
         } else {
-            return addOrUpdate(type, indexName, request);
+            return addOrUpdate(client, type, indexName, request);
         }
     }
 
@@ -156,7 +156,7 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
         };
     }
 
-    RestChannelConsumer addOrUpdate(String type, String indexName, RestRequest request) throws IOException {
+    RestChannelConsumer addOrUpdate(NodeClient client, String type, String indexName, RestRequest request) throws IOException {
         assert SUPPORTED_TYPES.contains(type);
         String routing = request.param("routing");
         if (!request.hasContentOrSourceParam()) {
@@ -184,7 +184,7 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
             }
         }
         FeatureStoreAction.FeatureStoreRequestBuilder builder = new FeatureStoreAction.FeatureStoreRequestBuilder(
-            pluginClient,
+            client,
             FeatureStoreAction.INSTANCE
         );
         if (request.method() == RestRequest.Method.PUT) {
