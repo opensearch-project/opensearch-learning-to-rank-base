@@ -54,7 +54,7 @@ import org.opensearch.transport.TransportService;
 
 import com.o19s.es.ltr.action.ListStoresAction.ListStoresActionRequest;
 import com.o19s.es.ltr.action.ListStoresAction.ListStoresActionResponse;
-import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
+import com.o19s.es.ltr.feature.store.index.StoreIndices;
 import com.o19s.es.ltr.utils.PluginClient;
 
 /** Lists the feature stores and counts their elements. The counting multi-search runs as the plugin subject. */
@@ -113,13 +113,8 @@ public class TransportListStoresAction extends TransportClusterManagerNodeReadAc
         final MultiSearchRequestBuilder req = pluginClient.prepareMultiSearch();
         final List<Tuple<String, Integer>> versions = new ArrayList<>();
         // Reads the metadata rather than resolving a pattern, which would check system index access in the caller's context.
-        state
-            .metadata()
-            .getIndices()
-            .values()
-            .stream()
-            .filter((im) -> IndexFeatureStore.isIndexStore(im.getIndex().getName()))
-            .filter((im) -> im.getState() == IndexMetadata.State.OPEN)
+        StoreIndices
+            .openStores(state.metadata())
             .filter((im) -> STORE_VERSION_PROP.exists(im.getSettings()))
             .sorted(Comparator.comparing((IndexMetadata im) -> im.getIndex().getName()))
             .forEach((m) -> {
@@ -160,18 +155,6 @@ public class TransportListStoresAction extends TransportClusterManagerNodeReadAc
             infos.add(new ListStoresAction.IndexStoreInfo(idxAndVersion.v1(), idxAndVersion.v2(), counts));
         }
         return new ListStoresActionResponse(infos);
-    }
-
-    private Tuple<String, Integer> toVersion(String s) {
-        if (!IndexFeatureStore.isIndexStore(s)) {
-            return null;
-        }
-        IndexMetadata index = clusterService.state().metadata().getIndices().get(s);
-
-        if (index != null && STORE_VERSION_PROP.exists(index.getSettings())) {
-            return new Tuple<>(index.getIndex().getName(), STORE_VERSION_PROP.get(index.getSettings()));
-        }
-        return null;
     }
 
     @Override

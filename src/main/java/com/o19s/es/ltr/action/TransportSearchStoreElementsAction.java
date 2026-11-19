@@ -12,6 +12,8 @@ import static org.opensearch.index.query.QueryBuilders.boolQuery;
 import static org.opensearch.index.query.QueryBuilders.matchQuery;
 import static org.opensearch.index.query.QueryBuilders.termQuery;
 
+import java.util.Optional;
+
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.search.ShardSearchFailure;
@@ -57,14 +59,8 @@ public class TransportSearchStoreElementsAction extends HandledTransportAction<S
 
     @Override
     protected void doExecute(Task task, SearchStoreElementsRequest request, ActionListener<SearchResponse> listener) {
-        BoolQueryBuilder query = boolQuery().filter(termQuery("type", request.getType()));
-        if (request.getPrefix() != null && !request.getPrefix().isEmpty()) {
-            query.must(matchQuery("name.prefix", request.getPrefix()));
-        }
-        SearchSourceBuilder source = new SearchSourceBuilder().query(query).from(request.getFrom()).size(request.getSize());
-        String[] indices = StoreIndices.resolve(clusterService.state(), request.getStore());
-        if (indices.length == 0) {
-            // An empty index list would search every index.
+        Optional<String[]> indices = StoreIndices.resolve(clusterService.state(), request.getStore());
+        if (indices.isEmpty()) {
             listener
                 .onResponse(
                     new SearchResponse(
@@ -80,6 +76,11 @@ public class TransportSearchStoreElementsAction extends HandledTransportAction<S
                 );
             return;
         }
-        pluginClient.search(new SearchRequest(indices).source(source), listener);
+        BoolQueryBuilder query = boolQuery().filter(termQuery("type", request.getType()));
+        if (request.getPrefix() != null && !request.getPrefix().isEmpty()) {
+            query.must(matchQuery("name.prefix", request.getPrefix()));
+        }
+        SearchSourceBuilder source = new SearchSourceBuilder().query(query).from(request.getFrom()).size(request.getSize());
+        pluginClient.search(new SearchRequest(indices.get()).source(source), listener);
     }
 }

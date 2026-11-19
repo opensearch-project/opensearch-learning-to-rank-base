@@ -40,6 +40,7 @@ import org.opensearch.transport.client.node.NodeClient;
 import com.o19s.es.ltr.action.DeleteStoreElementAction;
 import com.o19s.es.ltr.action.FeatureStoreAction;
 import com.o19s.es.ltr.action.GetStoreElementAction;
+import com.o19s.es.ltr.action.StoreElementRequest;
 import com.o19s.es.ltr.feature.store.StorableElement;
 
 public class RestFeatureManager extends FeatureStoreBaseRestHandler {
@@ -96,12 +97,7 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
     RestChannelConsumer delete(NodeClient client, String type, String indexName, RestRequest request) {
         assert SUPPORTED_TYPES.contains(type);
         String routing = request.param("routing");
-        DeleteStoreElementAction.DeleteStoreElementRequest deleteRequest = new DeleteStoreElementAction.DeleteStoreElementRequest(
-            indexName,
-            type,
-            request.param("name"),
-            routing
-        );
+        StoreElementRequest deleteRequest = new StoreElementRequest(indexName, type, request.param("name"), routing);
         return (channel) -> {
             try {
                 client
@@ -129,12 +125,7 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
                     }
                 };
 
-                client
-                    .execute(
-                        GetStoreElementAction.INSTANCE,
-                        new GetStoreElementAction.GetStoreElementRequest(indexName, type, name, routing),
-                        listener
-                    );
+                client.execute(GetStoreElementAction.INSTANCE, new StoreElementRequest(indexName, type, name, routing), listener);
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }

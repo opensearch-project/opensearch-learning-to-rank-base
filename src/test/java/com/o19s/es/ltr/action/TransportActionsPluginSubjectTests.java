@@ -342,7 +342,7 @@ public class TransportActionsPluginSubjectTests extends OpenSearchTestCase {
         );
 
         Outcome<GetResponse> outcome = new Outcome<>();
-        action.doExecute(task(), new GetStoreElementAction.GetStoreElementRequest(STORE, StoredFeature.TYPE, "f", null), outcome);
+        action.doExecute(task(), new StoreElementRequest(STORE, StoredFeature.TYPE, "f", null), outcome);
 
         outcome.assertResponseInCallerContext();
         assertEquals(List.of(call(GetAction.NAME, STORE, SUBJECT)), calls);
@@ -363,7 +363,7 @@ public class TransportActionsPluginSubjectTests extends OpenSearchTestCase {
         );
 
         Outcome<DeleteResponse> outcome = new Outcome<>();
-        action.doExecute(task(), new DeleteStoreElementAction.DeleteStoreElementRequest(STORE, StoredFeature.TYPE, "f", null), outcome);
+        action.doExecute(task(), new StoreElementRequest(STORE, StoredFeature.TYPE, "f", null), outcome);
 
         outcome.assertResponseInCallerContext();
         assertEquals(List.of(call(ClearCachesAction.NAME, null, SUBJECT), call(DeleteAction.NAME, STORE, SUBJECT)), calls);
@@ -379,22 +379,22 @@ public class TransportActionsPluginSubjectTests extends OpenSearchTestCase {
         );
 
         Outcome<DeleteResponse> outcome = new Outcome<>();
-        action.doExecute(task(), new DeleteStoreElementAction.DeleteStoreElementRequest(STORE, StoredFeature.TYPE, "f", null), outcome);
+        action.doExecute(task(), new StoreElementRequest(STORE, StoredFeature.TYPE, "f", null), outcome);
 
         assertNotNull(outcome.failure());
         assertEquals(List.of(call(ClearCachesAction.NAME, null, SUBJECT)), calls);
     }
 
     public void testRequestsRejectUnknownTypes() {
-        assertNotNull(new GetStoreElementAction.GetStoreElementRequest(STORE, "other", "f", null).validate());
-        assertNotNull(new DeleteStoreElementAction.DeleteStoreElementRequest(STORE, "other", "f", null).validate());
+        assertNotNull(new StoreElementRequest(STORE, "other", "f", null).validate());
+        assertNotNull(new StoreElementRequest(STORE, "other", "f", null).validate());
         assertNotNull(new SearchStoreElementsAction.SearchStoreElementsRequest(STORE, null, null, 0, 20).validate());
     }
 
     public void testDeleteElementAcceptsOnlyOneStore() {
-        assertNull(new DeleteStoreElementAction.DeleteStoreElementRequest(STORE, StoredFeature.TYPE, "f", null).validate());
+        assertNull(new StoreElementRequest(STORE, StoredFeature.TYPE, "f", null).validate());
         for (String store : List.of("logs", IndexFeatureStore.STORE_PREFIX + "*", IndexFeatureStore.STORE_PREFIX + "a,b")) {
-            assertNotNull(store, new DeleteStoreElementAction.DeleteStoreElementRequest(store, StoredFeature.TYPE, "f", null).validate());
+            assertNotNull(store, new StoreElementRequest(store, StoredFeature.TYPE, "f", null).validate());
         }
     }
 
@@ -414,7 +414,7 @@ public class TransportActionsPluginSubjectTests extends OpenSearchTestCase {
         for (String type : List.of(StoredFeature.TYPE, StoredFeatureSet.TYPE, StoredLtrModel.TYPE)) {
             requests.clear();
             Outcome<DeleteResponse> outcome = new Outcome<>();
-            action.doExecute(task(), new DeleteStoreElementAction.DeleteStoreElementRequest(STORE, type, "e", "r1"), outcome);
+            action.doExecute(task(), new StoreElementRequest(STORE, type, "e", "r1"), outcome);
             outcome.assertResponseInCallerContext();
 
             ClearCachesAction.ClearCachesNodesRequest clear = (ClearCachesAction.ClearCachesNodesRequest) requests.get(0);
@@ -450,7 +450,7 @@ public class TransportActionsPluginSubjectTests extends OpenSearchTestCase {
         );
 
         Outcome<DeleteResponse> outcome = new Outcome<>();
-        action.doExecute(task(), new DeleteStoreElementAction.DeleteStoreElementRequest(STORE, StoredFeature.TYPE, "f", null), outcome);
+        action.doExecute(task(), new StoreElementRequest(STORE, StoredFeature.TYPE, "f", null), outcome);
 
         assertTrue(outcome.failure() instanceof org.opensearch.action.FailedNodeException);
         assertEquals(List.of(call(ClearCachesAction.NAME, null, SUBJECT)), calls);
@@ -474,16 +474,12 @@ public class TransportActionsPluginSubjectTests extends OpenSearchTestCase {
         expectThrows(
             IllegalArgumentException.class,
             () -> new TransportGetStoreElementAction(transportService, actionFilters, clusterService, pluginClient)
-                .doExecute(task(), new GetStoreElementAction.GetStoreElementRequest(alias, StoredFeature.TYPE, "f", null), new Outcome<>())
+                .doExecute(task(), new StoreElementRequest(alias, StoredFeature.TYPE, "f", null), new Outcome<>())
         );
         expectThrows(
             IllegalArgumentException.class,
             () -> new TransportDeleteStoreElementAction(transportService, actionFilters, clusterService, pluginClient)
-                .doExecute(
-                    task(),
-                    new DeleteStoreElementAction.DeleteStoreElementRequest(alias, StoredFeature.TYPE, "f", null),
-                    new Outcome<>()
-                )
+                .doExecute(task(), new StoreElementRequest(alias, StoredFeature.TYPE, "f", null), new Outcome<>())
         );
         expectThrows(
             IllegalArgumentException.class,
@@ -574,7 +570,7 @@ public class TransportActionsPluginSubjectTests extends OpenSearchTestCase {
         responses.put(GetAction.NAME, () -> missing(StoredLtrModel.TYPE, "m"));
         Outcome<GetResponse> outcome = new Outcome<>();
         new TransportGetStoreElementAction(transportService, actionFilters, clusterService, pluginClient)
-            .doExecute(task(), new GetStoreElementAction.GetStoreElementRequest(STORE, StoredLtrModel.TYPE, "m", "r2"), outcome);
+            .doExecute(task(), new StoreElementRequest(STORE, StoredLtrModel.TYPE, "m", "r2"), outcome);
         outcome.assertResponseInCallerContext();
         org.opensearch.action.get.GetRequest get = (org.opensearch.action.get.GetRequest) requests.get(0);
         assertEquals(StorableElement.generateId(StoredLtrModel.TYPE, "m"), get.id());
@@ -611,13 +607,20 @@ public class TransportActionsPluginSubjectTests extends OpenSearchTestCase {
     public void testReadRequestsAcceptOnlyStoreIndices() {
         String custom = IndexFeatureStore.STORE_PREFIX + "custom";
         String all = IndexFeatureStore.STORE_PREFIX + "*";
+        for (String store : List.of(STORE, custom)) {
+            assertNull(store, new StoreElementRequest(store, StoredFeature.TYPE, "f", null).validate());
+        }
+        for (String store : List.of(all, STORE + "," + custom, "logs", IndexFeatureStore.STORE_PREFIX, "")) {
+            assertNotNull(
+                "an element request names one store: " + store,
+                new StoreElementRequest(store, StoredFeature.TYPE, "f", null).validate()
+            );
+        }
         for (String store : List.of(STORE, custom, all, STORE + "," + custom)) {
-            assertNull(store, new GetStoreElementAction.GetStoreElementRequest(store, StoredFeature.TYPE, "f", null).validate());
             assertNull(store, new SearchStoreElementsAction.SearchStoreElementsRequest(store, StoredFeature.TYPE, null, 0, 20).validate());
             assertNull(store, new StoreExistsAction.StoreExistsRequest(store).validate());
         }
-        for (String store : List.of("logs", custom + ",logs", custom + ",", IndexFeatureStore.STORE_PREFIX, "")) {
-            assertNotNull(store, new GetStoreElementAction.GetStoreElementRequest(store, StoredFeature.TYPE, "f", null).validate());
+        for (String store : List.of("logs", custom + ",logs", IndexFeatureStore.STORE_PREFIX, "", ",")) {
             assertNotNull(
                 store,
                 new SearchStoreElementsAction.SearchStoreElementsRequest(store, StoredFeature.TYPE, null, 0, 20).validate()
@@ -628,12 +631,12 @@ public class TransportActionsPluginSubjectTests extends OpenSearchTestCase {
 
     public void testReadRequestsRoundTrip() throws Exception {
         org.opensearch.common.io.stream.BytesStreamOutput out = new org.opensearch.common.io.stream.BytesStreamOutput();
-        new GetStoreElementAction.GetStoreElementRequest(STORE, StoredFeature.TYPE, "f", "r").writeTo(out);
+        new StoreElementRequest(STORE, StoredFeature.TYPE, "f", "r").writeTo(out);
         new SearchStoreElementsAction.SearchStoreElementsRequest(STORE, StoredFeature.TYPE, "p", 3, 7).writeTo(out);
         new StoreExistsAction.StoreExistsRequest(STORE).writeTo(out);
         org.opensearch.core.common.io.stream.StreamInput in = out.bytes().streamInput();
 
-        GetStoreElementAction.GetStoreElementRequest get = new GetStoreElementAction.GetStoreElementRequest(in);
+        StoreElementRequest get = new StoreElementRequest(in);
         assertEquals(List.of(STORE, StoredFeature.TYPE, "f", "r"), List.of(get.getStore(), get.getType(), get.getName(), get.getRouting()));
         SearchStoreElementsAction.SearchStoreElementsRequest search = new SearchStoreElementsAction.SearchStoreElementsRequest(in);
         assertEquals(

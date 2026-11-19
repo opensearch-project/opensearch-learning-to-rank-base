@@ -8,6 +8,8 @@
  */
 package com.o19s.es.ltr.action;
 
+import java.util.Optional;
+
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.opensearch.action.support.ActionFilters;
@@ -49,11 +51,11 @@ public class TransportStoreExistsAction extends HandledTransportAction<StoreExis
 
     @Override
     protected void doExecute(Task task, StoreExistsRequest request, ActionListener<IndicesExistsResponse> listener) {
-        String[] indices = StoreIndices.resolve(clusterService.state(), request.getStore());
-        if (indices.length == 0) {
+        Optional<String[]> indices = StoreIndices.resolve(clusterService.state(), request.getStore());
+        if (indices.isEmpty()) {
             listener.onResponse(new IndicesExistsResponse(false));
             return;
         }
-        pluginClient.admin().indices().exists(new IndicesExistsRequest(indices), listener);
+        pluginClient.admin().indices().exists(new IndicesExistsRequest(indices.get()), listener);
     }
 }

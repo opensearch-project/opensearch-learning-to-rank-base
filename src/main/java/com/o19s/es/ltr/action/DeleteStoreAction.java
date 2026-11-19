@@ -8,7 +8,7 @@
  */
 package com.o19s.es.ltr.action;
 
-import static org.opensearch.action.ValidateActions.addValidationError;
+import static com.o19s.es.ltr.feature.store.index.StoreIndices.validateSingle;
 
 import java.io.IOException;
 
@@ -18,8 +18,6 @@ import org.opensearch.action.ActionType;
 import org.opensearch.action.support.clustermanager.AcknowledgedResponse;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
-
-import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
 
 /** Deletes a feature store index. */
 public class DeleteStoreAction extends ActionType<AcknowledgedResponse> {
@@ -64,18 +62,7 @@ public class DeleteStoreAction extends ActionType<AcknowledgedResponse> {
 
         @Override
         public ActionRequestValidationException validate() {
-            if (store == null || !IndexFeatureStore.isIndexStore(store)) {
-                return addValidationError("[" + store + "] is not a feature store index", null);
-            }
-            if (!IndexFeatureStore.DEFAULT_STORE.equals(store)) {
-                try {
-                    // Rejects wildcards and lists, so one request deletes one store.
-                    IndexFeatureStore.validateFeatureStoreName(IndexFeatureStore.storeName(store));
-                } catch (IllegalArgumentException e) {
-                    return addValidationError(e.getMessage(), null);
-                }
-            }
-            return null;
+            return validateSingle(store, null);
         }
 
         /**

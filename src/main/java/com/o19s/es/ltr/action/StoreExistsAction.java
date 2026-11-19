@@ -8,7 +8,7 @@
  */
 package com.o19s.es.ltr.action;
 
-import static org.opensearch.action.ValidateActions.addValidationError;
+import static com.o19s.es.ltr.feature.store.index.StoreIndices.validateExpression;
 
 import java.io.IOException;
 
@@ -18,8 +18,6 @@ import org.opensearch.action.ActionType;
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
-
-import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
 
 /** Checks whether a feature store exists. */
 public class StoreExistsAction extends ActionType<IndicesExistsResponse> {
@@ -64,10 +62,7 @@ public class StoreExistsAction extends ActionType<IndicesExistsResponse> {
 
         @Override
         public ActionRequestValidationException validate() {
-            if (!IndexFeatureStore.isIndexStoreExpression(store)) {
-                return addValidationError("[" + store + "] is not a feature store index", null);
-            }
-            return null;
+            return validateExpression(store, null);
         }
 
         /**

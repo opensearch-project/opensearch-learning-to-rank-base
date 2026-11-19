@@ -8,7 +8,8 @@
  */
 package com.o19s.es.ltr.action;
 
-import static com.o19s.es.ltr.query.ValidatingLtrQueryBuilder.SUPPORTED_TYPES;
+import static com.o19s.es.ltr.feature.store.index.StoreIndices.validateExpression;
+import static com.o19s.es.ltr.feature.store.index.StoreIndices.validateType;
 import static org.opensearch.action.ValidateActions.addValidationError;
 
 import java.io.IOException;
@@ -19,8 +20,6 @@ import org.opensearch.action.ActionType;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
-
-import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
 
 /** Searches a feature store for the elements of one type, optionally by name prefix. */
 public class SearchStoreElementsAction extends ActionType<SearchResponse> {
@@ -86,12 +85,8 @@ public class SearchStoreElementsAction extends ActionType<SearchResponse> {
         @Override
         public ActionRequestValidationException validate() {
             ActionRequestValidationException e = null;
-            if (!IndexFeatureStore.isIndexStoreExpression(store)) {
-                e = addValidationError("[" + store + "] is not a feature store index", e);
-            }
-            if (type == null || !SUPPORTED_TYPES.contains(type)) {
-                e = addValidationError("[" + type + "] is not a feature store element type", e);
-            }
+            e = validateExpression(store, e);
+            e = validateType(type, e);
             if (from < 0) {
                 e = addValidationError("from must not be negative", e);
             }

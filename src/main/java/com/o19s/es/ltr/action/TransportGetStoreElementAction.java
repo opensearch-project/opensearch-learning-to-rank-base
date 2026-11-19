@@ -18,13 +18,12 @@ import org.opensearch.core.action.ActionListener;
 import org.opensearch.tasks.Task;
 import org.opensearch.transport.TransportService;
 
-import com.o19s.es.ltr.action.GetStoreElementAction.GetStoreElementRequest;
 import com.o19s.es.ltr.feature.store.StorableElement;
 import com.o19s.es.ltr.feature.store.index.StoreIndices;
 import com.o19s.es.ltr.utils.PluginClient;
 
 /** Gets a store element as the plugin subject, once the caller is allowed to run this action. */
-public class TransportGetStoreElementAction extends HandledTransportAction<GetStoreElementRequest, GetResponse> {
+public class TransportGetStoreElementAction extends HandledTransportAction<StoreElementRequest, GetResponse> {
     private final ClusterService clusterService;
     private final PluginClient pluginClient;
 
@@ -43,13 +42,13 @@ public class TransportGetStoreElementAction extends HandledTransportAction<GetSt
         ClusterService clusterService,
         PluginClient pluginClient
     ) {
-        super(GetStoreElementAction.NAME, transportService, actionFilters, GetStoreElementRequest::new);
+        super(GetStoreElementAction.NAME, transportService, actionFilters, StoreElementRequest::new);
         this.clusterService = clusterService;
         this.pluginClient = pluginClient;
     }
 
     @Override
-    protected void doExecute(Task task, GetStoreElementRequest request, ActionListener<GetResponse> listener) {
+    protected void doExecute(Task task, StoreElementRequest request, ActionListener<GetResponse> listener) {
         StoreIndices.requireConcrete(clusterService.state(), request.getStore());
         GetRequest getRequest = new GetRequest(request.getStore(), StorableElement.generateId(request.getType(), request.getName()))
             .routing(request.getRouting());

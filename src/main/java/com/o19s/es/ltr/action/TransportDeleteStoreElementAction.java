@@ -21,7 +21,6 @@ import org.opensearch.tasks.Task;
 import org.opensearch.transport.TransportService;
 
 import com.o19s.es.ltr.action.ClearCachesAction.ClearCachesNodesRequest;
-import com.o19s.es.ltr.action.DeleteStoreElementAction.DeleteStoreElementRequest;
 import com.o19s.es.ltr.feature.store.StorableElement;
 import com.o19s.es.ltr.feature.store.StoredFeature;
 import com.o19s.es.ltr.feature.store.StoredFeatureSet;
@@ -33,7 +32,7 @@ import com.o19s.es.ltr.utils.PluginClient;
  * Clears the cached element and then deletes it, both as the plugin subject, once the caller is allowed to run this
  * action. If the cache clear fails on any node, the element stays in place and the request fails.
  */
-public class TransportDeleteStoreElementAction extends HandledTransportAction<DeleteStoreElementRequest, DeleteResponse> {
+public class TransportDeleteStoreElementAction extends HandledTransportAction<StoreElementRequest, DeleteResponse> {
     private final ClusterService clusterService;
     private final PluginClient pluginClient;
 
@@ -52,30 +51,27 @@ public class TransportDeleteStoreElementAction extends HandledTransportAction<De
         ClusterService clusterService,
         PluginClient pluginClient
     ) {
-        super(DeleteStoreElementAction.NAME, transportService, actionFilters, DeleteStoreElementRequest::new);
+        super(DeleteStoreElementAction.NAME, transportService, actionFilters, StoreElementRequest::new);
         this.clusterService = clusterService;
         this.pluginClient = pluginClient;
     }
 
     @Override
-    protected void doExecute(Task task, DeleteStoreElementRequest request, ActionListener<DeleteResponse> listener) {
+    protected void doExecute(Task task, StoreElementRequest request, ActionListener<DeleteResponse> listener) {
         StoreIndices.requireConcrete(clusterService.state(), request.getStore());
         ClearCachesNodesRequest clearCache = new ClearCachesNodesRequest();
         switch (request.getType()) {
             case StoredFeature.TYPE -> clearCache.clearFeature(request.getStore(), request.getName());
             case StoredFeatureSet.TYPE -> clearCache.clearFeatureSet(request.getStore(), request.getName());
             case StoredLtrModel.TYPE -> clearCache.clearModel(request.getStore(), request.getName());
-            default -> {
-                listener.onFailure(new IllegalArgumentException("Unsupported element type [" + request.getType() + "]"));
-                return;
-            }
+            default -> throw new IllegalArgumentException("[" + request.getType() + "] is not a feature store element type");
         }
         DeleteRequest delete = new DeleteRequest(request.getStore(), StorableElement.generateId(request.getType(), request.getName()))
             .routing(request.getRouting())
             // Element searches are never realtime, so the delete is made visible before the response.
             .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
         pluginClient.execute(ClearCachesAction.INSTANCE, clearCache, ActionListener.wrap(r -> {
-            if (!r.failures().isEmpty()) {
+            if (r.hasFailures()) {
                 FailedNodeException failure = r.failures().get(0);
                 r.failures().stream().skip(1).forEach(failure::addSuppressed);
                 listener.onFailure(failure);
