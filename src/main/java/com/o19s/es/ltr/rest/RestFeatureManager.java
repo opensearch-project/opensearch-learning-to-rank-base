@@ -17,7 +17,6 @@
 
 package com.o19s.es.ltr.rest;
 
-import static com.o19s.es.ltr.feature.store.StorableElement.generateId;
 import static com.o19s.es.ltr.query.ValidatingLtrQueryBuilder.SUPPORTED_TYPES;
 import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
@@ -27,10 +26,8 @@ import static org.opensearch.core.rest.RestStatus.OK;
 import java.io.IOException;
 import java.util.List;
 
-import org.opensearch.action.delete.DeleteRequestBuilder;
 import org.opensearch.action.delete.DeleteResponse;
 import org.opensearch.action.get.GetResponse;
-import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.ltr.settings.LTRSettings;
@@ -40,16 +37,20 @@ import org.opensearch.rest.action.RestStatusToXContentListener;
 import org.opensearch.rest.action.RestToXContentListener;
 import org.opensearch.transport.client.node.NodeClient;
 
-import com.o19s.es.ltr.action.ClearCachesAction;
+import com.o19s.es.ltr.action.DeleteStoreElementAction;
 import com.o19s.es.ltr.action.FeatureStoreAction;
+import com.o19s.es.ltr.action.GetStoreElementAction;
+import com.o19s.es.ltr.action.StoreElementRequest;
 import com.o19s.es.ltr.feature.store.StorableElement;
-import com.o19s.es.ltr.feature.store.StoredFeature;
-import com.o19s.es.ltr.feature.store.StoredFeatureSet;
-import com.o19s.es.ltr.feature.store.StoredLtrModel;
 
 public class RestFeatureManager extends FeatureStoreBaseRestHandler {
     private final String type;
 
+    /**
+     * Creates the handler for one element type.
+     *
+     * @param type the element type the routes serve
+     */
     public RestFeatureManager(String type) {
         this.type = type;
     }
@@ -95,40 +96,19 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
 
     RestChannelConsumer delete(NodeClient client, String type, String indexName, RestRequest request) {
         assert SUPPORTED_TYPES.contains(type);
-        String name = request.param("name");
-        String id = generateId(type, name);
         String routing = request.param("routing");
+        StoreElementRequest deleteRequest = new StoreElementRequest(indexName, type, request.param("name"), routing);
         return (channel) -> {
-            RestStatusToXContentListener<DeleteResponse> restR = new RestStatusToXContentListener<>(channel, (r) -> r.getLocation(routing));
-            ClearCachesAction.ClearCachesNodesRequest clearCache = new ClearCachesAction.ClearCachesNodesRequest();
-            switch (type) {
-                case StoredFeature.TYPE:
-                    clearCache.clearFeature(indexName, name);
-                    break;
-                case StoredFeatureSet.TYPE:
-                    clearCache.clearFeatureSet(indexName, name);
-                    break;
-                case StoredLtrModel.TYPE:
-                    clearCache.clearModel(indexName, name);
-                    break;
+            try {
+                client
+                    .execute(
+                        DeleteStoreElementAction.INSTANCE,
+                        deleteRequest,
+                        new RestStatusToXContentListener<DeleteResponse>(channel, (r) -> r.getLocation(routing))
+                    );
+            } catch (Exception e) {
+                channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }
-            DeleteRequestBuilder deleteRequest = client.prepareDelete(indexName, id).setRouting(routing);
-            // clearing cache first and deleting next
-            // if cache clearning fails, we do not attempt to delete and return with an error
-            // need to evaluate this strategy
-            client.execute(ClearCachesAction.INSTANCE, clearCache, ActionListener.wrap((r) -> {
-                try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
-                    deleteRequest.execute(ActionListener.wrap((deleteResponse) -> {
-                        restR.onResponse(deleteResponse);
-                        threadContext.restore();
-                    }, (e) -> {
-                        restR.onFailure(e);
-                        threadContext.restore();
-                    }));
-                } catch (Exception e) {
-                    channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
-                }
-            }, restR::onFailure));
         };
     }
 
@@ -136,17 +116,16 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
         assert SUPPORTED_TYPES.contains(type);
         String name = request.param("name");
         String routing = request.param("routing");
-        String id = generateId(type, name);
         return (channel) -> {
-            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
-                ActionListener<GetResponse> wrappedListener = ActionListener.runBefore(new RestToXContentListener<GetResponse>(channel) {
+            try {
+                ActionListener<GetResponse> listener = new RestToXContentListener<GetResponse>(channel) {
                     @Override
                     protected RestStatus getStatus(final GetResponse response) {
                         return response.isExists() ? OK : NOT_FOUND;
                     }
-                }, () -> threadContext.restore());
+                };
 
-                client.prepareGet(indexName, id).setRouting(routing).execute(wrappedListener);
+                client.execute(GetStoreElementAction.INSTANCE, new StoreElementRequest(indexName, type, name, routing), listener);
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }
@@ -194,14 +173,8 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
         builder.request().setStore(indexName);
         builder.request().setValidation(parserState.getValidation());
         return (channel) -> {
-            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
-                ActionListener<FeatureStoreAction.FeatureStoreResponse> wrappedListener = ActionListener
-                    .runBefore(
-                        new RestStatusToXContentListener<>(channel, (r) -> r.getResponse().getLocation(routing)),
-                        () -> threadContext.restore()
-                    );
-
-                builder.execute(wrappedListener);
+            try {
+                builder.execute(new RestStatusToXContentListener<>(channel, (r) -> r.getResponse().getLocation(routing)));
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }

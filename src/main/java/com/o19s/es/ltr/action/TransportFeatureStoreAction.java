@@ -24,7 +24,8 @@ import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.action.index.IndexAction;
+import org.opensearch.ExceptionsHelper;
+import org.opensearch.OpenSearchStatusException;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.search.SearchAction;
 import org.opensearch.action.search.SearchRequestBuilder;
@@ -35,6 +36,7 @@ import org.opensearch.action.support.WriteRequest;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.core.action.ActionListener;
+import org.opensearch.core.rest.RestStatus;
 import org.opensearch.ltr.breaker.LTRCircuitBreakerService;
 import org.opensearch.ltr.exception.LimitExceededException;
 import org.opensearch.ltr.stats.LTRStats;
@@ -53,32 +55,49 @@ import com.o19s.es.ltr.feature.store.StoredLtrModel;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
 import com.o19s.es.ltr.query.ValidatingLtrQueryBuilder;
 import com.o19s.es.ltr.ranker.parser.LtrRankerParserFactory;
+import com.o19s.es.ltr.utils.PluginClient;
 
+/**
+ * Stores a feature, feature set or model. The optional validation search runs as the caller; the store write and
+ * the cache clear after it run as the plugin subject.
+ */
 public class TransportFeatureStoreAction extends HandledTransportAction<FeatureStoreRequest, FeatureStoreResponse> {
     private final LtrRankerParserFactory factory;
     private final ClusterService clusterService;
-    private final TransportClearCachesAction clearCachesAction;
     private final Client client;
+    private final PluginClient pluginClient;
     private final Logger logger = LogManager.getLogger(getClass());
     private final LTRCircuitBreakerService ltrCircuitBreakerService;
     private final LTRStats ltrStats;
 
+    /**
+     * Creates the action.
+     *
+     * @param transportService the transport service
+     * @param actionFilters the action filters
+     * @param clusterService the cluster service
+     * @param client runs the validation search as the caller
+     * @param pluginClient writes the store and clears the caches as the plugin subject
+     * @param factory parses ranking models
+     * @param ltrCircuitBreakerService refuses writes while the memory circuit is open
+     * @param ltrStats LTR stats
+     */
     @Inject
     public TransportFeatureStoreAction(
         TransportService transportService,
         ActionFilters actionFilters,
         ClusterService clusterService,
         Client client,
+        PluginClient pluginClient,
         LtrRankerParserFactory factory,
-        TransportClearCachesAction clearCachesAction,
         LTRCircuitBreakerService ltrCircuitBreakerService,
         LTRStats ltrStats
     ) {
         super(FeatureStoreAction.NAME, false, transportService, actionFilters, FeatureStoreRequest::new);
         this.factory = factory;
         this.clusterService = clusterService;
-        this.clearCachesAction = clearCachesAction;
         this.client = client;
+        this.pluginClient = pluginClient;
         this.ltrCircuitBreakerService = ltrCircuitBreakerService;
         this.ltrStats = ltrStats;
     }
@@ -161,7 +180,8 @@ public class TransportFeatureStoreAction extends HandledTransportAction<FeatureS
     }
 
     /**
-     * Perform a test search request to validate the element prior to storing it.
+     * Perform a test search request to validate the element prior to storing it. The search runs as the caller, so
+     * the caller needs read access to the validation index, and a denial keeps its 403 status.
      *
      * @param validation validation info
      * @param element the element stored
@@ -196,7 +216,13 @@ public class TransportFeatureStoreAction extends HandledTransportAction<FeatureS
                 );
             }
             onSuccess.run();
-        }, (e) -> listener.onFailure(new IllegalArgumentException("Cannot store element, validation failed.", e))));
+        }, (e) -> {
+            if (ExceptionsHelper.status(e) == RestStatus.FORBIDDEN) {
+                listener.onFailure(new OpenSearchStatusException("Cannot store element, validation failed.", RestStatus.FORBIDDEN, e));
+            } else {
+                listener.onFailure(new IllegalArgumentException("Cannot store element, validation failed.", e));
+            }
+        }));
     }
 
     /**
@@ -207,11 +233,14 @@ public class TransportFeatureStoreAction extends HandledTransportAction<FeatureS
         try {
             Optional<ClearCachesNodesRequest> clearCachesNodesRequest = buildClearCache(request);
             IndexRequest indexRequest = buildIndexRequest(task, request);
-            client.execute(IndexAction.INSTANCE, indexRequest, wrap((r) -> {
+            pluginClient.index(indexRequest, wrap((r) -> {
                 // Run and forget, log only if something bad happens
                 // but don't wait for the action to be done nor set the parent task.
                 clearCachesNodesRequest
-                    .ifPresent((req) -> clearCachesAction.execute(req, wrap((r2) -> {}, (e) -> logger.error("Failed to clear cache", e))));
+                    .ifPresent(
+                        (req) -> pluginClient
+                            .execute(ClearCachesAction.INSTANCE, req, wrap((r2) -> {}, (e) -> logger.error("Failed to clear cache", e)))
+                    );
                 listener.onResponse(new FeatureStoreResponse(r));
             }, listener::onFailure));
         } catch (IOException ioe) {

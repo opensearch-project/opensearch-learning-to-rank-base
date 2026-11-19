@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.util.List;
 
 import org.opensearch.ExceptionsHelper;
-import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.ParseField;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.ParsingException;
@@ -86,7 +85,7 @@ public class RestCreateModelFromSet extends FeatureStoreBaseRestHandler {
         builder.request().setValidation(state.validation);
         builder.routing(routing);
         return (channel) -> {
-            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
+            try {
                 ActionListener<CreateModelFromSetAction.CreateModelFromSetResponse> wrappedListener = ActionListener
                     .wrap(
                         response -> new RestStatusToXContentListener<CreateModelFromSetAction.CreateModelFromSetResponse>(
@@ -116,10 +115,7 @@ public class RestCreateModelFromSet extends FeatureStoreBaseRestHandler {
                         }
                     );
 
-                ActionListener<CreateModelFromSetAction.CreateModelFromSetResponse> contextRestoringListener = ActionListener
-                    .runBefore(wrappedListener, () -> threadContext.restore());
-
-                builder.execute(contextRestoringListener);
+                builder.execute(wrappedListener);
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }

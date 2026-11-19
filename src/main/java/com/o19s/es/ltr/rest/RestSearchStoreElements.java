@@ -18,26 +18,26 @@ package com.o19s.es.ltr.rest;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
-import static org.opensearch.index.query.QueryBuilders.boolQuery;
-import static org.opensearch.index.query.QueryBuilders.matchQuery;
-import static org.opensearch.index.query.QueryBuilders.termQuery;
 
 import java.util.List;
 
-import org.opensearch.action.search.SearchResponse;
-import org.opensearch.common.util.concurrent.ThreadContext;
-import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.rest.RestStatus;
-import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.ltr.settings.LTRSettings;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestStatusToXContentListener;
 import org.opensearch.transport.client.node.NodeClient;
 
+import com.o19s.es.ltr.action.SearchStoreElementsAction;
+
 public class RestSearchStoreElements extends FeatureStoreBaseRestHandler {
     private final String type;
 
+    /**
+     * Creates the handler for one element type.
+     *
+     * @param type the element type the routes search
+     */
     public RestSearchStoreElements(String type) {
         this.type = type;
     }
@@ -64,20 +64,16 @@ public class RestSearchStoreElements extends FeatureStoreBaseRestHandler {
     }
 
     RestChannelConsumer search(NodeClient client, String type, String indexName, RestRequest request) {
-        String prefix = request.param("prefix");
-        int from = request.paramAsInt("from", 0);
-        int size = request.paramAsInt("size", 20);
-        BoolQueryBuilder qb = boolQuery().filter(termQuery("type", type));
-        if (prefix != null && !prefix.isEmpty()) {
-            qb.must(matchQuery("name.prefix", prefix));
-        }
+        SearchStoreElementsAction.SearchStoreElementsRequest searchRequest = new SearchStoreElementsAction.SearchStoreElementsRequest(
+            indexName,
+            type,
+            request.param("prefix"),
+            request.paramAsInt("from", 0),
+            request.paramAsInt("size", 20)
+        );
         return (channel) -> {
-            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
-                ActionListener<SearchResponse> searchListener = new RestStatusToXContentListener<>(channel);
-
-                ActionListener<SearchResponse> wrappedListener = ActionListener.runBefore(searchListener, () -> threadContext.restore());
-
-                client.prepareSearch(indexName).setQuery(qb).setSize(size).setFrom(from).execute(wrappedListener);
+            try {
+                client.execute(SearchStoreElementsAction.INSTANCE, searchRequest, new RestStatusToXContentListener<>(channel));
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }
