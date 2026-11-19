@@ -21,10 +21,6 @@ import java.util.Map;
 import org.opensearch.action.ActionRequest;
 import org.opensearch.action.ActionType;
 import org.opensearch.action.admin.indices.create.CreateIndexAction;
-import org.opensearch.action.admin.indices.exists.indices.IndicesExistsAction;
-import org.opensearch.action.delete.DeleteAction;
-import org.opensearch.action.get.GetAction;
-import org.opensearch.action.search.SearchAction;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.common.xcontent.XContentType;
@@ -46,8 +42,12 @@ import com.o19s.es.ltr.action.AddFeaturesToSetAction;
 import com.o19s.es.ltr.action.ClearCachesAction;
 import com.o19s.es.ltr.action.CreateModelFromSetAction;
 import com.o19s.es.ltr.action.DeleteStoreAction;
+import com.o19s.es.ltr.action.DeleteStoreElementAction;
 import com.o19s.es.ltr.action.FeatureStoreAction;
+import com.o19s.es.ltr.action.GetStoreElementAction;
 import com.o19s.es.ltr.action.ListStoresAction;
+import com.o19s.es.ltr.action.SearchStoreElementsAction;
+import com.o19s.es.ltr.action.StoreExistsAction;
 import com.o19s.es.ltr.utils.PluginClient;
 import com.o19s.es.ltr.utils.RecordingPluginSubject;
 
@@ -75,7 +75,7 @@ public class RestHandlersPluginSubjectTests extends OpenSearchTestCase {
         when(threadPool.getThreadContext()).thenReturn(threadContext);
 
         // Each call is recorded as the action name and the identity it ran as. Neither client completes the
-        // action, except the node client's cache clear, which the element delete waits for.
+        // action.
         Client delegate = mock(Client.class);
         when(delegate.settings()).thenReturn(Settings.EMPTY);
         when(delegate.threadPool()).thenReturn(threadPool);
@@ -104,44 +104,44 @@ public class RestHandlersPluginSubjectTests extends OpenSearchTestCase {
         threadContext.putTransient(RecordingPluginSubject.MARKER_TRANSIENT, CALLER);
     }
 
-    public void testGetElementRunsAsTheSubject() throws Exception {
-        handle(new RestFeatureManager("feature", pluginClient), RestRequest.Method.GET, Map.of("name", "f"), null);
-        assertCalls(List.of(asSubject(GetAction.NAME)), List.of());
+    public void testGetElementRunsAsTheCaller() throws Exception {
+        handle(new RestFeatureManager("feature"), RestRequest.Method.GET, Map.of("name", "f"), null);
+        assertCalls(List.of(), List.of(asCaller(GetStoreElementAction.NAME)));
     }
 
     public void testAddElementRunsAsTheCaller() throws Exception {
         String feature = "{\"feature\":{\"name\":\"f\",\"params\":[],\"template\":{\"match_all\":{}}}}";
-        handle(new RestFeatureManager("feature", pluginClient), RestRequest.Method.PUT, Map.of("name", "f"), feature);
+        handle(new RestFeatureManager("feature"), RestRequest.Method.PUT, Map.of("name", "f"), feature);
         assertCalls(List.of(), List.of(asCaller(FeatureStoreAction.NAME)));
     }
 
-    public void testDeleteElementClearsCachesAsTheCallerThenDeletesAsTheSubject() throws Exception {
-        handle(new RestFeatureManager("feature", pluginClient), RestRequest.Method.DELETE, Map.of("name", "f"), null);
-        assertCalls(List.of(asSubject(DeleteAction.NAME)), List.of(asCaller(ClearCachesAction.NAME)));
+    public void testDeleteElementRunsAsTheCaller() throws Exception {
+        handle(new RestFeatureManager("feature"), RestRequest.Method.DELETE, Map.of("name", "f"), null);
+        assertCalls(List.of(), List.of(asCaller(DeleteStoreElementAction.NAME)));
     }
 
-    public void testSearchElementsRunsAsTheSubject() throws Exception {
-        handle(new RestSearchStoreElements("feature", pluginClient), RestRequest.Method.GET, Map.of(), null);
-        assertCalls(List.of(asSubject(SearchAction.NAME)), List.of());
+    public void testSearchElementsRunsAsTheCaller() throws Exception {
+        handle(new RestSearchStoreElements("feature"), RestRequest.Method.GET, Map.of(), null);
+        assertCalls(List.of(), List.of(asCaller(SearchStoreElementsAction.NAME)));
     }
 
     public void testListStoresRunsAsTheCaller() throws Exception {
-        handle(new RestStoreManager(pluginClient), RestRequest.Method.GET, Map.of(), null);
+        handle(new RestStoreManager(), RestRequest.Method.GET, Map.of(), null);
         assertCalls(List.of(), List.of(asCaller(ListStoresAction.NAME)));
     }
 
-    public void testGetStoreRunsAsTheSubject() throws Exception {
-        handle(new RestStoreManager(pluginClient), RestRequest.Method.GET, Map.of("store", "s"), null);
-        assertCalls(List.of(asSubject(IndicesExistsAction.NAME)), List.of());
+    public void testGetStoreRunsAsTheCaller() throws Exception {
+        handle(new RestStoreManager(), RestRequest.Method.GET, Map.of("store", "s"), null);
+        assertCalls(List.of(), List.of(asCaller(StoreExistsAction.NAME)));
     }
 
     public void testDeleteStoreRunsAsTheCaller() throws Exception {
-        handle(new RestStoreManager(pluginClient), RestRequest.Method.DELETE, Map.of("store", "s"), null);
+        handle(new RestStoreManager(), RestRequest.Method.DELETE, Map.of("store", "s"), null);
         assertCalls(List.of(), List.of(asCaller(DeleteStoreAction.NAME)));
     }
 
     public void testCreateStoreRunsAsTheCaller() throws Exception {
-        handle(new RestStoreManager(pluginClient), RestRequest.Method.PUT, Map.of("store", "s"), null);
+        handle(new RestStoreManager(), RestRequest.Method.PUT, Map.of("store", "s"), null);
         assertCalls(List.of(), List.of(asCaller(CreateIndexAction.NAME)));
     }
 

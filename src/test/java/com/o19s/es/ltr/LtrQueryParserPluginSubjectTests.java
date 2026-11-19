@@ -15,32 +15,32 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 
 import org.opensearch.action.ActionRequest;
 import org.opensearch.action.ActionType;
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsAction;
+import org.opensearch.action.support.ActionFilters;
+import org.opensearch.cluster.ClusterName;
+import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.action.ActionListener;
-import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.env.Environment;
-import org.opensearch.rest.RestHandler;
-import org.opensearch.rest.RestRequest;
+import org.opensearch.tasks.Task;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.test.rest.FakeRestChannel;
-import org.opensearch.test.rest.FakeRestRequest;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.TransportService;
 import org.opensearch.transport.client.Client;
-import org.opensearch.transport.client.node.NodeClient;
 
-import com.o19s.es.ltr.rest.RestStoreManager;
+import com.o19s.es.ltr.action.StoreExistsAction;
+import com.o19s.es.ltr.action.TransportStoreExistsAction;
+import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
 import com.o19s.es.ltr.utils.PluginClient;
 import com.o19s.es.ltr.utils.RecordingPluginSubject;
 
@@ -78,23 +78,25 @@ public class LtrQueryParserPluginSubjectTests extends OpenSearchTestCase {
         assertEquals(1, components.stream().filter(component -> component.getClass() == PluginClient.class).count());
         plugin.assignSubject(new RecordingPluginSubject(threadContext, "plugin"));
 
-        RestHandler storeManager = plugin
-            .getRestHandlers(Settings.EMPTY, null, null, null, null, null, null)
+        PluginClient pluginClient = (PluginClient) components
             .stream()
-            .filter(handler -> handler instanceof RestStoreManager)
+            .filter(component -> component.getClass() == PluginClient.class)
             .findFirst()
             .orElseThrow();
+        when(clusterService.state()).thenReturn(ClusterState.builder(new ClusterName("test")).build());
+        TransportStoreExistsAction storeExists = new TransportStoreExistsAction(
+            mock(TransportService.class),
+            new ActionFilters(Collections.emptySet()),
+            clusterService,
+            pluginClient
+        );
         threadContext.putTransient(RecordingPluginSubject.MARKER_TRANSIENT, "caller");
-        FakeRestRequest request = new FakeRestRequest.Builder(NamedXContentRegistry.EMPTY)
-            .withMethod(RestRequest.Method.GET)
-            .withParams(new HashMap<>(Map.of("store", "custom")))
-            .build();
-        FakeRestChannel channel = new FakeRestChannel(request, true, 1);
-        storeManager.handleRequest(request, channel, mock(NodeClient.class));
-
-        if (channel.errors().get() > 0) {
-            fail("the handler responded with an error: " + channel.capturedResponse().content().utf8ToString());
-        }
+        storeExists
+            .execute(
+                mock(Task.class),
+                new StoreExistsAction.StoreExistsRequest(IndexFeatureStore.STORE_PREFIX + "custom"),
+                ActionListener.wrap(r -> {}, e -> fail("the action failed: " + e))
+            );
 
         assertEquals(List.of(IndicesExistsAction.NAME + "@plugin"), calls);
     }

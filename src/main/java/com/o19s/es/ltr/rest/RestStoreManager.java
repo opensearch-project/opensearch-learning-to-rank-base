@@ -21,7 +21,6 @@ import static java.util.Collections.unmodifiableList;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Objects;
 
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.opensearch.core.rest.RestStatus;
@@ -37,22 +36,10 @@ import org.opensearch.transport.client.node.NodeClient;
 
 import com.o19s.es.ltr.action.DeleteStoreAction;
 import com.o19s.es.ltr.action.ListStoresAction;
+import com.o19s.es.ltr.action.StoreExistsAction;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
-import com.o19s.es.ltr.utils.PluginClient;
 
 public class RestStoreManager extends FeatureStoreBaseRestHandler {
-
-    private final PluginClient pluginClient;
-
-    /**
-     * Creates the handler.
-     *
-     * @param pluginClient checks that a store exists as the plugin subject
-     */
-    public RestStoreManager(PluginClient pluginClient) {
-        this.pluginClient = Objects.requireNonNull(pluginClient);
-    }
-
     @Override
     public String getName() {
         return "Manage the LtR store";
@@ -110,7 +97,7 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
             assert request.method() == RestRequest.Method.GET;
             // XXX: ambiguous api
             if (request.hasParam("store")) {
-                return getStore(indexName);
+                return getStore(client, indexName);
             }
             return listStores(client);
         }
@@ -126,7 +113,7 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
         };
     }
 
-    RestChannelConsumer getStore(String indexName) {
+    RestChannelConsumer getStore(NodeClient client, String indexName) {
         return (channel) -> {
             try {
                 RestBuilderListener<IndicesExistsResponse> existsListener = new RestBuilderListener<IndicesExistsResponse>(channel) {
@@ -138,7 +125,7 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
                     }
                 };
 
-                pluginClient.admin().indices().prepareExists(indexName).execute(existsListener);
+                client.execute(StoreExistsAction.INSTANCE, new StoreExistsAction.StoreExistsRequest(indexName), existsListener);
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }

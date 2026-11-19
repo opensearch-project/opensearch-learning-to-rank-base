@@ -178,6 +178,70 @@ public class FeatureStorePermissionsIT extends OpenSearchRestTestCase {
         assertStatus(403, as(NO_LTR, "GET", "/_ltr", null));
     }
 
+    public void testReadingElementsNeedsAnLtrPermission() throws IOException {
+        assertStatus(201, as(WRITER, "PUT", "/_ltr/_feature/f1", "{\"feature\":" + FEATURE + "}"));
+
+        assertStatus(200, as(WRITER_WITHOUT_READ, "GET", "/_ltr/_feature/f1", null));
+        assertStatus(200, as(WRITER_WITHOUT_READ, "HEAD", "/_ltr/_feature/f1", null));
+        assertStatus(404, as(WRITER_WITHOUT_READ, "GET", "/_ltr/_feature/missing", null));
+        Response search = as(WRITER_WITHOUT_READ, "GET", "/_ltr/_feature?prefix=f", null);
+        assertStatus(200, search);
+        assertTrue(body(search), body(search).contains("\"_id\":\"feature-f1\""));
+        assertStatus(404, as(WRITER_WITHOUT_READ, "GET", "/_ltr/missing", null));
+
+        assertDenied(as(NO_LTR, "GET", "/_ltr/_feature/f1", null), "cluster:admin/ltr/featurestore/get");
+        assertDenied(as(NO_LTR, "GET", "/_ltr/_feature", null), "cluster:admin/ltr/featurestore/search");
+        assertDenied(as(LISTER, "GET", "/_ltr/_feature", null), "cluster:admin/ltr/featurestore/search");
+        assertDenied(as(NO_LTR, "GET", "/_ltr/missing", null), "cluster:admin/ltr/featurestore/exists");
+    }
+
+    public void testDeletingAnElementNeedsAnLtrPermissionAndIsVisibleAtOnce() throws IOException {
+        assertStatus(201, as(WRITER, "PUT", "/_ltr/_feature/f1", "{\"feature\":" + FEATURE + "}"));
+
+        assertDenied(as(NO_LTR, "DELETE", "/_ltr/_feature/f1", null), "cluster:admin/ltr/featurestore/delete_element");
+        assertStatus(200, as(WRITER, "GET", "/_ltr/_feature/f1", null));
+
+        assertStatus(200, as(WRITER_WITHOUT_READ, "DELETE", "/_ltr/_feature/f1", null));
+        Response search = as(WRITER, "GET", "/_ltr/_feature", null);
+        assertStatus(200, search);
+        assertFalse("the element search no longer returns the deleted element: " + body(search), body(search).contains("feature-f1"));
+        assertStatus(404, as(WRITER, "GET", "/_ltr/_feature/f1", null));
+    }
+
+    public void testReadingElementsAcceptsOnlyStoreIndices() throws IOException {
+        assertStatus(400, as(WRITER, "GET", "/_ltr/x,logs/_feature", null));
+        assertStatus(400, as(WRITER, "GET", "/_ltr/x,logs/_feature/f1", null));
+        assertStatus(400, as(WRITER, "GET", "/_ltr/x,logs", null));
+        assertStatus(400, as(WRITER, "DELETE", "/_ltr/*/_feature/f1", null));
+        assertStatus(400, as(WRITER, "DELETE", "/_ltr/x,y/_feature/f1", null));
+        assertStatus(404, as(WRITER, "HEAD", "/_ltr/_feature/missing", null));
+        assertStatus(404, as(WRITER, "DELETE", "/_ltr/_feature/missing", null));
+        assertStatus(404, as(WRITER, "GET", "/_ltr/missing/_feature/f1", null));
+    }
+
+    public void testAnAliasWithAStoreNameIsRejected() throws IOException {
+        Request alias = new Request("POST", "/_aliases");
+        alias.setJsonEntity("{\"actions\":[{\"add\":{\"index\":\"" + VALIDATION_INDEX + "\",\"alias\":\".ltrstore_alias\"}}]}");
+        adminClient().performRequest(alias);
+        Request typed = new Request("PUT", "/" + VALIDATION_INDEX + "/_doc/typed");
+        typed.addParameter("refresh", "true");
+        typed.setJsonEntity("{\"type\":\"feature\",\"name\":\"f1\"}");
+        adminClient().performRequest(typed);
+        try {
+            assertStatus(400, as(WRITER, "GET", "/_ltr/alias/_feature", null));
+            assertStatus(400, as(WRITER, "GET", "/_ltr/alias/_feature/f1", null));
+            assertStatus(400, as(WRITER, "DELETE", "/_ltr/alias/_feature/f1", null));
+            assertStatus(400, as(WRITER, "GET", "/_ltr/alias", null));
+            Response all = as(WRITER, "GET", "/_ltr/*/_feature", null);
+            assertStatus(200, all);
+            assertFalse("a wildcard does not expand to the alias: " + body(all), body(all).contains(VALIDATION_INDEX));
+        } finally {
+            Request remove = new Request("POST", "/_aliases");
+            remove.setJsonEntity("{\"actions\":[{\"remove\":{\"index\":\"" + VALIDATION_INDEX + "\",\"alias\":\".ltrstore_alias\"}}]}");
+            adminClient().performRequest(remove);
+        }
+    }
+
     private void createUser(String name, String role) throws IOException {
         Request putRole = new Request("PUT", "/_plugins/_security/api/roles/" + name);
         putRole.setJsonEntity(role);
@@ -214,6 +278,11 @@ public class FeatureStorePermissionsIT extends OpenSearchRestTestCase {
         String body = body(response);
         assertTrue(body, body.contains("indices:data/read/search"));
         assertTrue("the caller, not the plugin, is denied: " + body, body.contains("User [name=" + WRITER_WITHOUT_READ));
+    }
+
+    private static void assertDenied(Response response, String action) throws IOException {
+        assertStatus(403, response);
+        assertTrue(body(response), body(response).contains(action));
     }
 
     private static void assertStatus(int expected, Response response) throws IOException {

@@ -17,7 +17,6 @@
 
 package com.o19s.es.ltr.rest;
 
-import static com.o19s.es.ltr.feature.store.StorableElement.generateId;
 import static com.o19s.es.ltr.query.ValidatingLtrQueryBuilder.SUPPORTED_TYPES;
 import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
@@ -26,9 +25,7 @@ import static org.opensearch.core.rest.RestStatus.OK;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Objects;
 
-import org.opensearch.action.delete.DeleteRequestBuilder;
 import org.opensearch.action.delete.DeleteResponse;
 import org.opensearch.action.get.GetResponse;
 import org.opensearch.core.action.ActionListener;
@@ -40,27 +37,21 @@ import org.opensearch.rest.action.RestStatusToXContentListener;
 import org.opensearch.rest.action.RestToXContentListener;
 import org.opensearch.transport.client.node.NodeClient;
 
-import com.o19s.es.ltr.action.ClearCachesAction;
+import com.o19s.es.ltr.action.DeleteStoreElementAction;
 import com.o19s.es.ltr.action.FeatureStoreAction;
+import com.o19s.es.ltr.action.GetStoreElementAction;
 import com.o19s.es.ltr.feature.store.StorableElement;
-import com.o19s.es.ltr.feature.store.StoredFeature;
-import com.o19s.es.ltr.feature.store.StoredFeatureSet;
-import com.o19s.es.ltr.feature.store.StoredLtrModel;
-import com.o19s.es.ltr.utils.PluginClient;
 
 public class RestFeatureManager extends FeatureStoreBaseRestHandler {
     private final String type;
-    private final PluginClient pluginClient;
 
     /**
      * Creates the handler for one element type.
      *
      * @param type the element type the routes serve
-     * @param pluginClient reads and deletes store elements as the plugin subject
      */
-    public RestFeatureManager(String type, PluginClient pluginClient) {
+    public RestFeatureManager(String type) {
         this.type = type;
-        this.pluginClient = Objects.requireNonNull(pluginClient);
     }
 
     @Override
@@ -96,7 +87,7 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
         if (request.method() == RestRequest.Method.DELETE) {
             return delete(client, type, indexName, request);
         } else if (request.method() == RestRequest.Method.HEAD || request.method() == RestRequest.Method.GET) {
-            return get(type, indexName, request);
+            return get(client, type, indexName, request);
         } else {
             return addOrUpdate(client, type, indexName, request);
         }
@@ -104,42 +95,31 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
 
     RestChannelConsumer delete(NodeClient client, String type, String indexName, RestRequest request) {
         assert SUPPORTED_TYPES.contains(type);
-        String name = request.param("name");
-        String id = generateId(type, name);
         String routing = request.param("routing");
+        DeleteStoreElementAction.DeleteStoreElementRequest deleteRequest = new DeleteStoreElementAction.DeleteStoreElementRequest(
+            indexName,
+            type,
+            request.param("name"),
+            routing
+        );
         return (channel) -> {
-            RestStatusToXContentListener<DeleteResponse> restR = new RestStatusToXContentListener<>(channel, (r) -> r.getLocation(routing));
-            ClearCachesAction.ClearCachesNodesRequest clearCache = new ClearCachesAction.ClearCachesNodesRequest();
-            switch (type) {
-                case StoredFeature.TYPE:
-                    clearCache.clearFeature(indexName, name);
-                    break;
-                case StoredFeatureSet.TYPE:
-                    clearCache.clearFeatureSet(indexName, name);
-                    break;
-                case StoredLtrModel.TYPE:
-                    clearCache.clearModel(indexName, name);
-                    break;
+            try {
+                client
+                    .execute(
+                        DeleteStoreElementAction.INSTANCE,
+                        deleteRequest,
+                        new RestStatusToXContentListener<DeleteResponse>(channel, (r) -> r.getLocation(routing))
+                    );
+            } catch (Exception e) {
+                channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }
-            DeleteRequestBuilder deleteRequest = pluginClient.prepareDelete(indexName, id).setRouting(routing);
-            // clearing cache first and deleting next
-            // if cache clearning fails, we do not attempt to delete and return with an error
-            // need to evaluate this strategy
-            client.execute(ClearCachesAction.INSTANCE, clearCache, ActionListener.wrap((r) -> {
-                try {
-                    deleteRequest.execute(restR);
-                } catch (Exception e) {
-                    channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
-                }
-            }, restR::onFailure));
         };
     }
 
-    RestChannelConsumer get(String type, String indexName, RestRequest request) {
+    RestChannelConsumer get(NodeClient client, String type, String indexName, RestRequest request) {
         assert SUPPORTED_TYPES.contains(type);
         String name = request.param("name");
         String routing = request.param("routing");
-        String id = generateId(type, name);
         return (channel) -> {
             try {
                 ActionListener<GetResponse> listener = new RestToXContentListener<GetResponse>(channel) {
@@ -149,7 +129,12 @@ public class RestFeatureManager extends FeatureStoreBaseRestHandler {
                     }
                 };
 
-                pluginClient.prepareGet(indexName, id).setRouting(routing).execute(listener);
+                client
+                    .execute(
+                        GetStoreElementAction.INSTANCE,
+                        new GetStoreElementAction.GetStoreElementRequest(indexName, type, name, routing),
+                        listener
+                    );
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }

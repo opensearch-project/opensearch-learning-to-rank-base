@@ -25,13 +25,11 @@ import static org.opensearch.core.action.ActionListener.wrap;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Stream;
 
-import org.opensearch.action.admin.cluster.state.ClusterStateRequest;
 import org.opensearch.action.search.MultiSearchRequestBuilder;
 import org.opensearch.action.search.MultiSearchResponse;
 import org.opensearch.action.search.SearchRequestBuilder;
@@ -112,19 +110,18 @@ public class TransportListStoresAction extends TransportClusterManagerNodeReadAc
         ClusterState state,
         ActionListener<ListStoresActionResponse> listener
     ) throws Exception {
-        String[] names = indexNameExpressionResolver
-            .concreteIndexNames(
-                state,
-                new ClusterStateRequest().indices(IndexFeatureStore.DEFAULT_STORE, IndexFeatureStore.STORE_PREFIX + "*")
-            );
         final MultiSearchRequestBuilder req = pluginClient.prepareMultiSearch();
         final List<Tuple<String, Integer>> versions = new ArrayList<>();
-        Stream
-            .of(names)
-            .filter(IndexFeatureStore::isIndexStore)
-            .map((s) -> clusterService.state().metadata().getIndices().get(s))
-            .filter(Objects::nonNull)
+        // Reads the metadata rather than resolving a pattern, which would check system index access in the caller's context.
+        state
+            .metadata()
+            .getIndices()
+            .values()
+            .stream()
+            .filter((im) -> IndexFeatureStore.isIndexStore(im.getIndex().getName()))
+            .filter((im) -> im.getState() == IndexMetadata.State.OPEN)
             .filter((im) -> STORE_VERSION_PROP.exists(im.getSettings()))
+            .sorted(Comparator.comparing((IndexMetadata im) -> im.getIndex().getName()))
             .forEach((m) -> {
                 req.add(countSearchRequest(m));
                 versions.add(tuple(m.getIndex().getName(), STORE_VERSION_PROP.get(m.getSettings())));

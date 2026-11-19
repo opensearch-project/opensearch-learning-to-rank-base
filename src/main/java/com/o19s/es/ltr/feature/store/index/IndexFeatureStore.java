@@ -183,6 +183,24 @@ public class IndexFeatureStore implements FeatureStore {
             || (indexName.startsWith(STORE_PREFIX) && indexName.length() > STORE_PREFIX.length());
     }
 
+    /**
+     * Returns whether every comma-separated name in an index expression is a possible index store.
+     *
+     * @param indexExpression the index name or comma-separated names, wildcards allowed
+     * @return true if each name passes {@link #isIndexStore(String)}
+     */
+    public static boolean isIndexStoreExpression(String indexExpression) {
+        if (indexExpression == null || indexExpression.isEmpty()) {
+            return false;
+        }
+        for (String name : indexExpression.split(",", -1)) {
+            if (!isIndexStore(name)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     @Override
     public CompiledLtrModel loadModel(String name) throws IOException {
         StoredLtrModel model = getAndParse(name, StoredLtrModel.class, StoredLtrModel.TYPE)

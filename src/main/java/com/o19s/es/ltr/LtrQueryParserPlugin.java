@@ -96,15 +96,23 @@ import com.o19s.es.ltr.action.CachesStatsAction;
 import com.o19s.es.ltr.action.ClearCachesAction;
 import com.o19s.es.ltr.action.CreateModelFromSetAction;
 import com.o19s.es.ltr.action.DeleteStoreAction;
+import com.o19s.es.ltr.action.DeleteStoreElementAction;
 import com.o19s.es.ltr.action.FeatureStoreAction;
+import com.o19s.es.ltr.action.GetStoreElementAction;
 import com.o19s.es.ltr.action.ListStoresAction;
+import com.o19s.es.ltr.action.SearchStoreElementsAction;
+import com.o19s.es.ltr.action.StoreExistsAction;
 import com.o19s.es.ltr.action.TransportAddFeatureToSetAction;
 import com.o19s.es.ltr.action.TransportCacheStatsAction;
 import com.o19s.es.ltr.action.TransportClearCachesAction;
 import com.o19s.es.ltr.action.TransportCreateModelFromSetAction;
 import com.o19s.es.ltr.action.TransportDeleteStoreAction;
+import com.o19s.es.ltr.action.TransportDeleteStoreElementAction;
 import com.o19s.es.ltr.action.TransportFeatureStoreAction;
+import com.o19s.es.ltr.action.TransportGetStoreElementAction;
 import com.o19s.es.ltr.action.TransportListStoresAction;
+import com.o19s.es.ltr.action.TransportSearchStoreElementsAction;
+import com.o19s.es.ltr.action.TransportStoreExistsAction;
 import com.o19s.es.ltr.feature.store.StorableElement;
 import com.o19s.es.ltr.feature.store.StoredFeature;
 import com.o19s.es.ltr.feature.store.StoredFeatureSet;
@@ -222,10 +230,10 @@ public class LtrQueryParserPlugin extends Plugin
         List<RestHandler> list = new ArrayList<>();
 
         for (String type : ValidatingLtrQueryBuilder.SUPPORTED_TYPES) {
-            list.add(new RestFeatureManager(type, pluginClient));
-            list.add(new RestSearchStoreElements(type, pluginClient));
+            list.add(new RestFeatureManager(type));
+            list.add(new RestSearchStoreElements(type));
         }
-        list.add(new RestStoreManager(pluginClient));
+        list.add(new RestStoreManager());
 
         list.add(new RestFeatureStoreCaches());
         list.add(new RestCreateModelFromSet());
@@ -245,6 +253,10 @@ public class LtrQueryParserPlugin extends Plugin
                 new ActionHandler<>(CreateModelFromSetAction.INSTANCE, TransportCreateModelFromSetAction.class),
                 new ActionHandler<>(ListStoresAction.INSTANCE, TransportListStoresAction.class),
                 new ActionHandler<>(DeleteStoreAction.INSTANCE, TransportDeleteStoreAction.class),
+                new ActionHandler<>(GetStoreElementAction.INSTANCE, TransportGetStoreElementAction.class),
+                new ActionHandler<>(DeleteStoreElementAction.INSTANCE, TransportDeleteStoreElementAction.class),
+                new ActionHandler<>(SearchStoreElementsAction.INSTANCE, TransportSearchStoreElementsAction.class),
+                new ActionHandler<>(StoreExistsAction.INSTANCE, TransportStoreExistsAction.class),
                 new ActionHandler<>(LTRStatsAction.INSTANCE, TransportLTRStatsAction.class)
             )
         );
