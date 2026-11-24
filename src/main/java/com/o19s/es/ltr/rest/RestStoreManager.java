@@ -22,11 +22,7 @@ import static java.util.Collections.unmodifiableList;
 import java.io.IOException;
 import java.util.List;
 
-import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsResponse;
-import org.opensearch.action.support.clustermanager.AcknowledgedResponse;
-import org.opensearch.common.util.concurrent.ThreadContext;
-import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.ltr.settings.LTRSettings;
@@ -38,7 +34,9 @@ import org.opensearch.rest.action.RestBuilderListener;
 import org.opensearch.rest.action.RestToXContentListener;
 import org.opensearch.transport.client.node.NodeClient;
 
+import com.o19s.es.ltr.action.DeleteStoreAction;
 import com.o19s.es.ltr.action.ListStoresAction;
+import com.o19s.es.ltr.action.StoreExistsAction;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
 
 public class RestStoreManager extends FeatureStoreBaseRestHandler {
@@ -107,15 +105,8 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
 
     RestChannelConsumer listStores(NodeClient client) {
         return (channel) -> {
-            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
-                RestToXContentListener<ListStoresAction.ListStoresActionResponse> listStoresListener = new RestToXContentListener<>(
-                    channel
-                );
-
-                ActionListener<ListStoresAction.ListStoresActionResponse> wrappedListener = ActionListener
-                    .runBefore(listStoresListener, () -> threadContext.restore());
-
-                new ListStoresAction.ListStoresActionBuilder(client).execute(wrappedListener);
+            try {
+                new ListStoresAction.ListStoresActionBuilder(client).execute(new RestToXContentListener<>(channel));
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }
@@ -124,7 +115,7 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
 
     RestChannelConsumer getStore(NodeClient client, String indexName) {
         return (channel) -> {
-            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
+            try {
                 RestBuilderListener<IndicesExistsResponse> existsListener = new RestBuilderListener<IndicesExistsResponse>(channel) {
                     @Override
                     public RestResponse buildResponse(IndicesExistsResponse indicesExistsResponse, XContentBuilder builder)
@@ -134,10 +125,7 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
                     }
                 };
 
-                ActionListener<IndicesExistsResponse> wrappedListener = ActionListener
-                    .runBefore(existsListener, () -> threadContext.restore());
-
-                client.admin().indices().prepareExists(indexName).execute(wrappedListener);
+                client.execute(StoreExistsAction.INSTANCE, new StoreExistsAction.StoreExistsRequest(indexName), existsListener);
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }
@@ -152,13 +140,10 @@ public class RestStoreManager extends FeatureStoreBaseRestHandler {
     }
 
     RestChannelConsumer deleteIndex(NodeClient client, String indexName) {
-        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(indexName);
+        DeleteStoreAction.DeleteStoreRequest deleteStoreRequest = new DeleteStoreAction.DeleteStoreRequest(indexName);
         return (channel) -> {
-            try (ThreadContext.StoredContext threadContext = client.threadPool().getThreadContext().stashContext()) {
-                ActionListener<AcknowledgedResponse> wrappedListener = ActionListener
-                    .runBefore(new RestToXContentListener<>(channel), () -> threadContext.restore());
-
-                client.admin().indices().delete(deleteIndexRequest, wrappedListener);
+            try {
+                client.execute(DeleteStoreAction.INSTANCE, deleteStoreRequest, new RestToXContentListener<>(channel));
             } catch (Exception e) {
                 channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
             }

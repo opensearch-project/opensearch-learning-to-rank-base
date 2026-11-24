@@ -373,35 +373,62 @@ if (Boolean.getBoolean('security.enabled')) {
     overwrite false
   }
 
-  testClusters.integTest {
-    plugin(layout.file(provider { configurations.securityPlugin.singleFile }))
-    nodes.each { node ->
+  def configureSecureCluster = { cluster ->
+    cluster.plugin(layout.file(provider { configurations.securityPlugin.singleFile }))
+    cluster.nodes.each { node ->
       node.secure = true
       node.credentials[0].putAll([username: 'admin', password: 'admin'])
     }
     securityCertificates.each { name ->
-      extraConfigFile name, securityResources.get().file(name).asFile
+      cluster.extraConfigFile name, securityResources.get().file(name).asFile
     }
-    setting 'plugins.security.ssl.transport.pemcert_filepath', 'esnode.pem'
-    setting 'plugins.security.ssl.transport.pemkey_filepath', 'esnode-key.pem'
-    setting 'plugins.security.ssl.transport.pemtrustedcas_filepath', 'root-ca.pem'
-    setting 'plugins.security.ssl.transport.enforce_hostname_verification', 'false'
-    setting 'plugins.security.ssl.http.enabled', 'true'
-    setting 'plugins.security.ssl.http.pemcert_filepath', 'esnode.pem'
-    setting 'plugins.security.ssl.http.pemkey_filepath', 'esnode-key.pem'
-    setting 'plugins.security.ssl.http.pemtrustedcas_filepath', 'root-ca.pem'
-    setting 'plugins.security.allow_unsafe_democertificates', 'true'
-    setting 'plugins.security.allow_default_init_securityindex', 'true'
+    cluster.setting 'plugins.security.ssl.transport.pemcert_filepath', 'esnode.pem'
+    cluster.setting 'plugins.security.ssl.transport.pemkey_filepath', 'esnode-key.pem'
+    cluster.setting 'plugins.security.ssl.transport.pemtrustedcas_filepath', 'root-ca.pem'
+    cluster.setting 'plugins.security.ssl.transport.enforce_hostname_verification', 'false'
+    cluster.setting 'plugins.security.ssl.http.enabled', 'true'
+    cluster.setting 'plugins.security.ssl.http.pemcert_filepath', 'esnode.pem'
+    cluster.setting 'plugins.security.ssl.http.pemkey_filepath', 'esnode-key.pem'
+    cluster.setting 'plugins.security.ssl.http.pemtrustedcas_filepath', 'root-ca.pem'
+    cluster.setting 'plugins.security.allow_unsafe_democertificates', 'true'
+    cluster.setting 'plugins.security.allow_default_init_securityindex', 'true'
+    // Lets the demo admin create the restricted users that FeatureStorePermissionsIT signs in as.
+    cluster.setting 'plugins.security.restapi.roles_enabled', '["all_access"]'
+  }
+  def configureSecureTests = { task ->
+    task.dependsOn downloadSecurityCertificates
+    task.systemProperty 'https', 'true'
+    task.systemProperty 'user', 'admin'
+    task.systemProperty 'password', 'admin'
+    task.systemProperty 'security.enabled', 'true'
+  }
+
+  testClusters.integTest { configureSecureCluster(delegate) }
+  // The same permission checks with system index protection on, where the plugin is granted only its own indices.
+  // The YAML suite does not run here: its cleanup deletes the store indices directly, which protection forbids.
+  testClusters.register('integTestSystemIndexProtection') {
+    plugin(project.tasks.bundlePlugin.archiveFile)
+    configureSecureCluster(delegate)
+    setting 'plugins.security.system_indices.enabled', 'true'
+  }
+  task integTestSystemIndexProtection(type: RestIntegTestTask) {
+    description = "Run the feature store permission tests with system index protection enabled"
+    testClassesDirs = sourceSets.javaRestTest.output.classesDirs
+    classpath = sourceSets.javaRestTest.runtimeClasspath
+    dependsOn "bundlePlugin"
+    systemProperty 'tests.security.manager', 'false'
+    configureSecureTests(delegate)
+    filter {
+      includeTestsMatching 'com.o19s.es.ltr.FeatureStorePermissionsIT'
+    }
   }
   integTest {
-    dependsOn downloadSecurityCertificates
-    systemProperty 'https', 'true'
-    systemProperty 'user', 'admin'
-    systemProperty 'password', 'admin'
-    systemProperty 'security.enabled', 'true'
+    configureSecureTests(delegate)
+    dependsOn integTestSystemIndexProtection
     filter {
       includeTestsMatching 'com.o19s.es.ltr.LtrQueryClientYamlTestSuiteIT'
       includeTestsMatching 'com.o19s.es.ltr.SecurityEnabledIT'
+      includeTestsMatching 'com.o19s.es.ltr.FeatureStorePermissionsIT'
     }
   }
 }

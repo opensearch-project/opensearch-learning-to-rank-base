@@ -25,13 +25,11 @@ import static org.opensearch.core.action.ActionListener.wrap;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Stream;
 
-import org.opensearch.action.admin.cluster.state.ClusterStateRequest;
 import org.opensearch.action.search.MultiSearchRequestBuilder;
 import org.opensearch.action.search.MultiSearchResponse;
 import org.opensearch.action.search.SearchRequestBuilder;
@@ -53,15 +51,27 @@ import org.opensearch.search.aggregations.bucket.MultiBucketsAggregation;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
-import org.opensearch.transport.client.Client;
 
 import com.o19s.es.ltr.action.ListStoresAction.ListStoresActionRequest;
 import com.o19s.es.ltr.action.ListStoresAction.ListStoresActionResponse;
-import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
+import com.o19s.es.ltr.feature.store.index.StoreIndices;
+import com.o19s.es.ltr.utils.PluginClient;
 
+/** Lists the feature stores and counts their elements. The counting multi-search runs as the plugin subject. */
 public class TransportListStoresAction extends TransportClusterManagerNodeReadAction<ListStoresActionRequest, ListStoresActionResponse> {
-    private final Client client;
+    private final PluginClient pluginClient;
 
+    /**
+     * Creates the action.
+     *
+     * @param settings the node settings
+     * @param transportService the transport service
+     * @param clusterService the cluster service
+     * @param threadPool the thread pool
+     * @param actionFilters the action filters
+     * @param indexNameExpressionResolver the index name resolver
+     * @param pluginClient counts the store elements as the plugin subject
+     */
     @Inject
     public TransportListStoresAction(
         Settings settings,
@@ -70,7 +80,7 @@ public class TransportListStoresAction extends TransportClusterManagerNodeReadAc
         ThreadPool threadPool,
         ActionFilters actionFilters,
         IndexNameExpressionResolver indexNameExpressionResolver,
-        Client client
+        PluginClient pluginClient
     ) {
         super(
             ListStoresAction.NAME,
@@ -81,7 +91,7 @@ public class TransportListStoresAction extends TransportClusterManagerNodeReadAc
             ListStoresActionRequest::new,
             indexNameExpressionResolver
         );
-        this.client = client;
+        this.pluginClient = pluginClient;
     }
 
     @Override
@@ -100,19 +110,13 @@ public class TransportListStoresAction extends TransportClusterManagerNodeReadAc
         ClusterState state,
         ActionListener<ListStoresActionResponse> listener
     ) throws Exception {
-        String[] names = indexNameExpressionResolver
-            .concreteIndexNames(
-                state,
-                new ClusterStateRequest().indices(IndexFeatureStore.DEFAULT_STORE, IndexFeatureStore.STORE_PREFIX + "*")
-            );
-        final MultiSearchRequestBuilder req = client.prepareMultiSearch();
+        final MultiSearchRequestBuilder req = pluginClient.prepareMultiSearch();
         final List<Tuple<String, Integer>> versions = new ArrayList<>();
-        Stream
-            .of(names)
-            .filter(IndexFeatureStore::isIndexStore)
-            .map((s) -> clusterService.state().metadata().getIndices().get(s))
-            .filter(Objects::nonNull)
+        // Reads the metadata rather than resolving a pattern, which would check system index access in the caller's context.
+        StoreIndices
+            .openStores(state.metadata())
             .filter((im) -> STORE_VERSION_PROP.exists(im.getSettings()))
+            .sorted(Comparator.comparing((IndexMetadata im) -> im.getIndex().getName()))
             .forEach((m) -> {
                 req.add(countSearchRequest(m));
                 versions.add(tuple(m.getIndex().getName(), STORE_VERSION_PROP.get(m.getSettings())));
@@ -125,7 +129,7 @@ public class TransportListStoresAction extends TransportClusterManagerNodeReadAc
     }
 
     private SearchRequestBuilder countSearchRequest(IndexMetadata meta) {
-        return client
+        return pluginClient
             .prepareSearch(meta.getIndex().getName())
             .setQuery(QueryBuilders.matchAllQuery())
             .setSize(0)
@@ -151,18 +155,6 @@ public class TransportListStoresAction extends TransportClusterManagerNodeReadAc
             infos.add(new ListStoresAction.IndexStoreInfo(idxAndVersion.v1(), idxAndVersion.v2(), counts));
         }
         return new ListStoresActionResponse(infos);
-    }
-
-    private Tuple<String, Integer> toVersion(String s) {
-        if (!IndexFeatureStore.isIndexStore(s)) {
-            return null;
-        }
-        IndexMetadata index = clusterService.state().metadata().getIndices().get(s);
-
-        if (index != null && STORE_VERSION_PROP.exists(index.getSettings())) {
-            return new Tuple<>(index.getIndex().getName(), STORE_VERSION_PROP.get(index.getSettings()));
-        }
-        return null;
     }
 
     @Override

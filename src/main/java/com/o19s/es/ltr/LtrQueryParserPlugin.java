@@ -55,6 +55,7 @@ import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;
+import org.opensearch.identity.PluginSubject;
 import org.opensearch.index.analysis.PreConfiguredTokenFilter;
 import org.opensearch.index.analysis.PreConfiguredTokenizer;
 import org.opensearch.indices.SystemIndexDescriptor;
@@ -73,6 +74,7 @@ import org.opensearch.ltr.transport.TransportLTRStatsAction;
 import org.opensearch.monitor.jvm.JvmService;
 import org.opensearch.plugins.ActionPlugin;
 import org.opensearch.plugins.AnalysisPlugin;
+import org.opensearch.plugins.IdentityAwarePlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.ScriptPlugin;
 import org.opensearch.plugins.SearchPlugin;
@@ -93,14 +95,24 @@ import com.o19s.es.ltr.action.AddFeaturesToSetAction;
 import com.o19s.es.ltr.action.CachesStatsAction;
 import com.o19s.es.ltr.action.ClearCachesAction;
 import com.o19s.es.ltr.action.CreateModelFromSetAction;
+import com.o19s.es.ltr.action.DeleteStoreAction;
+import com.o19s.es.ltr.action.DeleteStoreElementAction;
 import com.o19s.es.ltr.action.FeatureStoreAction;
+import com.o19s.es.ltr.action.GetStoreElementAction;
 import com.o19s.es.ltr.action.ListStoresAction;
+import com.o19s.es.ltr.action.SearchStoreElementsAction;
+import com.o19s.es.ltr.action.StoreExistsAction;
 import com.o19s.es.ltr.action.TransportAddFeatureToSetAction;
 import com.o19s.es.ltr.action.TransportCacheStatsAction;
 import com.o19s.es.ltr.action.TransportClearCachesAction;
 import com.o19s.es.ltr.action.TransportCreateModelFromSetAction;
+import com.o19s.es.ltr.action.TransportDeleteStoreAction;
+import com.o19s.es.ltr.action.TransportDeleteStoreElementAction;
 import com.o19s.es.ltr.action.TransportFeatureStoreAction;
+import com.o19s.es.ltr.action.TransportGetStoreElementAction;
 import com.o19s.es.ltr.action.TransportListStoresAction;
+import com.o19s.es.ltr.action.TransportSearchStoreElementsAction;
+import com.o19s.es.ltr.action.TransportStoreExistsAction;
 import com.o19s.es.ltr.feature.store.StorableElement;
 import com.o19s.es.ltr.feature.store.StoredFeature;
 import com.o19s.es.ltr.feature.store.StoredFeatureSet;
@@ -126,17 +138,26 @@ import com.o19s.es.ltr.rest.RestFeatureStoreCaches;
 import com.o19s.es.ltr.rest.RestSearchStoreElements;
 import com.o19s.es.ltr.rest.RestStoreManager;
 import com.o19s.es.ltr.utils.FeatureStoreLoader;
+import com.o19s.es.ltr.utils.PluginClient;
 import com.o19s.es.ltr.utils.Suppliers;
 import com.o19s.es.termstat.TermStatQueryBuilder;
 
 import ciir.umass.edu.learning.RankerFactory;
 
-public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, ScriptPlugin, ActionPlugin, AnalysisPlugin, SystemIndexPlugin {
+public class LtrQueryParserPlugin extends Plugin
+    implements
+        SearchPlugin,
+        ScriptPlugin,
+        ActionPlugin,
+        AnalysisPlugin,
+        SystemIndexPlugin,
+        IdentityAwarePlugin {
     public static final String LTR_BASE_URI = "/_plugins/_ltr";
     public static final String LTR_LEGACY_BASE_URI = "/_opendistro/_ltr";
     private final LtrRankerParserFactory parserFactory;
     private final Caches caches;
     private final LTRStats ltrStats;
+    private PluginClient pluginClient;
 
     public LtrQueryParserPlugin(Settings settings) {
         caches = new Caches(settings);
@@ -231,6 +252,11 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
                 new ActionHandler<>(AddFeaturesToSetAction.INSTANCE, TransportAddFeatureToSetAction.class),
                 new ActionHandler<>(CreateModelFromSetAction.INSTANCE, TransportCreateModelFromSetAction.class),
                 new ActionHandler<>(ListStoresAction.INSTANCE, TransportListStoresAction.class),
+                new ActionHandler<>(DeleteStoreAction.INSTANCE, TransportDeleteStoreAction.class),
+                new ActionHandler<>(GetStoreElementAction.INSTANCE, TransportGetStoreElementAction.class),
+                new ActionHandler<>(DeleteStoreElementAction.INSTANCE, TransportDeleteStoreElementAction.class),
+                new ActionHandler<>(SearchStoreElementsAction.INSTANCE, TransportSearchStoreElementsAction.class),
+                new ActionHandler<>(StoreExistsAction.INSTANCE, TransportStoreExistsAction.class),
                 new ActionHandler<>(LTRStatsAction.INSTANCE, TransportLTRStatsAction.class)
             )
         );
@@ -304,6 +330,8 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
         IndexNameExpressionResolver indexNameExpressionResolver,
         Supplier<RepositoriesService> repositoriesServiceSupplier
     ) {
+        pluginClient = new PluginClient(client);
+
         clusterService.addListener(event -> {
             for (Index i : event.indicesDeleted()) {
                 if (IndexFeatureStore.isIndexStore(i.getName())) {
@@ -321,7 +349,18 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
         final LTRCircuitBreakerService ltrCircuitBreakerService = new LTRCircuitBreakerService(jvmService).init();
 
         addStats(client, clusterService, ltrCircuitBreakerService);
-        return asList(caches, parserFactory, ltrCircuitBreakerService, ltrStats);
+        // Bound by its class, so the transport actions can run their store access through it.
+        return asList(caches, parserFactory, ltrCircuitBreakerService, ltrStats, pluginClient);
+    }
+
+    /**
+     * Gives the plugin client the subject it runs store access as.
+     *
+     * @param pluginSubject this plugin's system subject
+     */
+    @Override
+    public void assignSubject(PluginSubject pluginSubject) {
+        pluginClient.setSubject(pluginSubject);
     }
 
     private void addStats(
@@ -346,10 +385,7 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
     }
 
     protected FeatureStoreLoader getFeatureStoreLoader() {
-        return (storeName, clientSupplier) -> new CachedFeatureStore(
-            new IndexFeatureStore(storeName, clientSupplier, parserFactory),
-            caches
-        );
+        return (storeName) -> new CachedFeatureStore(new IndexFeatureStore(storeName, () -> pluginClient, parserFactory), caches);
     }
 
     // A simplified version of some token filters needed by the feature stores.

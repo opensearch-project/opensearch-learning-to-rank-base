@@ -27,10 +27,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.opensearch.action.get.GetRequest;
 import org.opensearch.action.get.GetResponse;
-import org.opensearch.action.get.TransportGetAction;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.action.search.TransportSearchAction;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
@@ -57,14 +55,32 @@ import com.o19s.es.ltr.feature.store.StorableElement;
 import com.o19s.es.ltr.feature.store.StoredFeature;
 import com.o19s.es.ltr.feature.store.StoredFeatureSet;
 import com.o19s.es.ltr.feature.store.index.IndexFeatureStore;
+import com.o19s.es.ltr.utils.PluginClient;
 
+/**
+ * Adds features to a feature set. The feature set get and the feature search run as the plugin subject. The updated
+ * set is then stored through {@link FeatureStoreAction} in the caller's context, so the caller is checked for that
+ * action too and the validation search runs as the caller.
+ */
 public class TransportAddFeatureToSetAction extends HandledTransportAction<AddFeaturesToSetRequest, AddFeaturesToSetResponse> {
     private final ClusterService clusterService;
-    private final TransportSearchAction searchAction;
-    private final TransportGetAction getAction;
+    private final PluginClient pluginClient;
     private final TransportFeatureStoreAction featureStoreAction;
     private final LTRCircuitBreakerService ltrCircuitBreakerService;
 
+    /**
+     * Creates the action.
+     *
+     * @param settings the node settings
+     * @param threadPool the thread pool
+     * @param transportService the transport service
+     * @param actionFilters the action filters
+     * @param indexNameExpressionResolver the index name resolver
+     * @param clusterService the cluster service
+     * @param pluginClient reads the store as the plugin subject
+     * @param featureStoreAction stores the updated feature set
+     * @param ltrCircuitBreakerService refuses writes while the memory circuit is open
+     */
     @Inject
     public TransportAddFeatureToSetAction(
         Settings settings,
@@ -73,15 +89,13 @@ public class TransportAddFeatureToSetAction extends HandledTransportAction<AddFe
         ActionFilters actionFilters,
         IndexNameExpressionResolver indexNameExpressionResolver,
         ClusterService clusterService,
-        TransportSearchAction searchAction,
-        TransportGetAction getAction,
+        PluginClient pluginClient,
         TransportFeatureStoreAction featureStoreAction,
         LTRCircuitBreakerService ltrCircuitBreakerService
     ) {
         super(AddFeaturesToSetAction.NAME, transportService, actionFilters, AddFeaturesToSetRequest::new);
         this.clusterService = clusterService;
-        this.searchAction = searchAction;
-        this.getAction = getAction;
+        this.pluginClient = pluginClient;
         this.featureStoreAction = featureStoreAction;
         this.ltrCircuitBreakerService = ltrCircuitBreakerService;
     }
@@ -96,7 +110,7 @@ public class TransportAddFeatureToSetAction extends HandledTransportAction<AddFe
                 "Store [" + request.getStore() + "] adding feature set is not allowed " + "as memory circuit is broken."
             );
         }
-        new AsyncAction(task, request, listener, clusterService, searchAction, getAction, featureStoreAction).start();
+        new AsyncAction(task, request, listener, clusterService, pluginClient, featureStoreAction).start();
     }
 
     /**
@@ -123,8 +137,7 @@ public class TransportAddFeatureToSetAction extends HandledTransportAction<AddFe
         private final CountDown countdown;
         private final AtomicLong version = new AtomicLong(-1L);
         private final ClusterService clusterService;
-        private final TransportSearchAction searchAction;
-        private final TransportGetAction getAction;
+        private final PluginClient pluginClient;
         private final TransportFeatureStoreAction featureStoreAction;
         private final FeatureValidation validation;
 
@@ -133,8 +146,7 @@ public class TransportAddFeatureToSetAction extends HandledTransportAction<AddFe
             AddFeaturesToSetRequest request,
             ActionListener<AddFeaturesToSetResponse> listener,
             ClusterService clusterService,
-            TransportSearchAction searchAction,
-            TransportGetAction getAction,
+            PluginClient pluginClient,
             TransportFeatureStoreAction featureStoreAction
         ) {
             this.task = task;
@@ -155,8 +167,7 @@ public class TransportAddFeatureToSetAction extends HandledTransportAction<AddFe
             this.store = request.getStore();
             this.routing = request.getRouting();
             this.clusterService = clusterService;
-            this.searchAction = searchAction;
-            this.getAction = getAction;
+            this.pluginClient = pluginClient;
             this.featureStoreAction = featureStoreAction;
             this.validation = request.getValidation();
         }
@@ -172,7 +183,7 @@ public class TransportAddFeatureToSetAction extends HandledTransportAction<AddFe
                 .routing(routing);
 
             getRequest.setParentTask(clusterService.localNode().getId(), task.getId());
-            getAction.execute(getRequest, wrap(this::onGetResponse, this::onGetFailure));
+            pluginClient.get(getRequest, wrap(this::onGetResponse, this::onGetFailure));
         }
 
         private void fetchFeaturesFromStore() {
@@ -197,7 +208,7 @@ public class TransportAddFeatureToSetAction extends HandledTransportAction<AddFe
             srequest.source().query(bq);
             srequest.source().fetchSource(true);
             srequest.source().size(StoredFeatureSet.MAX_FEATURES);
-            searchAction.execute(srequest, wrap(this::onSearchResponse, this::onSearchFailure));
+            pluginClient.search(srequest, wrap(this::onSearchResponse, this::onSearchFailure));
         }
 
         private void onGetFailure(Exception e) {

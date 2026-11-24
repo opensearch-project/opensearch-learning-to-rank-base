@@ -49,10 +49,12 @@ Run the YAML REST suite against a local cluster with the Security plugin install
 
 This mode uses HTTPS and the demo `admin`/`admin` user for both requests and cleanup.
 It also runs `SecurityEnabledIT`, which checks the authenticated identity and verifies
-that invalid credentials are rejected. The in-process Java integration tests and the
-two-cluster snapshot suite are not included in this mode; they continue to run in the
-ordinary integration test tasks. This is compatibility coverage, not a restricted-user
-permissions suite.
+that invalid credentials are rejected, and `FeatureStorePermissionsIT`, which signs in as
+restricted users to check the permissions the feature store APIs need. The same command first
+runs `FeatureStorePermissionsIT` on a second cluster with
+`plugins.security.system_indices.enabled: true` (task `integTestSystemIndexProtection`).
+The in-process Java integration tests and the two-cluster snapshot suite are not included
+in this mode; they continue to run in the ordinary integration test tasks.
 
 The Security plugin version follows the OpenSearch version by default. Override it
 with `-Dsecurity.version=<version>` when testing a different compatible build.
